@@ -19,7 +19,10 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public select for now" ON public.profiles;
 CREATE POLICY "Allow public select for now" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow individual updates" ON public.profiles;
 CREATE POLICY "Allow individual updates" ON public.profiles FOR UPDATE USING (true);
 
 -- 3. IPTV Credentials Table (Master Structure)
@@ -39,6 +42,8 @@ CREATE TABLE IF NOT EXISTS public.iptv_credentials (
 );
 
 ALTER TABLE public.iptv_credentials ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for now" ON public.iptv_credentials;
 CREATE POLICY "Allow all for now" ON public.iptv_credentials FOR ALL USING (true);
 
 -- 4. Favorites Table
@@ -55,6 +60,8 @@ CREATE TABLE IF NOT EXISTS public.favorites (
 );
 
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all favorites" ON public.favorites;
 CREATE POLICY "Allow all favorites" ON public.favorites FOR ALL USING (true);
 
 -- 5. Recently Watched Table
@@ -70,6 +77,8 @@ CREATE TABLE IF NOT EXISTS public.recently_watched (
 );
 
 ALTER TABLE public.recently_watched ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all history" ON public.recently_watched;
 CREATE POLICY "Allow all history" ON public.recently_watched FOR ALL USING (true);
 
 -- 6. Playlist Cache Table (Critical for Performance)
@@ -82,6 +91,8 @@ CREATE TABLE IF NOT EXISTS public.playlist_cache (
 );
 
 ALTER TABLE public.playlist_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all cache" ON public.playlist_cache;
 CREATE POLICY "Allow all cache" ON public.playlist_cache FOR ALL USING (true);
 
 -- 7. Indexes for Performance
