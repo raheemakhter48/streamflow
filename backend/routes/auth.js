@@ -32,11 +32,11 @@ router.post('/register', async (req, res, next) => {
     }
 
     // Check if user exists
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: fetchError } = await supabase
       .from('users')
       .select('email')
       .eq('email', email.toLowerCase())
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       return res.status(400).json({
@@ -95,12 +95,12 @@ router.post('/login', async (req, res, next) => {
       .from('users')
       .select('id, email, password')
       .eq('email', email.toLowerCase())
-      .single();
+      .maybeSingle();
 
     if (error || !user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid credentials'
+        message: 'Invalid email or password'
       });
     }
 

@@ -24,13 +24,13 @@ export const protect = async (req, res, next) => {
         .from('users')
         .select('id, email')
         .eq('id', decoded.id)
-        .single();
+        .maybeSingle();
       
       if (error || !user) {
-        console.error('❌ User not found in Supabase:', error?.message);
+        console.error('❌ User not found in Supabase:', error?.message || 'User does not exist');
         return res.status(401).json({
           success: false,
-          message: 'User not found'
+          message: 'Session expired, please login again'
         });
       }
 

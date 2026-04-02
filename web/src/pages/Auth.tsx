@@ -37,15 +37,10 @@ const Auth = () => {
 
       const data = await authAPI.login(loginEmail, loginPassword);
 
-      if (!data.success) {
-        toast.error(data.message || "Invalid email or password");
-        return;
-      }
-
       toast.success("Welcome back!");
       navigate("/dashboard");
-    } catch (error) {
-      toast.error("An unexpected error occurred");
+    } catch (error: any) {
+      toast.error(error.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -65,19 +60,14 @@ const Auth = () => {
 
       const data = await authAPI.register(signupEmail, signupPassword);
 
-      if (!data.success) {
-        if (data.message?.includes("already exists")) {
-          toast.error("This email is already registered. Please login instead.");
-        } else {
-          toast.error(data.message || "Failed to create account");
-        }
-        return;
-      }
-
       toast.success("Account created! Welcome to StreamVault!");
       navigate("/dashboard");
-    } catch (error) {
-      toast.error("An unexpected error occurred");
+    } catch (error: any) {
+      if (error.message?.includes("already exists")) {
+        toast.error("This email is already registered. Please login instead.");
+      } else {
+        toast.error(error.message || "Failed to create account");
+      }
     } finally {
       setIsLoading(false);
     }

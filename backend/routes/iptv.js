@@ -63,9 +63,10 @@ router.get('/credentials', protect, async (req, res, next) => {
       .from('iptv_credentials')
       .select('*')
       .eq('user_id', req.user.id)
-      .single();
+      .maybeSingle();
     
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
+      console.error('❌ Supabase Error in credentials GET:', error.message);
       throw error;
     }
 
@@ -140,11 +141,15 @@ router.get('/playlist', protect, async (req, res, next) => {
     const CACHE_EXPIRY_HOURS = 12;
 
     // 1. Check Cache
-    const { data: cache } = await supabase
+    const { data: cache, error: cacheError } = await supabase
       .from('playlist_cache')
       .select('content, updated_at')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (cacheError) {
+      console.error('❌ Supabase Cache Error:', cacheError.message);
+    }
 
     if (cache) {
       const lastUpdate = new Date(cache.updated_at);
