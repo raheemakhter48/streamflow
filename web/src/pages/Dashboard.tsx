@@ -254,12 +254,14 @@ const Dashboard = () => {
             {recentlyWatched.slice(0, 10).map((item, idx) => (
               <ChannelCard
                 key={idx}
-                name={item.channelName}
-                url={item.channelUrl}
-                logo={item.channelLogo}
-                group={item.category}
+                channel={{
+                  name: item.channelName,
+                  url: item.channelUrl,
+                  logo: item.channelLogo,
+                  group: item.category
+                }}
                 isFavorite={favorites.includes(item.channelUrl)}
-                onClick={() => navigate(`/player?url=${encodeURIComponent(item.channelUrl)}&name=${encodeURIComponent(item.channelName)}`)}
+                onToggleFavorite={loadFavorites}
               />
             ))}
           </div>
@@ -324,9 +326,9 @@ const Dashboard = () => {
             {paginatedChannels.map((channel, index) => (
               <ChannelCard
                 key={`${channel.url}-${index}`}
-                {...channel}
+                channel={channel}
                 isFavorite={favorites.includes(channel.url)}
-                onClick={() => navigate(`/player?url=${encodeURIComponent(channel.url)}&name=${encodeURIComponent(channel.name)}`)}
+                onToggleFavorite={loadFavorites}
               />
             ))}
           </div>

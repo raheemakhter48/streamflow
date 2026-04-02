@@ -94,19 +94,26 @@ router.post('/credentials', protect, async (req, res, next) => {
       if (!epgUrl) finalEpgUrl = generateEPGFromCredentials(serverUrl, username, password);
     }
 
+    // Secure payload construction
+    const upsertData = {
+      user_id: req.user.id,
+      provider_name: providerName || null,
+      username: username || null,
+      password: password || null,
+      server_url: serverUrl || null,
+      m3u_url: finalM3uUrl || null,
+      m3u_content: m3uContent || null,
+      updated_at: new Date().toISOString()
+    };
+
+    // Only add epg_url if it's explicitly allowed/exists
+    if (finalEpgUrl) {
+      upsertData.epg_url = finalEpgUrl;
+    }
+
     const { data: credentials, error } = await supabase
       .from('iptv_credentials')
-      .upsert({
-        user_id: req.user.id,
-        provider_name: providerName || null,
-        username: username || null,
-        password: password || null,
-        server_url: serverUrl || null,
-        m3u_url: finalM3uUrl || null,
-        epg_url: finalEpgUrl || null,
-        m3u_content: m3uContent || null,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id' })
+      .upsert(upsertData, { onConflict: 'user_id' })
       .select()
       .single();
 
