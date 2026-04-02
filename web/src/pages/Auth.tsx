@@ -83,9 +83,8 @@ const Auth = () => {
       <Card className="w-full max-w-md glass-card border-glass-border relative z-10 animate-scale-in">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              <img src="/logo.png" alt="StreamVault" className="w-16 h-16 object-contain" />
-              <Tv className="hidden" />
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20 shadow-neon-blue">
+              <Tv className="w-12 h-12 text-primary animate-pulse" />
             </div>
           </div>
           <CardTitle className="text-3xl font-bold tracking-tighter">StreamVault</CardTitle>
