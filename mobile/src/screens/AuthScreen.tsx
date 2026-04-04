@@ -11,13 +11,12 @@ import {
   ScrollView,
   StatusBar,
   Dimensions,
-  Image,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import {useAuth} from '../context/AuthContext';
 import {useNavigation} from '@react-navigation/native';
 
-const {height} = Dimensions.get('window');
+const {height, width} = Dimensions.get('window');
 
 const AuthScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -28,9 +27,10 @@ const AuthScreen: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Logo Colors
-  const primaryColor = '#00A8B5'; // Teal
-  const secondaryColor = '#004E92'; // Deep Blue
+  // Figma Colors
+  const primaryCyan = '#00D7E5';
+  const secondaryCyan = '#00A8B5';
+  const blackBg = '#000000';
 
   const validateEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -71,107 +71,112 @@ const AuthScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient
-        colors={['#001C21', '#000000']}
-        style={styles.gradient}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled">
-            
-            <View style={styles.topSection}>
-              <View style={[styles.logoCircle, {borderColor: primaryColor}]}>
-                <Text style={[styles.logoEmoji, {color: primaryColor}]}>📺</Text>
-              </View>
-              <Text style={styles.title}>StreamFlow</Text>
-              <Text style={[styles.subtitle, {color: primaryColor}]}>
-                {isLogin ? 'Premium IPTV Streaming' : 'Join our streaming community'}
-              </Text>
+      
+      {/* Background Glows */}
+      <View style={styles.glowContainer}>
+        <View style={styles.topGlow} />
+        <View style={styles.bottomGlow} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled">
+          
+          <View style={styles.topSection}>
+            <View style={styles.logoContainer}>
+              <Text style={styles.logoIcon}>📺</Text>
             </View>
-
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>
-                {isLogin ? 'Welcome Back' : 'Create Account'}
-              </Text>
-
-              {error ? (
-                <View style={styles.errorBadge}>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email Address</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="name@example.com"
-                    placeholderTextColor="#555"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Minimum 6 characters"
-                    placeholderTextColor="#555"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={styles.actionButtonContainer}
-                onPress={handleSubmit}
-                disabled={loading}>
-                <LinearGradient
-                  colors={['#3b82f6', '#2563eb']}
-                  style={styles.actionButton}>
-                  {loading ? (
-                    <ActivityIndicator color="#ffffff" />
-                  ) : (
-                    <Text style={styles.actionButtonText}>
-                      {isLogin ? 'Login to Account' : 'Get Started'}
-                    </Text>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.toggleButton}
-                onPress={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                }}>
-                <Text style={styles.toggleText}>
-                  {isLogin
-                    ? "Don't have an account? "
-                    : 'Already have an account? '}
-                  <Text style={styles.toggleTextBold}>
-                    {isLogin ? 'Sign Up' : 'Login'}
-                  </Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.footerText}>
-              By continuing, you agree to our Terms of Service
+            <Text style={styles.title}>STREAM VAULT</Text>
+            <Text style={styles.tagline}>
+              {isLogin ? 'STREAM YOUR IPTV LIKE NEVER BEFORE' : 'JOIN THE ULTIMATE STREAMING EXPERIENCE'}
             </Text>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </LinearGradient>
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              {isLogin ? 'Welcome Back' : 'Create Account'}
+            </Text>
+
+            {error ? (
+              <View style={styles.errorBadge}>
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>EMAIL ADDRESS</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="name@example.com"
+                placeholderTextColor="#444"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>SECRET KEY</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="••••••••"
+                placeholderTextColor="#444"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.8}
+              style={styles.submitBtn}>
+              <LinearGradient
+                colors={[primaryCyan, secondaryCyan]}
+                start={{x: 0, y: 0}}
+                end={{x: 1, y: 0}}
+                style={styles.btnGradient}>
+                {loading ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={styles.submitBtnText}>
+                    {isLogin ? 'ENTER VAULT' : 'GET STARTED'}
+                  </Text>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.toggleButton}
+              onPress={() => {
+                setIsLogin(!isLogin);
+                setError('');
+              }}>
+              <Text style={styles.toggleText}>
+                {isLogin
+                  ? "Don't have an account? "
+                  : 'Already have an account? '}
+                <Text style={{color: primaryCyan, fontWeight: '900'}}>
+                  {isLogin ? 'SIGN UP' : 'LOGIN'}
+                </Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.footer}>
+            <View style={styles.footerLine} />
+            <Text style={styles.footerText}>
+              POWERED BY STREAMFLOW TECHNOLOGY
+            </Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
@@ -179,139 +184,177 @@ const AuthScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#000',
   },
-  gradient: {
-    flex: 1,
+  glowContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  topGlow: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: width * 0.8,
+    height: width * 0.8,
+    backgroundColor: 'rgba(0, 215, 229, 0.05)',
+    borderRadius: width * 0.4,
+  },
+  bottomGlow: {
+    position: 'absolute',
+    bottom: -150,
+    right: -150,
+    width: width,
+    height: width,
+    backgroundColor: 'rgba(0, 168, 181, 0.05)',
+    borderRadius: width * 0.5,
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: height * 0.1,
+    paddingHorizontal: 30,
+    paddingTop: height * 0.08,
     paddingBottom: 40,
   },
   topSection: {
     alignItems: 'center',
     marginBottom: 40,
   },
-  logoCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#1a1a1a',
+  logoImage: {
+    width: 100,
+    height: 100,
+    marginBottom: 20,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
     marginBottom: 20,
-    elevation: 10,
+    elevation: 20,
+    shadowColor: '#00D7E5',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
-  logoEmoji: {
-    fontSize: 40,
+  logoIcon: {
+    fontSize: 36,
+    color: '#000',
   },
   title: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '900',
-    color: '#ffffff',
+    color: '#fff',
     letterSpacing: -1,
+    fontStyle: 'italic',
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#888',
-    marginTop: 5,
-    fontWeight: '500',
+  tagline: {
+    fontSize: 12,
+    color: '#00D7E5',
+    marginTop: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textAlign: 'center',
   },
   card: {
-    backgroundColor: '#111',
-    borderRadius: 30,
-    padding: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 35,
+    padding: 25,
     borderWidth: 1,
-    borderColor: '#222',
-    elevation: 5,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   cardTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    marginBottom: 25,
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 30,
     textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   errorBadge: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 15,
     marginBottom: 20,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   errorText: {
     color: '#ef4444',
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#aaa',
-    marginBottom: 8,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  inputWrapper: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    color: '#00D7E5',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 10,
+    marginLeft: 5,
   },
   input: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 20,
+    height: 60,
+    paddingHorizontal: 20,
+    color: '#fff',
     fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  actionButtonContainer: {
+  submitBtn: {
     marginTop: 10,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
-    elevation: 4,
+    elevation: 10,
+    shadowColor: '#00D7E5',
+    shadowOffset: {width: 0, height: 5},
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
   },
-  actionButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
+  btnGradient: {
+    height: 65,
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  actionButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+  submitBtnText: {
+    color: '#000',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.5,
   },
   toggleButton: {
-    marginTop: 20,
+    marginTop: 25,
     alignItems: 'center',
   },
   toggleText: {
     color: '#666',
     fontSize: 14,
+    fontWeight: '500',
   },
-  toggleTextBold: {
-    color: '#3b82f6',
-    fontWeight: '800',
+  footer: {
+    marginTop: 'auto',
+    alignItems: 'center',
+    paddingTop: 40,
+  },
+  footerLine: {
+    width: 100,
+    height: 1,
+    backgroundColor: 'rgba(0, 215, 229, 0.2)',
+    marginBottom: 15,
   },
   footerText: {
-    marginTop: 30,
-    textAlign: 'center',
-    color: '#444',
-    fontSize: 12,
+    color: '#333',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
 });
 

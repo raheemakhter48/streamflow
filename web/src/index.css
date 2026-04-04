@@ -8,50 +8,41 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 184 100% 4%;
+    --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     
-    --card: 184 100% 6%;
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
     
-    --popover: 184 100% 6%;
+    --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 184 100% 35%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
     
-    --secondary: 184 100% 12%;
+    --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     
-    --muted: 184 100% 12%;
-    --muted-foreground: 184 20% 64.9%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
     
-    --accent: 184 100% 35%;
+    --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
     
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 184 100% 15%;
-    --input: 184 100% 15%;
-    --ring: 184 100% 35%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
     
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     
-    /* Custom tokens based on Logo */
-    --neon-cyan: 184 100% 35%;
-    --neon-blue: 208 100% 29%;
-    --glass-bg: 184 100% 8%;
-    --glass-border: 184 100% 15%;
-    
-    /* Gradients from Logo */
-    --gradient-primary: linear-gradient(135deg, hsl(184 100% 35%) 0%, hsl(208 100% 29%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(184 100% 8% / 0.4) 0%, hsl(184 100% 12% / 0.2) 100%);
-    --gradient-hero: linear-gradient(180deg, hsl(184 100% 4%) 0%, hsl(184 100% 6%) 100%);
-    
-    /* Shadows */
-    --shadow-neon: 0 0 20px hsl(184 100% 35% / 0.3), 0 0 40px hsl(184 100% 35% / 0.1);
-    --shadow-glass: 0 8px 32px hsl(0 0% 0% / 0.4);
+    /* Enterprise Luxury Tokens */
+    --neon-cyan: 185 100% 50%;
+    --enterprise-blue: 221 83% 53%;
+    --glass-bg: 0 0% 0% / 0.4;
+    --glass-border: 255 255% 255% / 0.1;
   }
 
   .light {

@@ -21,7 +21,7 @@ import {parseM3U, getCategories} from '../utils/m3uParser';
 import {Channel, Favorite, ContentType} from '../types';
 import ChannelCard from '../components/ChannelCard';
 
-const {width} = Dimensions.get('window');
+const {width, height} = Dimensions.get('window');
 
 const DashboardScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -38,10 +38,10 @@ const DashboardScreen: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const channelsPerPage = 40;
 
-  // Smarters Teal & Blue Theme
-  const primaryColor = '#00A8B5'; // Teal
-  const secondaryColor = '#004E92'; // Blue
-  const darkBg = '#001518';
+  // Figma Neon Theme
+  const primaryCyan = '#00D7E5';
+  const secondaryCyan = '#00A8B5';
+  const blackBg = '#000000';
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -127,18 +127,23 @@ const DashboardScreen: React.FC = () => {
 
   const renderHomeMode = () => (
     <View style={styles.homeContainer}>
+      {/* Background Glows */}
+      <View style={styles.glowContainer}>
+        <View style={styles.topGlow} />
+      </View>
+
       <View style={styles.topHeader}>
         <View style={styles.brandingContainer}>
           <LinearGradient
-            colors={[primaryColor, secondaryColor]}
+            colors={[primaryCyan, secondaryCyan]}
             style={styles.logoCircleGradient}>
             <View style={styles.logoCircle}>
-               <Text style={{fontSize: 22}}>SF</Text>
+               <Text style={styles.logoInitials}>SV</Text>
             </View>
           </LinearGradient>
           <View>
-            <Text style={styles.welcomeText}>StreamFlow Hub</Text>
-            <Text style={styles.userNameText}>{user?.email?.split('@')[0] || 'Guest'}</Text>
+            <Text style={styles.welcomeText}>STREAM VAULT</Text>
+            <Text style={styles.userNameText}>{user?.email?.split('@')[0] || 'GUEST'}</Text>
           </View>
         </View>
         <TouchableOpacity 
@@ -150,46 +155,60 @@ const DashboardScreen: React.FC = () => {
 
       <View style={styles.smartersGrid}>
         <TouchableOpacity style={styles.gridItem} onPress={() => setViewMode('live')}>
-          <LinearGradient colors={['#002E34', '#001518']} style={styles.gridGradient}>
-            <Text style={styles.gridIcon}>📺</Text>
+          <View style={styles.gridCard}>
+            <View style={styles.gridIconContainer}>
+              <Text style={styles.gridEmoji}>📺</Text>
+            </View>
             <Text style={styles.gridText}>LIVE TV</Text>
-          </LinearGradient>
+            <Text style={styles.gridSubText}>REAL-TIME</Text>
+          </View>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridItem} onPress={() => setViewMode('movie')}>
-          <LinearGradient colors={['#004B56', '#002E34']} style={styles.gridGradient}>
-            <Text style={styles.gridIcon}>🎬</Text>
+          <View style={styles.gridCard}>
+            <View style={styles.gridIconContainer}>
+              <Text style={styles.gridEmoji}>🎬</Text>
+            </View>
             <Text style={styles.gridText}>MOVIES</Text>
-          </LinearGradient>
+            <Text style={styles.gridSubText}>CINEMA</Text>
+          </View>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridItem} onPress={() => setViewMode('series')}>
-          <LinearGradient colors={['#006B7B', '#004B56']} style={styles.gridGradient}>
-            <Text style={styles.gridIcon}>🎭</Text>
+          <View style={styles.gridCard}>
+            <View style={styles.gridIconContainer}>
+              <Text style={styles.gridEmoji}>🎭</Text>
+            </View>
             <Text style={styles.gridText}>SERIES</Text>
-          </LinearGradient>
+            <Text style={styles.gridSubText}>BINGE</Text>
+          </View>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.gridItem} onPress={() => setViewMode('epg')}>
-          <LinearGradient colors={['#008496', '#006B7B']} style={styles.gridGradient}>
-            <Text style={styles.gridIcon}>📅</Text>
+          <View style={styles.gridCard}>
+            <View style={styles.gridIconContainer}>
+              <Text style={styles.gridEmoji}>📅</Text>
+            </View>
             <Text style={styles.gridText}>EPG GUIDE</Text>
-          </LinearGradient>
+            <Text style={styles.gridSubText}>SCHEDULE</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
       {recentlyWatched.length > 0 && (
         <View style={styles.historySection}>
-          <Text style={styles.sectionTitle}>History</Text>
+          <Text style={styles.sectionTitle}>CONTINUE WATCHING</Text>
           <FlatList
             horizontal
             data={recentlyWatched}
             renderItem={({item}) => (
-              <ChannelCard
-                channel={{name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category}}
-                isFavorite={favorites.has(item.channelUrl)}
-                onPress={() => (navigation as any).navigate('Player', {channel: {name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category}})}
-              />
+              <View style={{marginRight: 15}}>
+                <ChannelCard
+                  channel={{name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category}}
+                  isFavorite={favorites.has(item.channelUrl)}
+                  onPress={() => (navigation as any).navigate('Player', {channel: {name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category}})}
+                />
+              </View>
             )}
             showsHorizontalScrollIndicator={false}
           />
@@ -197,7 +216,7 @@ const DashboardScreen: React.FC = () => {
       )}
 
       <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-        <Text style={styles.logoutBtnText}>Switch Account</Text>
+        <Text style={styles.logoutBtnText}>LOGOUT SESSION</Text>
       </TouchableOpacity>
     </View>
   );
@@ -206,7 +225,7 @@ const DashboardScreen: React.FC = () => {
     <View style={styles.listView}>
       <View style={styles.listHeader}>
         <TouchableOpacity onPress={() => setViewMode('home')} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>← Back</Text>
+          <Text style={styles.backBtnText}>← BACK</Text>
         </TouchableOpacity>
         <Text style={styles.listTitle}>{viewMode.toUpperCase()}</Text>
       </View>
@@ -214,8 +233,8 @@ const DashboardScreen: React.FC = () => {
       <View style={styles.searchBar}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search channels..."
-          placeholderTextColor="#666"
+          placeholder="SEARCH VAULT..."
+          placeholderTextColor="#444"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -228,8 +247,8 @@ const DashboardScreen: React.FC = () => {
         renderItem={({item}) => (
           <TouchableOpacity 
             onPress={() => setSelectedCategory(item)}
-            style={[styles.categoryBtn, selectedCategory === item && {backgroundColor: primaryColor}]}>
-            <Text style={styles.categoryText}>{item}</Text>
+            style={[styles.categoryBtn, selectedCategory === item && {backgroundColor: primaryCyan}]}>
+            <Text style={[styles.categoryText, selectedCategory === item && {color: '#000'}]}>{item}</Text>
           </TouchableOpacity>
         )}
       />
@@ -237,7 +256,7 @@ const DashboardScreen: React.FC = () => {
       <FlatList
         data={paginatedChannels}
         numColumns={3}
-        key={viewMode} // Force re-render on mode change
+        key={viewMode}
         renderItem={({item}) => (
           <ChannelCard
             channel={item}
@@ -254,11 +273,11 @@ const DashboardScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={darkBg} />
+      <StatusBar barStyle="light-content" backgroundColor={blackBg} />
       {isLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={primaryColor} />
-          <Text style={styles.loadingText}>Loading StreamFlow...</Text>
+          <ActivityIndicator size="large" color={primaryCyan} />
+          <Text style={styles.loadingText}>INITIALIZING VAULT...</Text>
         </View>
       ) : (
         viewMode === 'home' ? renderHomeMode() : renderListView()
@@ -268,37 +287,77 @@ const DashboardScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#001518'},
+  container: {flex: 1, backgroundColor: '#000'},
+  glowContainer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  topGlow: {
+    position: 'absolute',
+    top: -100,
+    left: -100,
+    width: width * 0.8,
+    height: width * 0.8,
+    backgroundColor: 'rgba(0, 215, 229, 0.05)',
+    borderRadius: width * 0.4,
+  },
   center: {flex: 1, justifyContent: 'center', alignItems: 'center'},
-  loadingText: {color: '#fff', marginTop: 10, fontSize: 16},
-  homeContainer: {flex: 1, padding: 20},
-  topHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30},
+  loadingText: {color: '#00D7E5', marginTop: 15, fontSize: 12, fontWeight: '900', letterSpacing: 2},
+  homeContainer: {flex: 1, padding: 25},
+  topHeader: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40},
   brandingContainer: {flexDirection: 'row', alignItems: 'center'},
-  logoCircleGradient: {width: 50, height: 50, borderRadius: 25, padding: 2, marginRight: 15},
-  logoCircle: {flex: 1, backgroundColor: '#001518', borderRadius: 23, justifyContent: 'center', alignItems: 'center'},
-  welcomeText: {color: '#00A8B5', fontSize: 14},
-  userNameText: {color: '#fff', fontSize: 20, fontWeight: 'bold'},
+  headerLogo: {
+    width: 50,
+    height: 50,
+    marginRight: 15,
+  },
+  logoCircleGradient: {width: 55, height: 55, borderRadius: 18, padding: 2, marginRight: 15},
+  logoCircle: {flex: 1, backgroundColor: '#000', borderRadius: 16, justifyContent: 'center', alignItems: 'center'},
+  logoInitials: {fontSize: 22, fontWeight: '900', color: '#fff', fontStyle: 'italic'},
+  welcomeText: {color: '#00D7E5', fontSize: 10, fontWeight: '900', letterSpacing: 2},
+  userNameText: {color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: -0.5},
   settingsButton: {padding: 10},
   settingsIcon: {fontSize: 24},
   smartersGrid: {flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between'},
-  gridItem: {width: '48%', height: 120, marginBottom: 15, borderRadius: 15, overflow: 'hidden'},
-  gridGradient: {flex: 1, justifyContent: 'center', alignItems: 'center', padding: 10},
-  gridIcon: {fontSize: 32, marginBottom: 10},
-  gridText: {color: '#fff', fontSize: 14, fontWeight: 'bold'},
-  historySection: {marginTop: 20},
-  sectionTitle: {color: '#00A8B5', fontSize: 18, fontWeight: 'bold', marginBottom: 15},
-  logoutBtn: {marginTop: 'auto', alignSelf: 'center', padding: 15},
-  logoutBtnText: {color: '#666', fontSize: 14},
+  gridItem: {width: '48%', height: 160, marginBottom: 15},
+  gridCard: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 35,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+  },
+  gridIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  gridEmoji: {fontSize: 28},
+  gridText: {color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1, fontStyle: 'italic'},
+  gridSubText: {color: '#444', fontSize: 8, fontWeight: '900', letterSpacing: 2, marginTop: 4},
+  historySection: {marginTop: 30},
+  sectionTitle: {color: '#00D7E5', fontSize: 12, fontWeight: '900', letterSpacing: 2, marginBottom: 20},
+  logoutBtn: {marginTop: 'auto', alignSelf: 'center', padding: 20},
+  logoutBtnText: {color: '#333', fontSize: 10, fontWeight: '900', letterSpacing: 2},
   listView: {flex: 1},
-  listHeader: {flexDirection: 'row', alignItems: 'center', padding: 20},
+  listHeader: {flexDirection: 'row', alignItems: 'center', padding: 25},
   backBtn: {marginRight: 20},
-  backBtnText: {color: '#00A8B5', fontSize: 16},
-  listTitle: {color: '#fff', fontSize: 20, fontWeight: 'bold'},
-  searchBar: {paddingHorizontal: 20, marginBottom: 15},
-  searchInput: {backgroundColor: '#002E34', color: '#fff', padding: 12, borderRadius: 10},
-  categoryList: {maxHeight: 50, marginBottom: 10, paddingLeft: 20},
-  categoryBtn: {paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, marginRight: 10, backgroundColor: '#002E34'},
-  categoryText: {color: '#fff', fontSize: 12},
+  backBtnText: {color: '#00D7E5', fontSize: 14, fontWeight: '900', letterSpacing: 1},
+  listTitle: {color: '#fff', fontSize: 24, fontWeight: '900', letterSpacing: -1, fontStyle: 'italic'},
+  searchBar: {paddingHorizontal: 25, marginBottom: 20},
+  searchInput: {backgroundColor: 'rgba(255, 255, 255, 0.03)', color: '#fff', padding: 18, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)'},
+  categoryList: {maxHeight: 55, marginBottom: 15, paddingLeft: 25},
+  categoryBtn: {paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, marginRight: 10, backgroundColor: 'rgba(255, 255, 255, 0.03)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.05)'},
+  categoryText: {color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 1},
   listContainer: {padding: 10, paddingBottom: 100},
 });
 

@@ -3,9 +3,8 @@ import { authAPI, iptvAPI, favoritesAPI, recentlyWatchedAPI } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { LogOut, Search, Settings, Tv, Heart, Clock, Moon, Sun, RefreshCw, ChevronLeft, ChevronRight, PlayCircle, Film, Library, Calendar } from "lucide-react";
+import { LogOut, Search, Settings, Tv, Heart, Clock, RefreshCw, ChevronLeft, Film, Library, Calendar, User, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { useTheme } from "next-themes";
 import ChannelCard from "@/components/ChannelCard";
 import CategoryFilter from "@/components/CategoryFilter";
 
@@ -30,7 +29,6 @@ interface RecentlyWatched {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
   const [user, setUser] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ContentType | 'home' | 'epg'>('home');
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -42,7 +40,6 @@ const Dashboard = () => {
   const [hasCredentials, setHasCredentials] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isFiltering, setIsFiltering] = useState(false);
   const channelsPerPage = 60;
 
   useEffect(() => {
@@ -58,8 +55,6 @@ const Dashboard = () => {
   }, [user]);
 
   const filteredChannels = useMemo(() => {
-    if (isFiltering) return [];
-    
     let filtered = [...channels];
 
     if (viewMode !== 'home' && viewMode !== 'epg') {
@@ -83,7 +78,7 @@ const Dashboard = () => {
     }
 
     return filtered;
-  }, [channels, searchQuery, selectedCategory, showFavoritesOnly, favorites, isFiltering, viewMode]);
+  }, [channels, searchQuery, selectedCategory, showFavoritesOnly, favorites, viewMode]);
 
   const paginatedChannels = useMemo(() => {
     const startIndex = (currentPage - 1) * channelsPerPage;
@@ -208,61 +203,90 @@ const Dashboard = () => {
   }, [channels, viewMode]);
 
   const renderHomeMode = () => (
-    <div className="flex flex-col gap-8 p-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">
-            STREAMFLOW HUB
-          </h1>
-          <p className="text-muted-foreground">Welcome back, {user?.email?.split('@')[0]}</p>
+    <div className="flex flex-col gap-12 p-8 max-w-7xl mx-auto w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Hero Welcome */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center">
+            <Tv className="w-7 h-7 text-black" />
+          </div>
+          <div>
+            <h1 className="text-5xl font-black tracking-tighter italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-600 mb-2">
+              STREAM VAULT
+            </h1>
+            <div className="flex items-center gap-2 text-gray-400 font-medium">
+              <User className="w-4 h-4 text-cyan-500" />
+              <span>Welcome back, <span className="text-white font-bold">{user?.email?.split('@')[0]}</span></span>
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
-           <Button variant="outline" size="icon" onClick={() => navigate("/setup")}>
-             <Settings className="w-5 h-5" />
+        
+        <div className="flex gap-3">
+           <Button 
+             variant="outline" 
+             className="bg-white/5 border-white/10 hover:bg-cyan-500 hover:text-black rounded-xl px-6 h-12 font-bold transition-all"
+             onClick={() => navigate("/setup")}
+           >
+             <Settings className="w-5 h-5 mr-2" /> SETUP
            </Button>
-           <Button variant="outline" size="icon" onClick={handleLogout}>
-             <LogOut className="w-5 h-5" />
+           <Button 
+             variant="outline" 
+             className="bg-white/5 border-white/10 hover:bg-red-500 hover:text-white rounded-xl px-6 h-12 font-bold transition-all"
+             onClick={handleLogout}
+           >
+             <LogOut className="w-5 h-5 mr-2" /> EXIT
            </Button>
         </div>
       </div>
 
+      {/* Main Feature Grid (Figma Style) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { id: 'live', label: 'LIVE TV', icon: Tv, color: 'from-cyan-900 to-cyan-950' },
-          { id: 'movie', label: 'MOVIES', icon: Film, color: 'from-blue-900 to-blue-950' },
-          { id: 'series', label: 'SERIES', icon: Library, color: 'from-indigo-900 to-indigo-950' },
-          { id: 'epg', label: 'EPG GUIDE', icon: Calendar, color: 'from-teal-900 to-teal-950' },
+          { id: 'live', label: 'LIVE TV', icon: Tv, desc: 'Watch Real-time', color: 'from-cyan-500/20' },
+          { id: 'movie', label: 'MOVIES', icon: Film, desc: 'Latest Cinema', color: 'from-blue-500/20' },
+          { id: 'series', label: 'SERIES', icon: Library, desc: 'Binge Worthy', color: 'from-indigo-500/20' },
+          { id: 'epg', label: 'EPG GUIDE', icon: Calendar, desc: 'TV Schedule', color: 'from-teal-500/20' },
         ].map((item) => (
           <button
             key={item.id}
             onClick={() => setViewMode(item.id as any)}
-            className={`h-48 rounded-2xl bg-gradient-to-br ${item.color} border border-white/5 hover:border-cyan-500/50 transition-all group overflow-hidden relative`}
+            className="group relative h-56 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-xl overflow-hidden transition-all hover:scale-[1.02] hover:border-cyan-500/50 active:scale-95 shadow-2xl"
           >
-            <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-            <item.icon className="w-16 h-16 mb-4 mx-auto text-cyan-500 group-hover:scale-110 transition-transform" />
-            <span className="text-xl font-black tracking-widest text-white">{item.label}</span>
+            <div className={`absolute inset-0 bg-gradient-to-br ${item.color} to-transparent opacity-0 group-hover:opacity-100 transition-opacity`} />
+            <div className="relative z-10 flex flex-col items-center justify-center h-full p-6">
+              <div className="w-20 h-20 rounded-3xl bg-black/40 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-neon border border-white/5">
+                <item.icon className="w-10 h-10 text-cyan-400" />
+              </div>
+              <span className="text-2xl font-black tracking-widest text-white mb-1 uppercase italic">{item.label}</span>
+              <span className="text-gray-500 text-xs font-bold tracking-tighter uppercase">{item.desc}</span>
+            </div>
           </button>
         ))}
       </div>
 
+      {/* History Section */}
       {recentlyWatched.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Clock className="w-6 h-6 text-cyan-500" /> Continue Watching
-          </h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+              <Clock className="w-5 h-5 text-cyan-400" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tighter uppercase italic">Recently Viewed</h2>
+          </div>
+          <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide">
             {recentlyWatched.slice(0, 10).map((item, idx) => (
-              <ChannelCard
-                key={idx}
-                channel={{
-                  name: item.channelName,
-                  url: item.channelUrl,
-                  logo: item.channelLogo,
-                  group: item.category
-                }}
-                isFavorite={favorites.includes(item.channelUrl)}
-                onToggleFavorite={loadFavorites}
-              />
+              <div key={idx} className="min-w-[200px]">
+                <ChannelCard
+                  channel={{
+                    name: item.channelName,
+                    url: item.channelUrl,
+                    logo: item.channelLogo,
+                    group: item.category
+                  }}
+                  isFavorite={favorites.includes(item.channelUrl)}
+                  onToggleFavorite={loadFavorites}
+                />
+              </div>
             ))}
           </div>
         </div>
@@ -271,58 +295,75 @@ const Dashboard = () => {
   );
 
   const renderListView = () => (
-    <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-500">
-      <header className="sticky top-0 z-30 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => setViewMode('home')}>
-              <ChevronLeft className="w-5 h-5 mr-2" /> Back
-            </Button>
-            <h1 className="text-2xl font-black text-cyan-500">{viewMode.toUpperCase()}</h1>
-          </div>
-          
-          <div className="flex-1 max-w-xl relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search channels..."
-              className="pl-10 bg-secondary/50"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+    <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-700">
+      <header className="sticky top-0 z-30 w-full border-b border-white/5 bg-black/80 backdrop-blur-2xl p-6">
+        <div className="max-w-7xl mx-auto flex flex-col gap-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => setViewMode('home')} 
+                className="flex items-center gap-2 text-gray-400 hover:text-cyan-400 transition-colors font-black uppercase italic tracking-tighter"
+              >
+                <ChevronLeft className="w-6 h-6" /> BACK
+              </button>
+              <h1 className="text-3xl font-black tracking-tighter uppercase italic text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-600">
+                {viewMode}
+              </h1>
+            </div>
+            
+            <div className="flex gap-3">
+              <Button
+                variant={showFavoritesOnly ? "default" : "outline"}
+                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                className={`rounded-xl h-12 font-bold px-6 transition-all ${showFavoritesOnly ? "bg-red-500 text-white" : "bg-white/5 border-white/10 hover:bg-white/10"}`}
+              >
+                <Heart className={`w-5 h-5 mr-2 ${showFavoritesOnly ? "fill-current" : ""}`} /> FAVORITES
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                onClick={handleRefreshChannels}
+                className="bg-white/5 border-white/10 hover:bg-white/10 rounded-xl w-12 h-12"
+              >
+                <RefreshCw className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`} />
+              </Button>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant={showFavoritesOnly ? "default" : "outline"}
-              onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-              className={showFavoritesOnly ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              <Heart className={`w-4 h-4 mr-2 ${showFavoritesOnly ? "fill-white" : ""}`} />
-              Favorites
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleRefreshChannels}>
-              <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-            </Button>
+          <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+              <Input
+                placeholder="Search for channels, movies, or series..."
+                className="pl-12 h-14 bg-white/5 border-white/10 rounded-2xl focus:border-cyan-500/50 transition-all text-lg font-medium"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="w-full md:w-auto overflow-x-auto scrollbar-hide">
+              <CategoryFilter
+                categories={categories}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+              />
+            </div>
           </div>
-        </div>
-
-        <div className="mt-4">
-          <CategoryFilter
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-          />
         </div>
       </header>
 
-      <main className="flex-1 p-6 overflow-auto">
+      <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
         {isLoading && channels.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 gap-4">
-            <RefreshCw className="w-12 h-12 text-cyan-500 animate-spin" />
-            <p className="text-lg animate-pulse">Loading your entertainment...</p>
+          <div className="flex flex-col items-center justify-center h-[50vh] gap-6">
+            <div className="w-24 h-24 rounded-[2rem] bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-neon">
+              <Zap className="w-12 h-12 text-cyan-400 animate-pulse" />
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-black tracking-tighter uppercase italic text-white mb-2">Powering Up Vault</p>
+              <p className="text-gray-500 font-medium">Fetching your premium entertainment...</p>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {paginatedChannels.map((channel, index) => (
               <ChannelCard
                 key={`${channel.url}-${index}`}
@@ -338,21 +379,35 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-cyan-500/30">
-      {!hasCredentials && !isLoading ? (
-        <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center">
-          <Tv className="w-20 h-20 text-cyan-500 mb-6 animate-bounce" />
-          <h1 className="text-3xl font-black mb-4">READY TO START STREAMING?</h1>
-          <p className="text-muted-foreground max-w-md mb-8">
-            Setup your IPTV credentials to unlock thousands of live channels, movies, and series.
-          </p>
-          <Button size="lg" onClick={() => navigate("/setup")} className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:scale-105 transition-transform">
-            GET STARTED NOW
-          </Button>
-        </div>
-      ) : (
-        viewMode === 'home' ? renderHomeMode() : renderListView()
-      )}
+    <div className="min-h-screen bg-black text-white selection:bg-cyan-500/30">
+      {/* Background Glows */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-cyan-500/5 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 rounded-full blur-[120px]"></div>
+      </div>
+
+      <div className="relative z-10">
+        {!hasCredentials && !isLoading ? (
+          <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center animate-in zoom-in-95 duration-700">
+            <div className="w-24 h-24 rounded-[2.5rem] bg-cyan-500/10 flex items-center justify-center mb-8 border border-cyan-500/20 shadow-neon">
+              <Tv className="w-12 h-12 text-cyan-400 animate-bounce" />
+            </div>
+            <h1 className="text-5xl font-black tracking-tighter uppercase italic mb-4">Ready to <span className="text-cyan-400">Unlock?</span></h1>
+            <p className="text-gray-400 text-lg max-w-md mb-10 font-medium">
+              Setup your IPTV credentials to access thousands of live channels, 4K movies, and premium series.
+            </p>
+            <Button 
+              size="lg" 
+              onClick={() => navigate("/setup")} 
+              className="h-16 px-12 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl tracking-tighter rounded-2xl transition-all hover:scale-105 active:scale-95 shadow-neon"
+            >
+              INITIALIZE SETUP
+            </Button>
+          </div>
+        ) : (
+          viewMode === 'home' ? renderHomeMode() : renderListView()
+        )}
+      </div>
     </div>
   );
 };
