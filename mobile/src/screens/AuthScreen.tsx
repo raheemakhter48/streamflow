@@ -86,9 +86,11 @@ const AuthScreen: React.FC = () => {
           keyboardShouldPersistTaps="handled">
           
           <View style={styles.topSection}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoIcon}>📺</Text>
-            </View>
+            <Image 
+              source={require('../assets/logo.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
             <Text style={styles.title}>STREAM VAULT</Text>
             <Text style={styles.tagline}>
               {isLogin ? 'STREAM YOUR IPTV LIKE NEVER BEFORE' : 'JOIN THE ULTIMATE STREAMING EXPERIENCE'}

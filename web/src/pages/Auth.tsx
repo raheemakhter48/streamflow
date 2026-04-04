@@ -65,9 +65,7 @@ const Auth = () => {
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b ${scrolled ? 'bg-black/80 backdrop-blur-xl border-white/10 py-4' : 'bg-transparent border-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-8 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setShowAuth(false)}>
-            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center transition-transform group-hover:scale-105">
-              <Tv className="w-6 h-6 text-black" />
-            </div>
+            <img src="/logo.png" alt="Streamflow" className="w-10 h-10 object-contain transition-transform group-hover:scale-105" />
             <span className="text-xl font-bold tracking-tighter uppercase tracking-[0.2em]">Streamflow</span>
           </div>
           

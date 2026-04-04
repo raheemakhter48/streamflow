@@ -134,13 +134,11 @@ const DashboardScreen: React.FC = () => {
 
       <View style={styles.topHeader}>
         <View style={styles.brandingContainer}>
-          <LinearGradient
-            colors={[primaryCyan, secondaryCyan]}
-            style={styles.logoCircleGradient}>
-            <View style={styles.logoCircle}>
-               <Text style={styles.logoInitials}>SV</Text>
-            </View>
-          </LinearGradient>
+          <Image 
+            source={require('../assets/logo.png')} 
+            style={styles.headerLogo} 
+            resizeMode="contain" 
+          />
           <View>
             <Text style={styles.welcomeText}>STREAM VAULT</Text>
             <Text style={styles.userNameText}>{user?.email?.split('@')[0] || 'GUEST'}</Text>

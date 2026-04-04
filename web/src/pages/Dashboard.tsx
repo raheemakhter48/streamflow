@@ -207,9 +207,7 @@ const Dashboard = () => {
       {/* Hero Welcome */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center">
-            <Tv className="w-7 h-7 text-black" />
-          </div>
+          <img src="/logo.png" alt="Streamflow" className="w-12 h-12 object-contain" />
           <div>
             <h1 className="text-5xl font-black tracking-tighter italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-cyan-600 mb-2">
               STREAM VAULT
