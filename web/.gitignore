@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 
+# Electron build output
+release/
+dist-electron/
+
 # Logs
 logs
 *.log
