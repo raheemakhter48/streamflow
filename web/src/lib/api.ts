@@ -1,5 +1,11 @@
 // API Client for Backend
-const API_URL = 'https://raheemakhter-streamflow-api.hf.space/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  '/api';
+const API_URL = API_BASE_URL.replace(/\/$/, '').endsWith('/api')
+  ? API_BASE_URL.replace(/\/$/, '')
+  : `${API_BASE_URL.replace(/\/$/, '')}/api`;
 
 // Get auth token from localStorage
 const getToken = () => {
@@ -19,12 +25,19 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     },
   });
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || 'Request failed');
+  const contentType = response.headers.get('content-type') || '';
+
+  if (!contentType.includes('application/json')) {
+    throw new Error('API returned HTML instead of JSON. Check the backend URL/deployment.');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Request failed');
+  }
+
+  return data;
 };
 
 // Auth API
@@ -68,6 +81,46 @@ export const iptvAPI = {
     return apiRequest('/iptv/credentials');
   },
 
+  getRegions: async () => {
+    return apiRequest('/iptv/regions');
+  },
+
+  getChannels: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    region?: string;
+    country?: string;
+  } = {}) => {
+    const searchParams = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        searchParams.set(key, String(value));
+      }
+    });
+
+    const query = searchParams.toString();
+    return apiRequest(`/iptv/channels${query ? `?${query}` : ''}`);
+  },
+
+  getCategories: async (params: {
+    region?: string;
+    country?: string;
+  } = {}) => {
+    const searchParams = new URLSearchParams();
+
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        searchParams.set(key, String(value));
+      }
+    });
+
+    const query = searchParams.toString();
+    return apiRequest(`/iptv/categories${query ? `?${query}` : ''}`);
+  },
+
   saveCredentials: async (credentials: {
     providerName?: string;
     username?: string;
@@ -83,10 +136,17 @@ export const iptvAPI = {
     });
   },
 
-  getPlaylist: async () => {
-    const response = await fetch(`${API_URL}/iptv/playlist`, {
+  getPlaylist: async (options: { refresh?: boolean; userOnly?: boolean } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (options.refresh) searchParams.set('refresh', '1');
+    if (options.userOnly) searchParams.set('userOnly', '1');
+
+    const query = searchParams.toString();
+    const response = await fetch(`${API_URL}/iptv/playlist${query ? `?${query}` : ''}`, {
+      cache: 'no-store',
       headers: {
         Authorization: `Bearer ${getToken()}`,
+        'Cache-Control': 'no-cache',
       },
     });
     
@@ -180,3 +240,85 @@ export const streamAPI = {
   },
 };
 
+export const adminAPI = {
+  getChannels: async (params: { page?: number; search?: string; status?: string; limit?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        searchParams.set(key, String(value));
+      }
+    });
+
+    const query = searchParams.toString();
+    return apiRequest(`/admin/channels${query ? `?${query}` : ''}`);
+  },
+
+  saveChannel: async (channel: any, id?: string) => {
+    return apiRequest(`/admin/channels${id ? `/${id}` : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(channel),
+    });
+  },
+
+  deleteChannel: async (id: string) => {
+    return apiRequest(`/admin/channels/${id}`, { method: 'DELETE' });
+  },
+
+  getFilters: async () => {
+    return apiRequest('/admin/filters');
+  },
+
+  saveFilter: async (filter: { type: 'country' | 'category'; label: string; value?: string }) => {
+    return apiRequest('/admin/filters', {
+      method: 'POST',
+      body: JSON.stringify(filter),
+    });
+  },
+
+  getSummary: async () => {
+    return apiRequest('/admin/analytics/summary');
+  },
+
+  getSystemMetrics: async () => {
+    return apiRequest('/admin/analytics/system');
+  },
+
+  runHealthCheck: async () => {
+    return apiRequest('/admin/streams/health-check', {
+      method: 'POST',
+      body: JSON.stringify({ limit: 25 }),
+    });
+  },
+
+  getLogs: async (limit = 100) => {
+    return apiRequest(`/admin/logs?limit=${limit}`);
+  },
+
+  getDauMetrics: async (days = 7) => {
+    return apiRequest(`/admin/analytics/dau?days=${days}`);
+  },
+
+  getApiMetrics: async () => {
+    return apiRequest('/admin/analytics/api-metrics');
+  },
+
+  deleteFilter: async (id: string) => {
+    return apiRequest(`/admin/filters/${id}`, { method: 'DELETE' });
+  },
+
+  seedFiltersFromIptv: async () => {
+    return apiRequest('/admin/filters/seed-from-iptv', { method: 'POST' });
+  },
+
+  scrapeChannel: async (id: string) => {
+    return apiRequest(`/admin/scrape/channel/${id}`, { method: 'POST' });
+  },
+
+  scrapeBulk: async () => {
+    return apiRequest('/admin/scrape/bulk', { method: 'POST' });
+  },
+
+  getScrapeHistory: async (limit = 50) => {
+    return apiRequest(`/admin/scrape/history?limit=${limit}`);
+  },
+};

@@ -8,9 +8,10 @@ import { streamAPI } from "@/lib/api";
 interface HLSPlayerProps {
   url: string;
   useProxy?: boolean;
+  onPlaybackError?: () => void;
 }
 
-const HLSPlayer = ({ url }: HLSPlayerProps) => {
+const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -26,13 +27,26 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
 
   // Check stream type - HLS should take priority for .m3u8
   const isHlsStream = !!url && (url.toLowerCase().includes('.m3u8') || url.toLowerCase().includes('m3u_plus'));
-  const isMpegTsStream = !!url && (url.toLowerCase().includes('.ts') || (url.toLowerCase().includes('/live/') && !url.toLowerCase().includes('.m3u8')));
+  const lowerUrl = url.toLowerCase();
+  const isMpegTsStream = !!url && (
+    lowerUrl.includes('.ts') ||
+    lowerUrl.includes('/live/') ||
+    lowerUrl.includes('/play/') ||
+    lowerUrl.includes('/stream/')
+  ) && !lowerUrl.includes('.m3u8');
 
   // Check if we should use proxy
   const [shouldUseProxy, setShouldUseProxy] = useState(useProxyPreference);
 
   // Use proxy URL if enabled
   const streamUrl = shouldUseProxy && url ? streamAPI.getProxyUrl(url) : url;
+
+  useEffect(() => {
+    setShouldUseProxy(useProxyPreference);
+    setIsLoading(true);
+    setError(null);
+    setIsPlaying(false);
+  }, [url]);
 
   useEffect(() => {
     if (!videoRef.current || !streamUrl) return;
@@ -88,6 +102,7 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
           setError('Stream error. Try switching player in Settings.');
           setIsLoading(false);
           hls.destroy();
+          onPlaybackError?.();
         }
       });
 
@@ -130,6 +145,7 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
           console.error('❌ MPEG-TS Error:', detail);
           setError(`MPEG-TS Error: ${detail}`);
           setIsLoading(false);
+          onPlaybackError?.();
         });
 
         player.on(mpegts.Events.METADATA_ARRIVED, () => {
@@ -139,6 +155,7 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
       } catch (err) {
         setError('MPEG-TS Player failed to initialize.');
         setIsLoading(false);
+        onPlaybackError?.();
       }
       return cleanup;
     }
@@ -156,6 +173,7 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
     const handleError = () => {
       setError('Format not supported by browser. Try VLC Player.');
       setIsLoading(false);
+      onPlaybackError?.();
     };
 
     video.addEventListener('loadedmetadata', handleLoaded);
@@ -166,7 +184,7 @@ const HLSPlayer = ({ url }: HLSPlayerProps) => {
       video.removeEventListener('error', handleError);
       cleanup();
     };
-  }, [streamUrl, preferredPlayer]);
+  }, [streamUrl, preferredPlayer, onPlaybackError]);
 
   const handlePlay = () => {
     if (videoRef.current) {

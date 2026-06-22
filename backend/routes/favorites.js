@@ -192,6 +192,14 @@ router.post('/recently-watched', protect, async (req, res, next) => {
 
     if (error) throw error;
 
+    // Record watch event for DAU analytics — fire-and-forget, never blocks the response
+    supabase.from('admin_watch_events').insert({
+      user_id: req.user.id,
+      channel_name: channelName,
+      source: 'web',
+      watched_at: new Date().toISOString()
+    }).then(() => {}).catch(() => {});
+
     res.status(201).json({
       success: true,
       data: {

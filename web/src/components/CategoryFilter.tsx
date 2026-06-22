@@ -20,7 +20,8 @@ const CategoryFilter = ({
             key={category}
             variant={selectedCategory === category ? "default" : "outline"}
             onClick={() => onSelectCategory(category)}
-            className="shrink-0"
+            className="shrink-0 max-w-[180px] truncate text-xs sm:text-sm"
+            title={category}
           >
             {category}
           </Button>

@@ -8,41 +8,51 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 185 100% 2%;
+    --foreground: 0 0% 100%;
     
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 185 100% 3%;
+    --card-foreground: 0 0% 100%;
     
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 185 100% 3%;
+    --popover-foreground: 0 0% 100%;
     
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 185 100% 45%;
+    --primary-foreground: 185 100% 2%;
     
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 185 100% 8%;
+    --secondary-foreground: 0 0% 100%;
     
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 185 100% 8%;
+    --muted-foreground: 185 20% 70%;
     
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 185 100% 45%;
+    --accent-foreground: 185 100% 2%;
     
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --border: 185 100% 10%;
+    --input: 185 100% 10%;
+    --ring: 185 100% 45%;
     
-    --radius: 0.5rem;
+    --radius: 1rem;
     
-    /* Enterprise Luxury Tokens */
-    --neon-cyan: 185 100% 50%;
-    --enterprise-blue: 221 83% 53%;
-    --glass-bg: 0 0% 0% / 0.4;
-    --glass-border: 255 255% 255% / 0.1;
+    /* Custom tokens based on Figma Design */
+    --neon-cyan: 185 100% 45%;
+    --neon-blue: 200 100% 40%;
+    --glass-bg: 185 100% 3% / 0.7;
+    --glass-border: 185 100% 15% / 0.3;
+    
+    /* Gradients from Figma */
+    --gradient-primary: linear-gradient(135deg, hsl(185 100% 45%) 0%, hsl(200 100% 40%) 100%);
+    --gradient-card: linear-gradient(135deg, hsl(185 100% 5% / 0.8) 0%, hsl(185 100% 8% / 0.5) 100%);
+    --gradient-hero: radial-gradient(circle at top, hsl(185 100% 15% / 0.3) 0%, hsl(185 100% 2%) 70%);
+    --gradient-button: linear-gradient(90deg, #00D7E5 0%, #00A8B5 100%);
+    
+    /* Shadows */
+    --shadow-neon: 0 0 15px hsl(185 100% 45% / 0.4), 0 0 30px hsl(185 100% 45% / 0.2);
+    --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
   }
 
   .light {
@@ -101,6 +111,9 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -124,8 +137,21 @@ All colors MUST be HSL.
     transition: transform 0.2s ease;
   }
   
-  .hover-scale:hover {
-    transform: scale(1.05);
+  @media (hover: hover) and (pointer: fine) {
+    .hover-scale:hover {
+      transform: scale(1.03);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
   }
   
   .hover-glow:hover {

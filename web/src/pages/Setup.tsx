@@ -140,7 +140,7 @@ const Setup = () => {
 
       toast.success("IPTV credentials saved successfully!");
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard?view=live&category=M3U");
       }, 500);
     } catch (error: any) {
       toast.error(error.message || "Failed to save credentials");
@@ -211,7 +211,7 @@ const Setup = () => {
 
       toast.success("M3U playlist saved successfully!");
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard?view=live&category=M3U");
       }, 500);
     } catch (error: any) {
       toast.error(error.message || "Failed to save M3U content");
