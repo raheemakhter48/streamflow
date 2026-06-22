@@ -1,0 +1,13 @@
+﻿# Zip deployments
+*.zip
+
+# Electron builds
+web/release/
+web/electron/
+web/dist-electron/
+
+# Android binaries
+mobile/android/gradle/wrapper/gradle-wrapper.jar
+
+# Node modules
+node_modules/
