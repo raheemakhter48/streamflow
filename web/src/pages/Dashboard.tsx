@@ -714,7 +714,7 @@ const Dashboard = () => {
 
   const renderListView = () => (
     <div className="flex flex-col h-full animate-in slide-in-from-bottom-4 duration-700">
-      <header className="sticky top-0 z-30 w-full border-b border-white/5 bg-black/90 backdrop-blur-2xl px-4 py-4 sm:p-6">
+      <header className="w-full border-b border-white/5 bg-black/95 px-4 py-4 sm:sticky sm:top-0 sm:z-30 sm:bg-black/90 sm:backdrop-blur-2xl sm:p-6">
         <div className="max-w-7xl mx-auto flex flex-col gap-4 sm:gap-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-6 min-w-0">
@@ -748,7 +748,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_220px_180px] xl:grid-cols-[minmax(260px,1fr)_220px_180px_minmax(260px,auto)] gap-3 sm:gap-4 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_220px_180px] xl:grid-cols-[minmax(260px,1fr)_220px_180px_minmax(260px,auto)] gap-3 sm:gap-4 items-start sm:items-center">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <Input
@@ -796,7 +796,7 @@ const Dashboard = () => {
                 </Select>
               </>
             )}
-            <div className="w-full sm:col-span-2 lg:col-span-3 xl:col-span-1 xl:min-w-[260px] overflow-x-auto scrollbar-hide">
+            <div className="w-full min-w-0 sm:col-span-2 lg:col-span-3 xl:col-span-1 xl:min-w-[260px] overflow-hidden">
               <CategoryFilter
                 categories={categories}
                 selectedCategory={selectedCategory}
@@ -814,7 +814,7 @@ const Dashboard = () => {
                 {selectedRegion !== "All" ? ` in ${selectedRegionName}` : ""}
                 {selectedCountry !== "All" ? ` / ${getCountryDisplayName(selectedCountry)}` : ""}
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   size="sm"
@@ -840,7 +840,7 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-6 sm:p-8 max-w-7xl mx-auto w-full">
+      <main className="flex-1 px-4 py-5 sm:p-8 max-w-7xl mx-auto w-full">
         {isLoading && channels.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[50vh] gap-6">
             <div className="w-24 h-24 rounded-[2rem] bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20 shadow-neon">

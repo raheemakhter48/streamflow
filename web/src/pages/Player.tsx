@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import HLSPlayer from "@/components/HLSPlayer";
-import { favoritesAPI, recentlyWatchedAPI, streamAPI } from "@/lib/api";
+import { favoritesAPI, recentlyWatchedAPI, streamAPI, toPasswordlessStreamUrl } from "@/lib/api";
 import { toast } from "sonner";
 
 const Player = () => {
@@ -18,11 +18,12 @@ const Player = () => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const channelName = searchParams.get("name") || "Unknown Channel";
-  const channelUrl = searchParams.get("url") || "";
+  const rawChannelUrl = searchParams.get("url") || "";
+  const channelUrl = toPasswordlessStreamUrl(rawChannelUrl);
   const alternateUrls = useMemo(() => {
     try {
       const parsed = JSON.parse(searchParams.get("urls") || "[]");
-      return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map(toPasswordlessStreamUrl) : [];
     } catch {
       return [];
     }

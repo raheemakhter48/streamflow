@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_id_fkey
+  FOREIGN KEY (id) REFERENCES public.users(id) ON DELETE CASCADE;
+
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public select for now" ON public.profiles;

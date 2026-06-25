@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, Play, Tv } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { favoritesAPI } from "@/lib/api";
+import { favoritesAPI, toPasswordlessStreamUrl } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Channel {
@@ -39,9 +39,11 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
   }, [isFavorite]);
 
   const handlePlay = () => {
+    const safeUrl = toPasswordlessStreamUrl(channel.url);
+    const safeAlternateUrls = (channel.alternateUrls || []).map(toPasswordlessStreamUrl);
     const params = new URLSearchParams({
       name: channel.name,
-      url: channel.url,
+      url: safeUrl,
       category: channel.group || "",
     });
     if (channel.logo && !imageError) {
@@ -53,8 +55,8 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
     if (channel.playbackSupport) {
       params.append("playback", channel.playbackSupport);
     }
-    if (channel.alternateUrls && channel.alternateUrls.length > 1) {
-      params.append("urls", JSON.stringify(channel.alternateUrls.slice(0, 8)));
+    if (safeAlternateUrls.length > 1) {
+      params.append("urls", JSON.stringify(safeAlternateUrls.slice(0, 8)));
     }
     navigate(`/player?${params.toString()}`);
   };

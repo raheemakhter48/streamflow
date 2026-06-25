@@ -38,8 +38,13 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
   // Check if we should use proxy
   const [shouldUseProxy, setShouldUseProxy] = useState(useProxyPreference);
 
-  // Use proxy URL if enabled
-  const streamUrl = shouldUseProxy && url ? streamAPI.getProxyUrl(url) : url;
+  const isLocalBackendStream = !!url && (
+    url.includes("/api/iptv/live/") ||
+    url.includes("/api/stream/proxy")
+  );
+
+  // Use proxy URL if enabled, except for our own backend stream endpoints.
+  const streamUrl = shouldUseProxy && url && !isLocalBackendStream ? streamAPI.getProxyUrl(url) : url;
 
   useEffect(() => {
     setShouldUseProxy(useProxyPreference);

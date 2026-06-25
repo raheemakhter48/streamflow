@@ -77,7 +77,11 @@ router.post('/register', async (req, res, next) => {
       }
     });
   } catch (error) {
-    next(error);
+    console.error('Register failed:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Registration failed'
+    });
   }
 });
 

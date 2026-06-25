@@ -14,13 +14,13 @@ const CategoryFilter = ({
 }: CategoryFilterProps) => {
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex gap-2 pb-2">
+      <div className="flex min-h-11 gap-2 pb-2">
         {categories.map((category) => (
           <Button
             key={category}
             variant={selectedCategory === category ? "default" : "outline"}
             onClick={() => onSelectCategory(category)}
-            className="shrink-0 max-w-[180px] truncate text-xs sm:text-sm"
+            className="h-10 shrink-0 max-w-[150px] truncate rounded-xl px-4 text-xs sm:max-w-[180px] sm:text-sm"
             title={category}
           >
             {category}

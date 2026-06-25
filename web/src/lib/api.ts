@@ -12,6 +12,30 @@ const getToken = () => {
   return localStorage.getItem('auth_token');
 };
 
+export const toPasswordlessStreamUrl = (streamUrl: string) => {
+  if (!streamUrl) return streamUrl;
+
+  try {
+    const parsed = new URL(streamUrl, window.location.origin);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const liveIndex = parts.findIndex((part) => part.toLowerCase() === 'live');
+
+    if (liveIndex === -1 || parts.length < liveIndex + 4) return streamUrl;
+
+    const streamFile = parts[liveIndex + 3] || '';
+    const match = streamFile.match(/^([^./]+)(?:\.(ts|m3u8|mp4))?$/i);
+    const token = getToken();
+
+    if (!match || !token) return streamUrl;
+
+    const streamId = match[1];
+    const extension = match[2] || 'ts';
+    return `${API_URL}/iptv/live/${encodeURIComponent(streamId)}.${extension}?token=${encodeURIComponent(token)}`;
+  } catch {
+    return streamUrl;
+  }
+};
+
 // API request helper
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = getToken();
