@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 import { protect } from '../middleware/auth.js';
 import supabase from '../config/supabase.js';
 
@@ -16,6 +17,104 @@ const parsePositiveInteger = (value, fallback) => {
 const normalizeQueryText = (value) => {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+};
+
+const getBearerToken = (req) => {
+  const authorization = req.headers.authorization || '';
+  return authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
+};
+
+const getUserFromStreamToken = async (token) => {
+  if (!token) return null;
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('id', decoded.id)
+      .maybeSingle();
+
+    return user || null;
+  } catch {
+    return null;
+  }
+};
+
+const getProviderBaseUrl = (credentials) => {
+  const source = credentials?.server_url || credentials?.m3u_url || '';
+  if (!source) return '';
+
+  try {
+    const parsed = new URL(source.startsWith('http') ? source : `http://${source}`);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return source.replace(/\/$/, '');
+  }
+};
+
+const buildXtreamLiveUrl = (credentials, streamId, extension = 'ts') => {
+  const baseUrl = getProviderBaseUrl(credentials);
+  if (!baseUrl || !credentials?.username || !credentials?.password || !streamId) return '';
+
+  return `${baseUrl}/live/${encodeURIComponent(credentials.username)}/${encodeURIComponent(credentials.password)}/${encodeURIComponent(streamId)}.${extension}`;
+};
+
+const getEnvXtreamCredentials = () => {
+  const serverUrl = process.env.XTREAM_SERVER_URL || process.env.IPTV_SERVER_URL || '';
+  const username = process.env.XTREAM_USERNAME || process.env.IPTV_USERNAME || '';
+  const password = process.env.XTREAM_PASSWORD || process.env.IPTV_PASSWORD || '';
+
+  if (!serverUrl || !username || !password) return null;
+
+  return {
+    provider_name: process.env.XTREAM_PROVIDER_NAME || 'Environment Xtream',
+    server_url: serverUrl,
+    username,
+    password,
+    m3u_url: generateM3UFromCredentials(serverUrl, username, password),
+    epg_url: generateEPGFromCredentials(serverUrl, username, password),
+    m3u_content: null
+  };
+};
+
+const getUserIptvCredentials = async (userId) => {
+  const { data, error } = await supabase
+    .from('iptv_credentials')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || getEnvXtreamCredentials();
+};
+
+const rewriteXtreamLiveUrl = (url, req, credentials, token) => {
+  if (!credentials?.username || !credentials?.password || !token) return url;
+
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const liveIndex = parts.findIndex((part) => part.toLowerCase() === 'live');
+
+    if (liveIndex === -1 || parts.length < liveIndex + 4) return url;
+
+    const username = decodeURIComponent(parts[liveIndex + 1] || '');
+    const password = decodeURIComponent(parts[liveIndex + 2] || '');
+    const streamFile = parts[liveIndex + 3] || '';
+    const streamMatch = streamFile.match(/^([^./]+)(?:\.(ts|m3u8|mp4))?$/i);
+
+    if (!streamMatch) return url;
+    if (username !== credentials.username || password !== credentials.password) return url;
+
+    const streamId = streamMatch[1];
+    const extension = streamMatch[2] || 'ts';
+    const origin = `${req.protocol}://${req.get('host')}`;
+
+    return `${origin}/api/iptv/live/${encodeURIComponent(streamId)}.${extension}?token=${encodeURIComponent(token)}`;
+  } catch {
+    return url;
+  }
 };
 
 const buildChannelDetailSelect = () => {
@@ -570,6 +669,7 @@ const fetchPlaylistUrl = async (url) => {
 router.get('/playlist', protect, async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const streamToken = getBearerToken(req);
     const CACHE_EXPIRY_HOURS = 12;
     const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
     const userOnly = req.query.userOnly === '1' || req.query.userOnly === 'true';
@@ -577,7 +677,7 @@ router.get('/playlist', protect, async (req, res, next) => {
     res.set('Cache-Control', 'no-store');
 
     // 1. Check Cache
-    const { data: cache, error: cacheError } = forceRefresh || userOnly ? { data: null, error: null } : await supabase
+    const { data: cache, error: cacheError } = forceRefresh || userOnly || streamToken ? { data: null, error: null } : await supabase
       .from('playlist_cache')
       .select('content, updated_at')
       .eq('user_id', userId)
@@ -597,11 +697,7 @@ router.get('/playlist', protect, async (req, res, next) => {
     }
 
     // 2. Fetch Fresh Data
-    const { data: credentials } = await supabase
-      .from('iptv_credentials')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+    const credentials = await getUserIptvCredentials(userId);
     
     let targetUrls = userOnly ? [] : [...MASTER_PLAYLIST_URLS];
     let manualContent = '';
@@ -650,14 +746,15 @@ router.get('/playlist', protect, async (req, res, next) => {
             
             metadata = metadata.replace('#EXTINF:', `#EXTINF:-1 group-title="${group}",`);
           }
-          categorizedPlaylist += metadata + '\n' + url + '\n';
+          const safeUrl = rewriteXtreamLiveUrl(url, req, credentials, streamToken);
+          categorizedPlaylist += metadata + '\n' + safeUrl + '\n';
           i++;
         }
       }
     }
 
     // 4. Save to Cache
-    if (!userOnly) {
+    if (!userOnly && !streamToken) {
       await supabase.from('playlist_cache').upsert({
         user_id: userId,
         content: categorizedPlaylist,
@@ -666,6 +763,65 @@ router.get('/playlist', protect, async (req, res, next) => {
     }
 
     res.send(categorizedPlaylist);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// @route   GET /api/iptv/live/:streamFile
+// @desc    Proxy a user's Xtream live stream without exposing provider password in frontend URLs
+// @access  Token query param required because video tags cannot send Authorization headers
+router.get('/live/:streamFile', async (req, res, next) => {
+  try {
+    const user = await getUserFromStreamToken(req.query.token);
+    if (!user) {
+      return res.status(401).send('Unauthorized stream token');
+    }
+
+    const match = String(req.params.streamFile || '').match(/^([^./]+)(?:\.(ts|m3u8|mp4))?$/i);
+    if (!match) {
+      return res.status(400).send('Invalid stream id');
+    }
+
+    const streamId = match[1];
+    const extension = match[2] || 'ts';
+
+    const credentials = await getUserIptvCredentials(user.id);
+    if (!credentials?.username || !credentials?.password) {
+      return res.status(404).send('IPTV credentials not configured');
+    }
+
+    const targetUrl = buildXtreamLiveUrl(credentials, streamId, extension);
+    if (!targetUrl) {
+      return res.status(400).send('Could not build stream URL');
+    }
+
+    const response = await axios({
+      method: 'GET',
+      url: targetUrl,
+      responseType: 'stream',
+      timeout: 25000,
+      headers: {
+        'User-Agent': 'VLC/3.0.11',
+        'Accept': '*/*',
+        ...(req.headers.range ? { Range: req.headers.range } : {})
+      },
+      validateStatus: () => true
+    });
+
+    if (response.status >= 400) {
+      response.data?.destroy?.();
+      return res.status(response.status).send(`Provider stream error ${response.status}`);
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    if (response.headers['content-type']) res.setHeader('Content-Type', response.headers['content-type']);
+    if (response.headers['content-length']) res.setHeader('Content-Length', response.headers['content-length']);
+    if (response.headers['accept-ranges']) res.setHeader('Accept-Ranges', response.headers['accept-ranges']);
+    if (response.headers['content-range']) res.setHeader('Content-Range', response.headers['content-range']);
+
+    response.data.pipe(res);
+    req.on('close', () => response.data?.destroy?.());
   } catch (error) {
     next(error);
   }

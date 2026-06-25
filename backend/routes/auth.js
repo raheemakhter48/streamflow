@@ -38,6 +38,8 @@ router.post('/register', async (req, res, next) => {
       .eq('email', email.toLowerCase())
       .maybeSingle();
 
+    if (fetchError) throw fetchError;
+
     if (existingUser) {
       return res.status(400).json({
         success: false,
@@ -61,7 +63,10 @@ router.post('/register', async (req, res, next) => {
       .select('id, email')
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Register insert failed:', error);
+      throw error;
+    }
 
     res.status(201).json({
       success: true,

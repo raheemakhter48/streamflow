@@ -71,7 +71,10 @@ app.use((req, res) => {
 // Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Internal Server Error' });
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal Server Error'
+    : err.message || 'Internal Server Error';
+  res.status(err.statusCode || 500).json({ success: false, message });
 });
 
 // Start server - 0.0.0.0 is MANDATORY for Hugging Face
