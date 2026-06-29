@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AppHeader from "@/components/AppHeader";
+import BottomNav from "@/components/BottomNav";
 import {
   Activity, ArrowLeft, BarChart3, Download, Filter, Loader2, Plus,
   RefreshCw, Save, Terminal, Trash2, Tv, Zap,
@@ -948,39 +950,40 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 sm:px-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        {/* Page header */}
-        <header className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-black uppercase italic text-cyan-400">Admin Console</h1>
-            <p className="text-sm text-muted-foreground">
-              {headerStats
-                ? `${headerStats.channels} channels · ${headerStats.broken} broken`
-                : "Authorized stream operations and diagnostics"}
-            </p>
+    <div className="min-h-screen bg-[#0A0A0A] pb-20">
+      <AppHeader title="StreamFlow Admin" />
+
+      <div className="px-4 py-4 max-w-2xl mx-auto space-y-4">
+        {/* Stats summary chips */}
+        {headerStats && (
+          <div className="flex gap-3">
+            <div className="flex-1 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Channels</p>
+              <p className="text-2xl font-black text-white">{headerStats.channels.toLocaleString()}</p>
+            </div>
+            <div className="flex-1 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Broken</p>
+              <p className="text-2xl font-black text-red-400">{headerStats.broken.toLocaleString()}</p>
+            </div>
           </div>
-        </header>
+        )}
 
         {/* Tabs */}
         <Tabs defaultValue="channels" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="channels" className="gap-1.5">
+          <TabsList className="grid grid-cols-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-1 h-auto">
+            <TabsTrigger value="channels" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
               <Tv className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Channels</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-1.5">
+            <TabsTrigger value="analytics" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
               <BarChart3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
-            <TabsTrigger value="filters" className="gap-1.5">
+            <TabsTrigger value="filters" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
               <Filter className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Filters</span>
             </TabsTrigger>
-            <TabsTrigger value="logs" className="gap-1.5">
+            <TabsTrigger value="logs" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
               <Terminal className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Logs</span>
             </TabsTrigger>
@@ -992,6 +995,8 @@ export default function Admin() {
           <TabsContent value="logs"><LogsTab /></TabsContent>
         </Tabs>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

@@ -1,15 +1,11 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authAPI, iptvAPI } from "@/lib/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Tv, Loader2, ArrowLeft, FileText } from "lucide-react";
+import { Loader2, Shield, Zap, RefreshCw, FileText } from "lucide-react";
 import { z } from "zod";
+import AppHeader from "@/components/AppHeader";
+import BottomNav from "@/components/BottomNav";
 
 const credentialsSchema = z.object({
   m3u_url: z.string().url({ message: "Invalid URL format" }).max(500),
@@ -17,23 +13,30 @@ const credentialsSchema = z.object({
 
 const usernamePasswordSchema = z.object({
   server_url: z.string().url({ message: "Invalid server URL" }).max(500),
-  username: z.string().min(1, { message: "Username is required" }),
-  password: z.string().min(1, { message: "Password is required" }),
+  username:   z.string().min(1, { message: "Username is required" }),
+  password:   z.string().min(1, { message: "Password is required" }),
 });
 
+type TabId = 'm3u' | 'xtream' | 'paste';
+
+const tabs: { id: TabId; label: string }[] = [
+  { id: 'm3u',    label: 'M3U URL' },
+  { id: 'xtream', label: 'Xtream Codes' },
+  { id: 'paste',  label: 'Paste M3U' },
+];
+
 const Setup = () => {
-  const navigate = useNavigate();
+  const navigate      = useNavigate();
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<TabId>((searchParams.get("tab") as TabId) || "m3u");
   const [providerName, setProviderName] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername]   = useState("");
+  const [password, setPassword]   = useState("");
   const [serverUrl, setServerUrl] = useState("");
-  const [m3uUrl, setM3uUrl] = useState("");
-  const [epgUrl, setEpgUrl] = useState("");
+  const [m3uUrl, setM3uUrl]       = useState("");
+  const [epgUrl, setEpgUrl]       = useState("");
   const [m3uContent, setM3uContent] = useState("");
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "m3u");
 
   useEffect(() => {
     checkAuth();
@@ -43,12 +46,8 @@ const Setup = () => {
   const checkAuth = async () => {
     try {
       const data = await authAPI.getCurrentUser();
-      if (!data.success || !data.user) {
-        navigate("/auth");
-        return;
-      }
-      setUser(data.user);
-    } catch (error) {
+      if (!data.success || !data.user) navigate("/auth");
+    } catch {
       navigate("/auth");
     }
   };
@@ -56,396 +55,238 @@ const Setup = () => {
   const loadExistingCredentials = async () => {
     try {
       const data = await iptvAPI.getCredentials();
-      
       if (data.success && data.data) {
-        const credentials = data.data;
-        setProviderName(credentials.providerName || "");
-        setUsername(credentials.username || "");
-        setPassword(""); // Don't show password
-        setServerUrl(credentials.serverUrl || "");
-        setM3uUrl(credentials.m3uUrl || "");
-        setEpgUrl(credentials.epgUrl || "");
+        const c = data.data;
+        setProviderName(c.providerName || "");
+        setUsername(c.username || "");
+        setServerUrl(c.serverUrl || "");
+        setM3uUrl(c.m3uUrl || "");
+        setEpgUrl(c.epgUrl || "");
       }
-    } catch (error) {
-      console.error("Error loading credentials:", error);
-    }
+    } catch { /* ignore */ }
   };
 
-  const generateM3UFromCredentials = (serverUrl: string, username: string, password: string): string => {
+  const generateM3UFromCredentials = (srv: string, user: string, pass: string) => {
     try {
-      // Clean the server URL
-      let cleanUrl = serverUrl.trim();
-      if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-        cleanUrl = `http://${cleanUrl}`;
-      }
-      
-      const url = new URL(cleanUrl);
-      
-      // Common IPTV M3U URL patterns
-      // Pattern 1: /get.php?username=...&password=...&type=m3u_plus (most common)
-      if (url.pathname === "/" || url.pathname === "" || url.pathname.includes("get.php")) {
-        url.pathname = "/get.php";
-        url.search = ""; // Clear existing params
-        url.searchParams.set("username", username);
-        url.searchParams.set("password", password);
-        url.searchParams.set("type", "m3u_plus");
-        return url.toString();
-      }
-      
-      // Pattern 2: /username/password/m3u_plus.m3u
-      url.pathname = `/${username}/${password}/m3u_plus.m3u`;
+      let clean = srv.trim();
+      if (!clean.startsWith("http://") && !clean.startsWith("https://")) clean = `http://${clean}`;
+      const url = new URL(clean);
+      url.pathname = "/get.php";
       url.search = "";
+      url.searchParams.set("username", user);
+      url.searchParams.set("password", pass);
+      url.searchParams.set("type", "m3u_plus");
       return url.toString();
-    } catch (error) {
-      // If URL parsing fails, use the most common pattern
-      const baseUrl = serverUrl.trim().replace(/\/$/, "");
-      const protocol = baseUrl.startsWith("http") ? "" : "http://";
-      return `${protocol}${baseUrl}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus`;
-    }
-  };
-
-  const handleSaveCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const validation = usernamePasswordSchema.safeParse({
-        server_url: serverUrl,
-        username,
-        password,
-      });
-      if (!validation.success) {
-        toast.error(validation.error.errors[0].message);
-        setIsLoading(false);
-        return;
-      }
-
-      // Generate M3U URL from credentials
-      const generatedM3UUrl = generateM3UFromCredentials(serverUrl, username, password);
-      
-      toast.info("Saving credentials...");
-
-      const data = await iptvAPI.saveCredentials({
-        providerName: providerName || undefined,
-        username,
-        password,
-        serverUrl,
-        m3uUrl: generatedM3UUrl,
-        epgUrl: epgUrl || undefined,
-      });
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to save credentials");
-      }
-
-      toast.success("IPTV credentials saved successfully!");
-      setTimeout(() => {
-        navigate("/dashboard?view=live&category=M3U");
-      }, 500);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save credentials");
-    } finally {
-      setIsLoading(false);
+    } catch {
+      const base = srv.trim().replace(/\/$/, "");
+      const proto = base.startsWith("http") ? "" : "http://";
+      return `${proto}${base}/get.php?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&type=m3u_plus`;
     }
   };
 
   const handleSaveM3U = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
-      const validation = credentialsSchema.safeParse({ m3u_url: m3uUrl });
-      if (!validation.success) {
-        toast.error(validation.error.errors[0].message);
-        setIsLoading(false);
-        return;
-      }
-
-      const data = await iptvAPI.saveCredentials({
-        providerName: providerName || undefined,
-        m3uUrl,
-        epgUrl: epgUrl || undefined,
-      });
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to save credentials");
-      }
-
-      toast.success("IPTV credentials saved successfully!");
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 500);
-    } catch (error: any) {
-      toast.error(error.message);
+      const v = credentialsSchema.safeParse({ m3u_url: m3uUrl });
+      if (!v.success) { toast.error(v.error.errors[0].message); return; }
+      const data = await iptvAPI.saveCredentials({ providerName: providerName || undefined, m3uUrl, epgUrl: epgUrl || undefined });
+      if (!data.success) throw new Error(data.message || "Failed to save");
+      toast.success("Credentials saved!");
+      setTimeout(() => navigate("/dashboard"), 500);
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSaveM3UContent = async (e: React.FormEvent) => {
+  const handleSaveXtream = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
-      if (!m3uContent || m3uContent.trim().length === 0) {
-        toast.error("Please paste your M3U playlist content");
-        setIsLoading(false);
-        return;
-      }
-
-      // Validate M3U format
-      if (!m3uContent.includes("#EXTINF") && !m3uContent.includes("#EXTM3U")) {
-        toast.error("Invalid M3U format. Please check your playlist content.");
-        setIsLoading(false);
-        return;
-      }
-
-      const data = await iptvAPI.saveCredentials({
-        providerName: providerName || "Manual Upload",
-        m3uContent,
-      });
-
-      if (!data.success) {
-        throw new Error(data.message || "Failed to save playlist");
-      }
-
-      toast.success("M3U playlist saved successfully!");
-      setTimeout(() => {
-        navigate("/dashboard?view=live&category=M3U");
-      }, 500);
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save M3U content");
+      const v = usernamePasswordSchema.safeParse({ server_url: serverUrl, username, password });
+      if (!v.success) { toast.error(v.error.errors[0].message); return; }
+      const generated = generateM3UFromCredentials(serverUrl, username, password);
+      const data = await iptvAPI.saveCredentials({ providerName: providerName || undefined, username, password, serverUrl, m3uUrl: generated, epgUrl: epgUrl || undefined });
+      if (!data.success) throw new Error(data.message || "Failed to save");
+      toast.success("Credentials saved!");
+      setTimeout(() => navigate("/dashboard?view=live&category=M3U"), 500);
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleSavePaste = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      if (!m3uContent.trim()) { toast.error("Please paste your M3U playlist content"); return; }
+      if (!m3uContent.includes("#EXTINF") && !m3uContent.includes("#EXTM3U")) { toast.error("Invalid M3U format"); return; }
+      const data = await iptvAPI.saveCredentials({ providerName: providerName || "Manual Upload", m3uContent });
+      if (!data.success) throw new Error(data.message || "Failed to save");
+      toast.success("Playlist saved!");
+      setTimeout(() => navigate("/dashboard?view=live&category=M3U"), 500);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save M3U content");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <div>
+      <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">{label}</label>
+      {children}
+    </div>
+  );
+
+  const inputClass = "w-full h-12 bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/40 transition-colors";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-card flex items-center justify-center p-6">
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-neon-cyan rounded-full filter blur-[100px] animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-neon-blue rounded-full filter blur-[120px] animate-pulse" style={{ animationDelay: "1s" }}></div>
-      </div>
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24">
+      <AppHeader />
 
-      <div className="w-full max-w-2xl relative z-10">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/dashboard")}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </Button>
+      <div className="px-4 pt-5 max-w-lg mx-auto">
+        {/* Page title */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-black text-white">Configure Provider</h1>
+          <p className="text-gray-500 text-sm mt-1 leading-relaxed">
+            Connect your IPTV service to begin streaming. Choose your preferred connection method below.
+          </p>
+        </div>
 
-        <Card className="glass-card border-glass-border animate-scale-in">
-          <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                <Tv className="w-8 h-8 text-primary" />
+        {/* Tab bar */}
+        <div className="flex bg-[#111] border border-[#1e1e1e] rounded-xl p-1 mb-5">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all ${
+                activeTab === t.id
+                  ? 'bg-[#00D7E5] text-black shadow-sm'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Forms */}
+        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-5 mb-4">
+          {activeTab === 'm3u' && (
+            <form onSubmit={handleSaveM3U} className="space-y-4">
+              <Field label="Provider Name">
+                <input type="text" placeholder="e.g. Premium IPTV" value={providerName} onChange={(e) => setProviderName(e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="EPG URL (Optional)">
+                <input type="url" placeholder="http://provider.com/epg.xml" value={epgUrl} onChange={(e) => setEpgUrl(e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="M3U Playlist URL">
+                <input type="url" placeholder="http://provider-link.com/get.php?aut" value={m3uUrl} onChange={(e) => setM3uUrl(e.target.value)} required className={inputClass} />
+              </Field>
+
+              <div className="flex items-start gap-3 p-3 bg-[#0d0d0d] rounded-xl border border-[#1e1e1e]">
+                <Shield className="w-4 h-4 text-[#00D7E5] shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-500">Your credentials are encrypted and stored locally.</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                Save &amp; Connect
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'xtream' && (
+            <form onSubmit={handleSaveXtream} className="space-y-4">
+              <Field label="Provider Name">
+                <input type="text" placeholder="e.g. Premium IPTV" value={providerName} onChange={(e) => setProviderName(e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="Server URL">
+                <input type="url" placeholder="http://iptv-provider.com:8080" value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} required className={inputClass} />
+              </Field>
+              <Field label="Username">
+                <input type="text" placeholder="your_username" value={username} onChange={(e) => setUsername(e.target.value)} required className={inputClass} />
+              </Field>
+              <Field label="Password">
+                <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className={inputClass} />
+              </Field>
+              <Field label="EPG URL (Optional)">
+                <input type="url" placeholder="https://example.com/epg.xml.gz" value={epgUrl} onChange={(e) => setEpgUrl(e.target.value)} className={inputClass} />
+              </Field>
+
+              <div className="flex items-start gap-3 p-3 bg-[#0d0d0d] rounded-xl border border-[#1e1e1e]">
+                <Shield className="w-4 h-4 text-[#00D7E5] shrink-0 mt-0.5" />
+                <p className="text-xs text-gray-500">Your credentials are encrypted and stored locally.</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                Save &amp; Connect
+              </button>
+            </form>
+          )}
+
+          {activeTab === 'paste' && (
+            <form onSubmit={handleSavePaste} className="space-y-4">
+              <Field label="Provider Name">
+                <input type="text" placeholder="e.g. My Playlist" value={providerName} onChange={(e) => setProviderName(e.target.value)} className={inputClass} />
+              </Field>
+              <Field label="Paste M3U Content">
+                <textarea
+                  placeholder="#EXTM3U&#10;#EXTINF:-1,Channel Name&#10;http://..."
+                  value={m3uContent}
+                  onChange={(e) => setM3uContent(e.target.value)}
+                  required
+                  className="w-full bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 py-3 text-white text-xs font-mono placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/40 transition-colors min-h-[180px] resize-y"
+                />
+              </Field>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                Save Playlist
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Feature cards */}
+        <div className="space-y-3">
+          {[
+            { icon: Zap,       title: 'Optimized Loading',  desc: 'We index your M3U metadata for lightning-fast channel switching.' },
+            { icon: RefreshCw, title: 'Auto Sync',          desc: 'Playlist changes from your provider are automatically updated daily.' },
+            { icon: FileText,  title: 'Multi-Format',       desc: 'Supports HLS, DASH, and RTMP streams with 4K HDR passthrough.' },
+          ].map((f, i) => (
+            <div key={i} className="flex items-start gap-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
+              <div className="w-9 h-9 rounded-xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center shrink-0">
+                <f.icon className="w-4 h-4 text-[#00D7E5]" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white mb-0.5">{f.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
             </div>
-            <CardTitle className="text-3xl font-bold">IPTV Setup</CardTitle>
-            <CardDescription className="text-base">
-              Add your IPTV credentials to start streaming
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="credentials">Username/Password</TabsTrigger>
-                <TabsTrigger value="m3u">M3U URL</TabsTrigger>
-                <TabsTrigger value="paste">Paste M3U</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="credentials">
-                <form onSubmit={handleSaveCredentials} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="provider">Provider Name (Optional)</Label>
-                    <Input
-                      id="provider"
-                      type="text"
-                      placeholder="e.g., MyIPTV"
-                      value={providerName}
-                      onChange={(e) => setProviderName(e.target.value)}
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="server_url">Server URL</Label>
-                    <Input
-                      id="server_url"
-                      type="url"
-                      placeholder="http://iptv-provider.com:8080"
-                      value={serverUrl}
-                      onChange={(e) => setServerUrl(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Your IPTV server URL (e.g., https://example.com:8080)
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="username">Username</Label>
-                      <Input
-                        id="username"
-                        type="text"
-                        placeholder="Username"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                        className="bg-secondary/50 border-glass-border"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="password">Password</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="bg-secondary/50 border-glass-border"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="epg_url_xtream">EPG XMLTV URL (Optional - will auto-generate if empty)</Label>
-                    <Input
-                      id="epg_url_xtream"
-                      type="url"
-                      placeholder="https://example.com/epg.xml.gz"
-                      value={epgUrl}
-                      onChange={(e) => setEpgUrl(e.target.value)}
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                  </div>
-
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      We'll automatically generate your M3U playlist URL from your credentials.
-                    </p>
-                  </div>
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Tv className="w-4 h-4 mr-2" />}
-                    Save & Start Watching
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="m3u">
-                <form onSubmit={handleSaveM3U} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="provider-m3u">Provider Name (Optional)</Label>
-                    <Input
-                      id="provider-m3u"
-                      type="text"
-                      placeholder="e.g., MyIPTV"
-                      value={providerName}
-                      onChange={(e) => setProviderName(e.target.value)}
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="m3u_url">M3U Playlist URL</Label>
-                    <Input
-                      id="m3u_url"
-                      type="url"
-                      placeholder="https://example.com/playlist.m3u"
-                      value={m3uUrl}
-                      onChange={(e) => setM3uUrl(e.target.value)}
-                      required
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="epg_url">EPG XMLTV URL (Optional)</Label>
-                    <Input
-                      id="epg_url"
-                      type="url"
-                      placeholder="https://example.com/epg.xml.gz"
-                      value={epgUrl}
-                      onChange={(e) => setEpgUrl(e.target.value)}
-                      className="bg-secondary/50 border-glass-border"
-                      disabled={isLoading}
-                    />
-                  </div>
-
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      Your M3U URL is the direct link to your IPTV playlist. It usually ends with .m3u or .m3u8
-                    </p>
-                  </div>
-                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Tv className="w-4 h-4 mr-2" />}
-                    Save & Start Watching
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="paste">
-                <form onSubmit={handleSaveM3UContent} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="provider-paste">Provider Name (Optional)</Label>
-                    <Input
-                      id="provider-paste"
-                      type="text"
-                      placeholder="e.g., MyIPTV"
-                      value={providerName}
-                      onChange={(e) => setProviderName(e.target.value)}
-                      className="bg-secondary/50"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="m3u-content">Paste M3U Playlist Content</Label>
-                    <Textarea
-                      id="m3u-content"
-                      placeholder="Paste your M3U playlist content here..."
-                      value={m3uContent}
-                      onChange={(e) => setM3uContent(e.target.value)}
-                      required
-                      className="bg-secondary/50 min-h-[300px] font-mono text-sm"
-                      disabled={isLoading}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      If automatic fetching fails due to CORS, you can manually copy and paste your M3U playlist content here.
-                    </p>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Save Playlist
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+          ))}
+        </div>
       </div>
+
+      <BottomNav />
     </div>
   );
 };

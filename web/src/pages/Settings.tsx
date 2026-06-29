@@ -1,116 +1,150 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ChevronLeft, Settings as SettingsIcon, Play, Shield } from "lucide-react";
+import { Play, Info, CheckCircle, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { authAPI } from "@/lib/api";
+import AppHeader from "@/components/AppHeader";
+import BottomNav from "@/components/BottomNav";
+
+const playerOptions = [
+  { value: 'auto',    label: 'Auto',    desc: 'Recommended for most users' },
+  { value: 'hls',     label: 'HLS.js',  desc: 'Optimal for adaptive bitrates' },
+  { value: 'mpegts',  label: 'MPEG-TS', desc: 'Standard broadcast protocol' },
+  { value: 'native',  label: 'Native',  desc: 'Use system default player' },
+];
 
 const Settings = () => {
   const navigate = useNavigate();
   const [playerType, setPlayerType] = useState(localStorage.getItem("preferred_player") || "auto");
-  const [useProxy, setUseProxy] = useState(localStorage.getItem("use_proxy") !== "false");
+  const [useProxy, setUseProxy]     = useState(localStorage.getItem("use_proxy") !== "false");
 
-  const handleSave = () => {
-    localStorage.setItem("preferred_player", playerType);
-    localStorage.setItem("use_proxy", useProxy.toString());
-    toast.success("Settings saved successfully!");
+  const handlePlayerChange = (value: string) => {
+    setPlayerType(value);
+    localStorage.setItem("preferred_player", value);
+    toast.success("Player preference saved");
+  };
+
+  const handleProxyChange = (checked: boolean) => {
+    setUseProxy(checked);
+    localStorage.setItem("use_proxy", checked.toString());
+    toast.success("Proxy setting saved");
+  };
+
+  const handleLogout = async () => {
+    await authAPI.logout();
+    navigate("/auth");
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <SettingsIcon className="w-8 h-8 text-primary" />
-            Settings
-          </h1>
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24">
+      <AppHeader />
+
+      <div className="px-4 pt-5 max-w-lg mx-auto space-y-4">
+        {/* Page title */}
+        <div className="mb-5">
+          <h1 className="text-2xl font-black text-white">Settings</h1>
+          <p className="text-gray-500 text-sm mt-1">Configure your streaming preferences and app performance.</p>
         </div>
 
-        <div className="space-y-6">
-          {/* Player Settings */}
-          <Card className="glass-card border-glass-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Play className="w-5 h-5 text-primary" />
-                Player Preferences
-              </CardTitle>
-              <CardDescription>Choose how you want to play your streams</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <Label>Stream Player Type</Label>
-                <RadioGroup value={playerType} onValueChange={setPlayerType} className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-glass-border bg-glass-card/50">
-                    <RadioGroupItem value="auto" id="auto" />
-                    <Label htmlFor="auto" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Auto (Recommended)</div>
-                      <div className="text-sm text-muted-foreground">Automatically choose best player for stream</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-glass-border bg-glass-card/50">
-                    <RadioGroupItem value="hls" id="hls" />
-                    <Label htmlFor="hls" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">HLS.js Only</div>
-                      <div className="text-sm text-muted-foreground">Force HLS player for all compatible streams</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-glass-border bg-glass-card/50">
-                    <RadioGroupItem value="mpegts" id="mpegts" />
-                    <Label htmlFor="mpegts" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">MPEG-TS Only</div>
-                      <div className="text-sm text-muted-foreground">Use mpegts.js (Best for some IPTV providers)</div>
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border border-glass-border bg-glass-card/50">
-                    <RadioGroupItem value="native" id="native" />
-                    <Label htmlFor="native" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Native Player</div>
-                      <div className="text-sm text-muted-foreground">Use browser's default player (Safari/Edge)</div>
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Playback section */}
+        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-[#1e1e1e]">
+            <Play className="w-5 h-5 text-[#00D7E5]" />
+            <span className="font-bold text-[#00D7E5] text-base">Playback</span>
+          </div>
 
-          {/* Network Settings */}
-          <Card className="glass-card border-glass-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Shield className="w-5 h-5 text-primary" />
-                Network & Privacy
-              </CardTitle>
-              <CardDescription>Control how streams are loaded</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between p-3 rounded-lg border border-glass-border bg-glass-card/50">
-                <div className="space-y-0.5">
-                  <Label className="text-base font-semibold">Use Stream Proxy</Label>
-                  <p className="text-sm text-muted-foreground italic">
-                    Bypass CORS and Mixed Content issues (Recommended for IPTV)
-                  </p>
-                </div>
-                <Switch checked={useProxy} onCheckedChange={setUseProxy} />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="px-4 pt-4 pb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-3">Stream Player Type</p>
+            <div className="space-y-2">
+              {playerOptions.map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-center justify-between p-3 rounded-xl border border-[#1e1e1e] bg-[#0d0d0d] cursor-pointer hover:border-[#333] transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-bold text-white">{opt.label}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{opt.desc}</p>
+                  </div>
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      playerType === opt.value
+                        ? 'border-[#00D7E5] bg-[#00D7E5]'
+                        : 'border-[#333] bg-transparent'
+                    }`}
+                    onClick={() => handlePlayerChange(opt.value)}
+                  >
+                    {playerType === opt.value && (
+                      <div className="w-2 h-2 rounded-full bg-white" />
+                    )}
+                  </div>
+                  <input
+                    type="radio"
+                    name="player"
+                    value={opt.value}
+                    checked={playerType === opt.value}
+                    onChange={() => handlePlayerChange(opt.value)}
+                    className="sr-only"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
 
-          <div className="flex gap-4">
-            <Button onClick={handleSave} className="flex-1 bg-primary hover:bg-primary/90">
-              Save Settings
-            </Button>
-            <Button variant="outline" onClick={() => navigate("/setup")} className="flex-1">
-              IPTV Credentials
-            </Button>
+          {/* Proxy toggle */}
+          <div className="flex items-center justify-between px-4 py-4 border-t border-[#1e1e1e]">
+            <div>
+              <p className="text-sm font-bold text-white">Use Stream Proxy</p>
+              <p className="text-xs text-gray-600 mt-0.5">Bypass local ISP restrictions for better connectivity</p>
+            </div>
+            <Switch checked={useProxy} onCheckedChange={handleProxyChange} />
           </div>
         </div>
+
+        {/* App Info section */}
+        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2.5 px-4 py-4 border-b border-[#1e1e1e]">
+            <Info className="w-5 h-5 text-[#00D7E5]" />
+            <span className="font-bold text-[#00D7E5] text-base">App Info</span>
+          </div>
+
+          {[
+            { label: 'Version',        value: '2.4.12-pro' },
+            { label: 'Build Date',     value: 'October 24, 2023' },
+            { label: 'User ID',        value: 'SF-882-9901-X' },
+            { label: 'Network Status', value: '● Connected', valueClass: 'text-green-400' },
+          ].map((row, i, arr) => (
+            <div
+              key={row.label}
+              className={`flex items-center justify-between px-4 py-3.5 ${i < arr.length - 1 ? 'border-b border-[#1a1a1a]' : ''}`}
+            >
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-600">{row.label}</span>
+              <span className={`text-sm font-semibold ${row.valueClass || 'text-white'}`}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Logout */}
+        <button
+          onClick={handleLogout}
+          className="w-full h-13 bg-red-600/90 hover:bg-red-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 py-3.5 transition-colors"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
+        </button>
+        <p className="text-center text-xs text-gray-700">Log out will clear your session on this device.</p>
+
+        {/* IPTV Setup shortcut */}
+        <button
+          onClick={() => navigate('/setup')}
+          className="w-full h-12 bg-transparent border border-[#1e1e1e] text-gray-400 hover:text-white hover:border-[#333] font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
+          <CheckCircle className="w-4 h-4" />
+          IPTV Setup
+        </button>
       </div>
+
+      <BottomNav />
     </div>
   );
 };

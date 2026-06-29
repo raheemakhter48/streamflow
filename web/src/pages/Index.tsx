@@ -1,179 +1,117 @@
-import { Button } from "@/components/ui/button";
-import { Play, Tv, Zap, Star, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { authAPI } from "@/lib/api";
+import { Zap, Tv, Shield, Play, Heart, Grid3X3, Sparkles, Lock, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import AppHeader from "@/components/AppHeader";
+import BottomNav from "@/components/BottomNav";
+
+const stats = [
+  { icon: Zap,    title: 'Ultra Fast',      desc: 'Low latency global servers' },
+  { icon: Tv,     title: '1000+ Channels',  desc: 'Live TV & VOD library' },
+  { icon: Shield, title: 'Secure',          desc: 'AES-256 encrypted streams' },
+];
+
+const features = [
+  { icon: Play,       title: 'Smooth Playback',     desc: 'Adaptive bitrate switching ensures buffer-free viewing even on slower connections.' },
+  { icon: Heart,      title: 'Smart Favorites',     desc: 'Sync your personal watchlist across all devices instantly with one click.' },
+  { icon: Grid3X3,    title: 'Dynamic Categories',  desc: 'Browse through thousands of channels organized by genre, language, and region.' },
+  { icon: Sparkles,   title: '4K Ultra HD',         desc: 'Crystal clear resolution for major sports events and blockbuster movies.' },
+  { icon: Lock,       title: 'Advanced Security',   desc: 'Built-in VPN protection and secure login protocols keep your data safe.' },
+  { icon: Smartphone, title: 'Multi-Device',        desc: 'Stream on your Smart TV, smartphone, tablet, or laptop simultaneously.' },
+];
 
 const Index = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const data = await authAPI.getCurrentUser();
-        setIsAuthenticated(data.success && !!data.user);
-      } catch {
-        setIsAuthenticated(false);
-      }
-    };
-    checkAuth();
+    authAPI.getCurrentUser()
+      .then((data) => setIsAuthenticated(data.success && !!data.user))
+      .catch(() => setIsAuthenticated(false));
   }, []);
 
+  const destination = isAuthenticated ? '/dashboard' : '/auth';
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-card">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-20 left-20 w-72 h-72 bg-neon-cyan rounded-full filter blur-[100px] animate-pulse"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-neon-blue rounded-full filter blur-[120px] animate-pulse" style={{ animationDelay: "1s" }}></div>
-        </div>
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20">
+      <AppHeader />
 
-        {/* Navigation */}
-        <nav className="relative z-10 container mx-auto px-6 py-6 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Tv className="w-8 h-8 text-primary" />
-            <span className="text-2xl font-bold neon-text">StreamVault</span>
-          </div>
-          <div className="flex gap-4">
-            {isAuthenticated ? (
-              <Link to="/dashboard">
-                <Button variant="default" className="bg-primary hover:bg-primary/90">
-                  Dashboard
-                </Button>
-              </Link>
-            ) : (
-              <Link to="/auth">
-                <Button variant="default" className="bg-primary hover:bg-primary/90">
-                  Get Started
-                </Button>
-              </Link>
-            )}
-          </div>
-        </nav>
+      <main className="px-5 max-w-lg mx-auto">
+        {/* Hero */}
+        <section className="pt-8 pb-7">
+          <h1 className="text-[2.6rem] font-black leading-[1.1] mb-3 tracking-tight">
+            Ultra Fast{' '}
+            <span className="text-[#00D7E5]">Streaming</span>
+          </h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            Access 1000+ Channels Securely with our cutting-edge IPTV infrastructure.
+            Experience zero lag, 4K resolution, and global connectivity.
+          </p>
+          <Link to={destination} className="block mb-3">
+            <Button className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl text-[15px] shadow-[0_0_20px_rgba(0,215,229,0.25)]">
+              Start Streaming &rsaquo;
+            </Button>
+          </Link>
+          <Button
+            variant="outline"
+            className="w-full h-12 bg-transparent border border-[#2a2a2a] text-white hover:bg-[#151515] hover:border-[#333] rounded-xl text-[15px] font-semibold"
+          >
+            View Pricing
+          </Button>
+        </section>
 
-        {/* Hero Content */}
-        <div className="relative z-10 container mx-auto px-6 pt-20 pb-32 text-center">
-          <div className="animate-fade-in">
-            <div className="inline-block mb-6">
-              <span className="px-4 py-2 glass-card rounded-full text-sm font-medium text-primary border border-primary/30">
-                Zero Buffering • Ultra Fast • HLS Powered
-              </span>
+        {/* Stats */}
+        <section className="flex flex-col gap-3 mb-8">
+          {stats.map((s, i) => (
+            <div key={i} className="flex items-center gap-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
+              <div className="w-10 h-10 rounded-xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center shrink-0">
+                <s.icon className="w-5 h-5 text-[#00D7E5]" />
+              </div>
+              <div>
+                <p className="font-bold text-white text-sm">{s.title}</p>
+                <p className="text-gray-500 text-xs mt-0.5">{s.desc}</p>
+              </div>
             </div>
-            <h1 className="text-6xl md:text-7xl font-black mb-6 leading-tight">
-              Stream Your IPTV
-              <br />
-              <span className="neon-text">Like Never Before</span>
-            </h1>
-            <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Experience lightning-fast streaming with zero buffering. Add your IPTV credentials and watch thousands of channels instantly.
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-                <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 h-14 hover-glow">
-                  <Play className="mr-2 w-5 h-5" />
-                  Start Streaming
-                </Button>
-              </Link>
-            </div>
-          </div>
+          ))}
+        </section>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto mt-20">
-            {[
-              { icon: Zap, label: "0ms Buffering", value: "Ultra Fast" },
-              { icon: Tv, label: "1000+ Channels", value: "All Categories" },
-              { icon: Shield, label: "Secure & Private", value: "Encrypted" },
-            ].map((stat, i) => (
-              <div key={i} className="glass-card rounded-xl p-6 hover-scale animate-scale-in" style={{ animationDelay: `${i * 0.1}s` }}>
-                <stat.icon className="w-8 h-8 text-primary mx-auto mb-3" />
-                <div className="text-2xl font-bold mb-1">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+        {/* Features */}
+        <section className="mb-8">
+          <h2 className="text-xl font-black text-white mb-1">Next-Gen Features</h2>
+          <p className="text-gray-500 text-xs mb-5">Engineered for the ultimate cinematic vault experience.</p>
+          <div className="flex flex-col gap-3">
+            {features.map((f, i) => (
+              <div key={i} className="flex items-start gap-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
+                <div className="w-10 h-10 rounded-xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center shrink-0 mt-0.5">
+                  <f.icon className="w-5 h-5 text-[#00D7E5]" />
+                </div>
+                <div>
+                  <p className="font-bold text-white text-sm mb-0.5">{f.title}</p>
+                  <p className="text-gray-500 text-xs leading-relaxed">{f.desc}</p>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Features Section */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">Why Choose StreamVault?</h2>
-          <p className="text-muted-foreground text-lg">The ultimate IPTV streaming experience</p>
-        </div>
+        {/* CTA */}
+        <section className="bg-[#111] border border-[#1e1e1e] rounded-2xl p-6 text-center mb-4">
+          <h2 className="text-xl font-black text-white mb-2">Ready to Start Streaming?</h2>
+          <p className="text-gray-400 text-xs leading-relaxed mb-5">
+            Join 50k+ users enjoying the future of television today.
+          </p>
+          <Link to={destination}>
+            <Button
+              variant="outline"
+              className="h-11 px-8 bg-transparent border border-[#00D7E5] text-[#00D7E5] hover:bg-[#00D7E5]/10 rounded-xl font-bold"
+            >
+              Get Started Now
+            </Button>
+          </Link>
+        </section>
+      </main>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[
-            {
-              icon: Zap,
-              title: "Ultra-Fast Playback",
-              description: "HLS technology ensures zero buffering and instant channel switching"
-            },
-            {
-              icon: Star,
-              title: "Favorites System",
-              description: "Mark your favorite channels and access them instantly"
-            },
-            {
-              icon: Tv,
-              title: "Smart Categories",
-              description: "Channels organized by Movies, Sports, News, Kids and more"
-            },
-            {
-              icon: Play,
-              title: "Seamless Streaming",
-              description: "Auto quality selection and reconnection for smooth playback"
-            },
-            {
-              icon: Shield,
-              title: "Secure Storage",
-              description: "Your IPTV credentials are encrypted and stored securely"
-            },
-            {
-              icon: Zap,
-              title: "Mobile Ready",
-              description: "Responsive design works perfectly on all devices"
-            },
-          ].map((feature, i) => (
-            <div key={i} className="glass-card rounded-xl p-8 hover-scale animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-              <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                <feature.icon className="w-7 h-7 text-primary" />
-              </div>
-              <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-              <p className="text-muted-foreground">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* CTA Section */}
-      <div className="container mx-auto px-6 py-20">
-        <div className="glass-card rounded-2xl p-12 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-1/4 w-64 h-64 bg-primary rounded-full filter blur-[80px]"></div>
-            <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-neon-blue rounded-full filter blur-[80px]"></div>
-          </div>
-          <div className="relative z-10">
-            <h2 className="text-4xl font-bold mb-4">Ready to Start Streaming?</h2>
-            <p className="text-muted-foreground text-lg mb-8 max-w-2xl mx-auto">
-              Join thousands of users enjoying buffer-free IPTV streaming. Setup takes less than a minute.
-            </p>
-            <Link to={isAuthenticated ? "/dashboard" : "/auth"}>
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 h-14">
-                <Play className="mr-2 w-5 h-5" />
-                Get Started Free
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-8">
-        <div className="container mx-auto px-6 text-center text-muted-foreground">
-          <p>© 2025 StreamVault. Ultra-fast IPTV streaming platform.</p>
-        </div>
-      </footer>
+      <BottomNav />
     </div>
   );
 };
