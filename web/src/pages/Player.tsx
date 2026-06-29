@@ -268,37 +268,6 @@ ${activeUrl}`;
 
       {/* Video Player */}
       <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        {/* VLC Recommendation Banner */}
-        <div className={`mb-4 p-4 rounded-lg ${
-          needsExternalPlayer
-            ? "bg-amber-500/10 border border-amber-500/30"
-            : "bg-green-500/10 border border-green-500/30"
-        }`}>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <Tv className={`w-5 h-5 shrink-0 ${needsExternalPlayer ? "text-amber-300" : "text-green-400"}`} />
-            <div className="flex-1">
-              <p className={`text-sm font-medium ${needsExternalPlayer ? "text-amber-300" : "text-green-400"}`}>
-                ✅ Stream is working in VLC Player!
-              </p>
-              <p className={`text-xs mt-1 ${needsExternalPlayer ? "text-amber-200/80" : "text-green-300/80"}`}>
-                For best experience, use VLC Player. Click "Open In" → "VLC Player" button above.
-              </p>
-            </div>
-            <Button
-              onClick={() => openInExternalPlayer('vlc')}
-              size="sm"
-              className={`gap-2 w-full sm:w-auto ${
-                needsExternalPlayer
-                  ? "bg-amber-400 hover:bg-amber-500 text-black"
-                  : "bg-green-500 hover:bg-green-600 text-white"
-              }`}
-            >
-              <Tv className="w-4 h-4" />
-              Open in VLC
-            </Button>
-          </div>
-        </div>
-
         <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-hidden glass-card border-glass-border">
           {activeUrl ? (
             <>
@@ -374,49 +343,6 @@ ${activeUrl}`;
               {channelCategory && (
                 <p className="text-muted-foreground mb-4">{channelCategory}</p>
               )}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground mb-4">
-                <span className="break-all">Stream URL: {activeUrl.substring(0, 60)}...</span>
-                {fallbackUrls.length > 1 && (
-                  <span>Backup {activeUrlIndex + 1}/{fallbackUrls.length}</span>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={copyStreamUrl}
-                  className="gap-2"
-                >
-                  <Copy className="w-3 h-3" />
-                  Copy
-                </Button>
-              </div>
-              
-              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-                <p className="text-sm text-green-400 mb-2">
-                  <strong>✅ Great News!</strong> This stream works perfectly in VLC Player!
-                </p>
-                <p className="text-sm text-green-300/90 mb-2">
-                  The web browser player may have limitations with this stream format, but VLC handles it perfectly.
-                </p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
-                  <Button
-                    onClick={() => openInExternalPlayer('vlc')}
-                    size="sm"
-                    className="bg-green-500 hover:bg-green-600 text-white gap-2 w-full sm:w-auto"
-                  >
-                    <Tv className="w-4 h-4" />
-                    Open in VLC Now
-                  </Button>
-                  <Button
-                    onClick={copyStreamUrl}
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 w-full sm:w-auto"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copy URL
-                  </Button>
-                </div>
-              </div>
               
               {activeUrl.includes("otv.to") && (
                 <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
