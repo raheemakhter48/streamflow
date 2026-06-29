@@ -12,6 +12,7 @@ import Player from "./pages/Player";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import InstallBanner from "./components/InstallBanner";
 
 const queryClient = new QueryClient();
 const Router = import.meta.env.VITE_DESKTOP === "true" ? HashRouter : BrowserRouter;
@@ -22,6 +23,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <InstallBanner />
         <Router>
           <Routes>
             <Route path="/" element={<Index />} />
