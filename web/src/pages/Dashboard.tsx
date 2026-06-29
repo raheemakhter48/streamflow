@@ -679,8 +679,8 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="px-4 max-w-lg lg:max-w-7xl mx-auto">
-          {/* Category tabs */}
-          <div className="flex gap-2 pt-4 pb-3 overflow-x-auto scrollbar-hide">
+          {/* Category tabs — mobile only (desktop uses top nav) */}
+          <div className="lg:hidden flex gap-2 pt-4 pb-3 overflow-x-auto scrollbar-hide">
             {viewTabs.map((t) => (
               <button
                 key={t.id}
@@ -696,20 +696,21 @@ const Dashboard = () => {
             ))}
           </div>
 
-          {/* Search */}
-          <div className="relative mb-3">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
-            <Input
-              placeholder="Search..."
-              className="pl-10 h-11 bg-[#111] border-[#1e1e1e] rounded-xl text-sm text-white placeholder-gray-700 focus:border-[#00D7E5]/40"
-              value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            />
-          </div>
+          {/* Search + filters row */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-4 lg:pt-5 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+              <Input
+                placeholder="Search channels, movies, series..."
+                className="pl-10 h-11 bg-[#111] border-[#1e1e1e] rounded-xl text-sm text-white placeholder-gray-700 focus:border-[#00D7E5]/40"
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
 
           {/* Region + Country (live view only) */}
           {(viewMode === 'live' || viewMode === 'home') && (
-            <div className="flex gap-2 mb-4">
+            <div className="flex gap-2 lg:shrink-0">
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
                 <SelectTrigger className="flex-1 h-10 bg-[#111] border-[#1e1e1e] rounded-xl text-white text-xs font-bold">
                   <SelectValue placeholder="Region" />
@@ -734,6 +735,7 @@ const Dashboard = () => {
               </Select>
             </div>
           )}
+          </div>
 
           {/* Continue Watching */}
           {recentlyWatched.length > 0 && (
