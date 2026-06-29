@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
 import dns from 'node:dns/promises';
+import https from 'node:https';
 import net from 'node:net';
 import { protect } from '../middleware/auth.js';
 import supabase from '../config/supabase.js';
@@ -13,6 +14,12 @@ const MAX_CHANNEL_LIMIT = 100;
 const MAX_SELECTED_CHANNELS = 50;
 const STREAM_CHECK_TIMEOUT_MS = 8000;
 const STREAM_CHECK_CONCURRENCY = 8;
+const STREAM_SAMPLE_TIMEOUT_MS = 5000;
+const STREAM_SAMPLE_MIN_BYTES = 4096;
+
+const insecureHttpsAgent = new https.Agent({
+  rejectUnauthorized: false
+});
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -75,44 +82,196 @@ const assertSafeStreamUrl = async (rawUrl, req) => {
   return parsed.toString();
 };
 
+const readStreamSample = (stream) => {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let totalBytes = 0;
+    let settled = false;
+
+    const cleanup = () => {
+      clearTimeout(timeout);
+      stream.removeListener('data', onData);
+      stream.removeListener('end', onEnd);
+      stream.removeListener('error', onError);
+    };
+
+    const finish = (value, error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      stream.destroy?.();
+      if (error) reject(error);
+      else resolve(value);
+    };
+
+    const onData = (chunk) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      chunks.push(buffer);
+      totalBytes += buffer.length;
+      if (totalBytes >= STREAM_SAMPLE_MIN_BYTES) {
+        finish(Buffer.concat(chunks, totalBytes));
+      }
+    };
+
+    const onEnd = () => finish(Buffer.concat(chunks, totalBytes));
+    const onError = (error) => finish(null, error);
+    const timeout = setTimeout(
+      () => finish(null, new Error('Stream returned no media data')),
+      STREAM_SAMPLE_TIMEOUT_MS
+    );
+
+    stream.on('data', onData);
+    stream.once('end', onEnd);
+    stream.once('error', onError);
+  });
+};
+
+const fetchStreamResponse = async (rawUrl, req) => {
+  let url = rawUrl;
+
+  for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+    url = await assertSafeStreamUrl(url, req);
+    const response = await axios.get(url, {
+      responseType: 'stream',
+      timeout: STREAM_CHECK_TIMEOUT_MS,
+      maxRedirects: 0,
+      httpsAgent: insecureHttpsAgent,
+      headers: {
+        Accept: '*/*',
+        Range: 'bytes=0-65535',
+        'User-Agent': 'VLC/3.0.11'
+      },
+      validateStatus: () => true
+    });
+
+    if (response.status >= 300 && response.status < 400 && response.headers.location) {
+      response.data?.destroy?.();
+      url = new URL(response.headers.location, url).toString();
+      continue;
+    }
+
+    return { response, url };
+  }
+
+  throw new Error('Too many stream redirects');
+};
+
+const looksLikeErrorPayload = (sample, contentType) => {
+  const prefix = sample.subarray(0, 512).toString('utf8').trim().toLowerCase();
+  return contentType.includes('text/html')
+    || contentType.includes('application/json')
+    || prefix.startsWith('<!doctype html')
+    || prefix.startsWith('<html')
+    || prefix.startsWith('{"error"')
+    || prefix.startsWith('{"message"')
+    || prefix.includes('access denied')
+    || prefix.includes('stream not found');
+};
+
+const hasTransportStreamPackets = (sample) => {
+  for (const packetSize of [188, 192, 204]) {
+    for (let offset = 0; offset < Math.min(packetSize, sample.length); offset += 1) {
+      if (
+        sample[offset] === 0x47
+        && sample[offset + packetSize] === 0x47
+        && sample[offset + (packetSize * 2)] === 0x47
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+const hasKnownMediaSignature = (sample) => {
+  const boxType = sample.subarray(4, 8).toString('ascii');
+  return hasTransportStreamPackets(sample)
+    || sample.subarray(0, 4).toString('ascii') === 'OggS'
+    || sample.subarray(0, 3).toString('ascii') === 'FLV'
+    || sample.subarray(0, 4).toString('ascii') === 'RIFF'
+    || sample.subarray(0, 3).toString('ascii') === 'ID3'
+    || ['ftyp', 'styp', 'moof'].includes(boxType)
+    || sample.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3]))
+    || sample.subarray(0, 4).equals(Buffer.from([0x00, 0x00, 0x01, 0xba]))
+    || sample.subarray(0, 4).equals(Buffer.from([0x00, 0x00, 0x01, 0xb3]))
+    || (sample[0] === 0xff && (sample[1] & 0xf0) === 0xf0);
+};
+
+const validateStreamPayload = async (response, finalUrl, req, depth = 0) => {
+  if (response.status < 200 || response.status >= 300) {
+    response.data?.destroy?.();
+    return { isWorking: false, error: `HTTP ${response.status}` };
+  }
+
+  if (response.status === 204) {
+    response.data?.destroy?.();
+    return { isWorking: false, error: 'Stream returned no content' };
+  }
+
+  const contentType = String(response.headers['content-type'] || '').toLowerCase();
+  const sample = await readStreamSample(response.data);
+
+  if (!sample || sample.length === 0) {
+    return { isWorking: false, error: 'Stream returned no media data' };
+  }
+
+  const sampleText = sample.toString('utf8').trim();
+  const claimsHls = contentType.includes('mpegurl')
+    || contentType.includes('m3u')
+    || /\.m3u8(?:$|[?#])/i.test(finalUrl);
+  const isHlsManifest = sampleText.startsWith('#EXTM3U');
+
+  if (claimsHls || isHlsManifest) {
+    if (!isHlsManifest) {
+      return { isWorking: false, error: 'Invalid HLS manifest' };
+    }
+
+    const firstMediaLine = sampleText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith('#'));
+
+    if (!firstMediaLine) {
+      return { isWorking: false, error: 'HLS manifest has no playable media' };
+    }
+
+    if (depth >= 2) {
+      return { isWorking: false, error: 'HLS manifest nesting is too deep' };
+    }
+
+    const mediaUrl = new URL(firstMediaLine, finalUrl).toString();
+    const mediaFetch = await fetchStreamResponse(mediaUrl, req);
+    return validateStreamPayload(mediaFetch.response, mediaFetch.url, req, depth + 1);
+  }
+
+  if (sample.length < 512) {
+    return { isWorking: false, error: 'Stream media response is too small' };
+  }
+
+  if (looksLikeErrorPayload(sample, contentType)) {
+    return { isWorking: false, error: 'Stream returned an error page instead of media' };
+  }
+
+  return hasKnownMediaSignature(sample)
+    ? { isWorking: true, error: null }
+    : { isWorking: false, error: `Response did not contain recognizable media (${contentType || 'unknown type'})` };
+};
+
 const checkStreamUrl = async (rawUrl, req) => {
   const checkedAt = new Date().toISOString();
 
   try {
-    let url = rawUrl;
+    const { response, url } = await fetchStreamResponse(rawUrl, req);
+    const validation = await validateStreamPayload(response, url, req);
 
-    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
-      url = await assertSafeStreamUrl(url, req);
-      const response = await axios.get(url, {
-        responseType: 'stream',
-        timeout: STREAM_CHECK_TIMEOUT_MS,
-        maxRedirects: 0,
-        headers: {
-          Accept: '*/*',
-          Range: 'bytes=0-2048',
-          'User-Agent': 'VLC/3.0.11'
-        },
-        validateStatus: () => true
-      });
-
-      response.data?.destroy?.();
-
-      if (response.status >= 300 && response.status < 400 && response.headers.location) {
-        url = new URL(response.headers.location, url).toString();
-        continue;
-      }
-
-      const isWorking = response.status >= 200 && response.status < 300;
-      return {
-        isWorking,
-        url,
-        statusCode: response.status,
-        error: isWorking ? null : `HTTP ${response.status}`,
-        checkedAt
-      };
-    }
-
-    throw new Error('Too many stream redirects');
+    return {
+      isWorking: validation.isWorking,
+      url: rawUrl,
+      finalUrl: url,
+      statusCode: response.status,
+      error: validation.error,
+      checkedAt
+    };
   } catch (error) {
     return {
       isWorking: false,
