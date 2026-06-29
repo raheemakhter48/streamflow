@@ -5,6 +5,7 @@ import AuthScreen from '../screens/AuthScreen';
 import SetupScreen from '../screens/SetupScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import PlayerScreen from '../screens/PlayerScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import {ActivityIndicator, View, StyleSheet} from 'react-native';
 
 const Stack = createNativeStackNavigator();
@@ -45,16 +46,21 @@ const AppNavigator: React.FC = () => {
           <Stack.Screen
             name="Dashboard"
             component={DashboardScreen}
-            options={{title: 'Channels'}}
+            options={{headerShown: false}}
           />
           <Stack.Screen
             name="Setup"
             component={SetupScreen}
-            options={{title: 'IPTV Setup'}}
+            options={{headerShown: false}}
           />
           <Stack.Screen
             name="Player"
             component={PlayerScreen}
+            options={{headerShown: false}}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={SettingsScreen}
             options={{headerShown: false}}
           />
         </>

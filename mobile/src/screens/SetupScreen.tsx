@@ -16,6 +16,8 @@ import {useNavigation} from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import {iptvAPI} from '../lib/api';
 import {useAuth} from '../context/AuthContext';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {colors} from '../theme';
 
 const {width} = Dimensions.get('window');
 
@@ -33,11 +35,6 @@ const SetupScreen: React.FC = () => {
   const [m3uUrl, setM3uUrl] = useState('');
   const [epgUrl, setEpgUrl] = useState('');
   const [m3uContent, setM3uContent] = useState('');
-
-  // Smarters Theme
-  const primaryColor = '#00A8B5'; // Teal
-  const secondaryColor = '#004E92'; // Blue
-  const darkBg = '#001518';
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -119,12 +116,17 @@ const SetupScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={darkBg} />
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         <View style={styles.header}>
-          <Text style={styles.title}>SETUP YOUR PLAYLIST</Text>
-          <Text style={styles.subtitle}>Enter your IPTV provider details below</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="chevron-left" size={27} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerCopy}>
+            <Text style={styles.title}>SETUP YOUR PLAYLIST</Text>
+            <Text style={styles.subtitle}>Enter your IPTV provider details below</Text>
+          </View>
         </View>
 
         <View style={styles.tabBar}>
@@ -136,8 +138,8 @@ const SetupScreen: React.FC = () => {
             <TouchableOpacity 
               key={tab.id}
               onPress={() => setActiveTab(tab.id as any)}
-              style={[styles.tab, activeTab === tab.id && {borderBottomColor: primaryColor}]}>
-              <Text style={[styles.tabText, activeTab === tab.id && {color: primaryColor}]}>{tab.label}</Text>
+              style={[styles.tab, activeTab === tab.id && {borderBottomColor: colors.primary}]}>
+              <Text style={[styles.tabText, activeTab === tab.id && {color: colors.primary}]}>{tab.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -182,8 +184,8 @@ const SetupScreen: React.FC = () => {
           )}
 
           <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading}>
-            <LinearGradient colors={[primaryColor, secondaryColor]} style={styles.btnGradient}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>CONNECT NOW</Text>}
+            <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.btnGradient}>
+              {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.btnText}>CONNECT NOW</Text>}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -198,24 +200,26 @@ const SetupScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#001518'},
-  scrollContent: {padding: 25},
-  header: {marginBottom: 30, alignItems: 'center'},
-  title: {color: '#fff', fontSize: 24, fontWeight: 'bold', letterSpacing: 1},
-  subtitle: {color: '#00A8B5', fontSize: 14, marginTop: 5},
-  tabBar: {flexDirection: 'row', marginBottom: 30, borderBottomWidth: 1, borderBottomColor: '#002E34'},
+  container: {flex: 1, backgroundColor: colors.background},
+  scrollContent: {padding: 18, paddingBottom: 40},
+  header: {marginBottom: 26, flexDirection: 'row', alignItems: 'center'},
+  backButton: {width: 44, height: 44, borderRadius: 14, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 12},
+  headerCopy: {flex: 1},
+  title: {color: colors.text, fontSize: 22, fontWeight: '900', fontStyle: 'italic', letterSpacing: -0.5},
+  subtitle: {color: colors.textMuted, fontSize: 13, marginTop: 4},
+  tabBar: {flexDirection: 'row', marginBottom: 24, borderBottomWidth: 1, borderBottomColor: colors.border},
   tab: {flex: 1, paddingVertical: 15, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent'},
-  tabText: {color: '#666', fontSize: 12, fontWeight: 'bold'},
-  form: {backgroundColor: '#001F24', padding: 20, borderRadius: 15, borderWidth: 1, borderColor: '#002E34'},
+  tabText: {color: colors.textDim, fontSize: 11, fontWeight: 'bold'},
+  form: {backgroundColor: colors.surfaceSoft, padding: 18, borderRadius: 20, borderWidth: 1, borderColor: colors.border},
   inputGroup: {marginBottom: 20},
-  label: {color: '#00A8B5', fontSize: 11, fontWeight: 'bold', marginBottom: 8},
-  input: {backgroundColor: '#001518', color: '#fff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#002E34'},
+  label: {color: colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 1.2, marginBottom: 8},
+  input: {backgroundColor: 'rgba(0,0,0,0.5)', color: colors.text, padding: 15, borderRadius: 14, borderWidth: 1, borderColor: colors.border},
   row: {flexDirection: 'row'},
-  saveBtn: {marginTop: 10, borderRadius: 10, overflow: 'hidden'},
+  saveBtn: {marginTop: 10, borderRadius: 16, overflow: 'hidden'},
   btnGradient: {padding: 18, alignItems: 'center'},
-  btnText: {color: '#fff', fontSize: 16, fontWeight: 'bold', letterSpacing: 1},
+  btnText: {color: colors.background, fontSize: 16, fontWeight: '900', letterSpacing: 0.5},
   cancelBtn: {marginTop: 20, alignItems: 'center'},
-  cancelText: {color: '#666', fontSize: 14},
+  cancelText: {color: colors.textMuted, fontSize: 14},
 });
 
 export default SetupScreen;

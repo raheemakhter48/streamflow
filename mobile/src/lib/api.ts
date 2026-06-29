@@ -41,12 +41,43 @@ export const authAPI = {
     if (data.token) await AsyncStorage.setItem('auth_token', data.token);
     return data;
   },
+  register: async (email: string, password: string) => {
+    const data = await apiRequest('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    const token = data.token || data.data?.token;
+    if (token) await AsyncStorage.setItem('auth_token', token);
+    return data;
+  },
   logout: async () => await AsyncStorage.removeItem('auth_token'),
   getCurrentUser: async () => apiRequest('/auth/me'),
 };
 
 export const iptvAPI = {
   getCredentials: async () => apiRequest('/iptv/credentials'),
+  getRegions: async () => apiRequest('/iptv/regions'),
+  getChannels: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    region?: string;
+    country?: string;
+  } = {}) => {
+    const query = Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join('&');
+    return apiRequest(`/iptv/channels${query ? `?${query}` : ''}`);
+  },
+  getCategories: async (params: {region?: string; country?: string} = {}) => {
+    const query = Object.entries(params)
+      .filter(([, value]) => value !== undefined && value !== '')
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      .join('&');
+    return apiRequest(`/iptv/categories${query ? `?${query}` : ''}`);
+  },
   saveCredentials: async (credentials: any) => apiRequest('/iptv/credentials', {
     method: 'POST',
     body: JSON.stringify(credentials),

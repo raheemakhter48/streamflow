@@ -10,6 +10,17 @@ export interface Channel {
   tvgLogo?: string;
   isHD?: boolean;
   type?: ContentType;
+  isWorking?: boolean;
+  playbackSupport?: 'browser' | 'external';
+  country?: string;
+  source?: 'iptv-org' | 'm3u';
+  alternateUrls?: string[];
+}
+
+export interface IptvRegion {
+  code: string;
+  name: string;
+  countries: string[];
 }
 
 export interface User {
