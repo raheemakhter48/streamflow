@@ -33,10 +33,10 @@ const Index = () => {
   const destination = isAuthenticated ? '/dashboard' : '/auth';
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20 lg:pb-0">
       <AppHeader />
 
-      <main className="px-5 max-w-lg mx-auto">
+      <main className="px-5 max-w-lg lg:max-w-5xl mx-auto">
         {/* Hero */}
         <section className="pt-8 pb-7">
           <h1 className="text-[2.6rem] font-black leading-[1.1] mb-3 tracking-tight">
@@ -61,7 +61,7 @@ const Index = () => {
         </section>
 
         {/* Stats */}
-        <section className="flex flex-col gap-3 mb-8">
+        <section className="flex flex-col lg:flex-row gap-3 mb-8">
           {stats.map((s, i) => (
             <div key={i} className="flex items-center gap-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
               <div className="w-10 h-10 rounded-xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center shrink-0">
@@ -79,7 +79,7 @@ const Index = () => {
         <section className="mb-8">
           <h2 className="text-xl font-black text-white mb-1">Next-Gen Features</h2>
           <p className="text-gray-500 text-xs mb-5">Engineered for the ultimate cinematic vault experience.</p>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col lg:grid lg:grid-cols-3 gap-3">
             {features.map((f, i) => (
               <div key={i} className="flex items-start gap-4 bg-[#111] border border-[#1e1e1e] rounded-xl p-4">
                 <div className="w-10 h-10 rounded-xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center shrink-0 mt-0.5">

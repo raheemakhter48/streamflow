@@ -37,10 +37,10 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24">
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24 lg:pb-6">
       <AppHeader />
 
-      <div className="px-4 pt-5 max-w-lg mx-auto space-y-4">
+      <div className="px-4 pt-5 max-w-lg lg:max-w-2xl mx-auto space-y-4">
         {/* Page title */}
         <div className="mb-5">
           <h1 className="text-2xl font-black text-white">Settings</h1>

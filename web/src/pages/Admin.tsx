@@ -950,7 +950,7 @@ export default function Admin() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] pb-20 lg:pb-0">
       <AppHeader title="StreamFlow Admin" />
 
       <div className="px-4 py-4 max-w-2xl mx-auto space-y-4">

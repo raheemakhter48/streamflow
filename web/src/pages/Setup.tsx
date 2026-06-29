@@ -146,10 +146,10 @@ const Setup = () => {
   const inputClass = "w-full h-12 bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl px-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/40 transition-colors";
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24">
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24 lg:pb-10">
       <AppHeader />
 
-      <div className="px-4 pt-5 max-w-lg mx-auto">
+      <div className="px-4 pt-5 max-w-lg lg:max-w-2xl mx-auto">
         {/* Page title */}
         <div className="mb-6">
           <h1 className="text-2xl font-black text-white">Configure Provider</h1>

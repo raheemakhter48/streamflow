@@ -642,7 +642,7 @@ const Dashboard = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
         {paginatedChannels.map((channel, index) => (
           <ChannelCard
             key={`${channel.url}-${index}`}
@@ -657,7 +657,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20 lg:pb-0">
       <AppHeader />
 
       {!hasCredentials && !isLoading ? (
@@ -678,7 +678,7 @@ const Dashboard = () => {
           </button>
         </div>
       ) : (
-        <div className="px-4 max-w-lg mx-auto">
+        <div className="px-4 max-w-lg lg:max-w-7xl mx-auto">
           {/* Category tabs */}
           <div className="flex gap-2 pt-4 pb-3 overflow-x-auto scrollbar-hide">
             {viewTabs.map((t) => (

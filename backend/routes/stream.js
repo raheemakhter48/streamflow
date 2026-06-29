@@ -90,4 +90,39 @@ router.get('/proxy', async (req, res, next) => {
   }
 });
 
+// @route   POST /api/stream/resolve-multiple
+// @desc    Takes array of stream URLs, returns them sorted: working first
+// @access  Public
+router.post('/resolve-multiple', async (req, res) => {
+  const { urls } = req.body;
+
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return res.status(400).json({ success: false, message: 'urls array required' });
+  }
+
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      try {
+        const response = await axios.head(url, {
+          timeout: 4000,
+          httpsAgent,
+          headers: { 'User-Agent': 'VLC/3.0.11' },
+          validateStatus: (status) => status < 500,
+        });
+        return { url, alive: response.status < 400 };
+      } catch {
+        return { url, alive: false };
+      }
+    })
+  );
+
+  // Working streams first, dead ones at end as fallback
+  const sorted = [
+    ...results.filter((r) => r.alive).map((r) => r.url),
+    ...results.filter((r) => !r.alive).map((r) => r.url),
+  ];
+
+  return res.json({ success: true, urls: sorted });
+});
+
 export default router;

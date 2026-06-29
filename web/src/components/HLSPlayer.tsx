@@ -7,15 +7,18 @@ import { streamAPI } from "@/lib/api";
 
 interface HLSPlayerProps {
   url: string;
+  urls?: string[];       // backup URLs for auto-fallback
   useProxy?: boolean;
   onPlaybackError?: () => void;
 }
 
-const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
+const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const mpegtsRef = useRef<mpegts.Player | null>(null);
+  const fallbackIndexRef = useRef(0);         // tracks which backup URL we're on
+  const allUrls = useRef<string[]>([]);       // full ordered list: primary + backups
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,6 +50,15 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
   const streamUrl = shouldUseProxy && url && !isLocalBackendStream ? streamAPI.getProxyUrl(url) : url;
 
   useEffect(() => {
+    // Build ordered URL list: primary first, then backups (deduped)
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const u of [url, ...urls]) {
+      if (u && !seen.has(u)) { seen.add(u); ordered.push(u); }
+    }
+    allUrls.current = ordered;
+    fallbackIndexRef.current = 0;
+
     setShouldUseProxy(useProxyPreference);
     setIsLoading(true);
     setError(null);
@@ -73,6 +85,25 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
 
     cleanup();
 
+    // Try next URL in fallback list; returns false if all exhausted
+    const tryNextUrl = (): boolean => {
+      fallbackIndexRef.current += 1;
+      if (fallbackIndexRef.current < allUrls.current.length) {
+        console.warn(`⏭ Trying fallback URL #${fallbackIndexRef.current}:`, allUrls.current[fallbackIndexRef.current]);
+        setShouldUseProxy(useProxyPreference); // reset proxy for new URL
+        setIsLoading(true);
+        setError(null);
+        // Trigger re-render with next URL by updating streamUrl indirectly
+        videoRef.current!.src = allUrls.current[fallbackIndexRef.current];
+        videoRef.current!.load();
+        return true;
+      }
+      setError('All streams are currently down. Please try again later.');
+      setIsLoading(false);
+      onPlaybackError?.();
+      return false;
+    };
+
     // Decision logic based on preference
     const shouldRunMpegTs = (preferredPlayer === 'mpegts') || (preferredPlayer === 'auto' && isMpegTsStream);
     const shouldRunHls = (preferredPlayer === 'hls') || (preferredPlayer === 'auto' && isHlsStream);
@@ -98,16 +129,15 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
 
       hls.on(Hls.Events.ERROR, (event, data) => {
         if (data.fatal) {
-          // If proxy fails, try direct bypass
+          hls.destroy();
+          // First try direct (no proxy) on same URL
           if (shouldUseProxy) {
-            console.warn('⚠️ Proxy failed, trying direct bypass...');
+            console.warn('⚠️ Proxy failed, trying direct...');
             setShouldUseProxy(false);
             return;
           }
-          setError('Stream error. Try switching player in Settings.');
-          setIsLoading(false);
-          hls.destroy();
-          onPlaybackError?.();
+          // Then try next backup URL
+          if (!tryNextUrl()) return;
         }
       });
 
@@ -141,16 +171,14 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
         (player.play() as any)?.catch(() => {});
 
         player.on(mpegts.Events.ERROR, (type, detail) => {
-          // If proxy fails, try direct bypass
+          player.destroy();
           if (shouldUseProxy) {
-            console.warn('⚠️ Proxy failed, trying direct bypass...');
+            console.warn('⚠️ Proxy failed, trying direct...');
             setShouldUseProxy(false);
             return;
           }
           console.error('❌ MPEG-TS Error:', detail);
-          setError(`MPEG-TS Error: ${detail}`);
-          setIsLoading(false);
-          onPlaybackError?.();
+          tryNextUrl();
         });
 
         player.on(mpegts.Events.METADATA_ARRIVED, () => {
@@ -176,9 +204,7 @@ const HLSPlayer = ({ url, onPlaybackError }: HLSPlayerProps) => {
     };
 
     const handleError = () => {
-      setError('Format not supported by browser. Try VLC Player.');
-      setIsLoading(false);
-      onPlaybackError?.();
+      if (!tryNextUrl()) return;
     };
 
     video.addEventListener('loadedmetadata', handleLoaded);

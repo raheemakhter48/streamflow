@@ -302,7 +302,7 @@ ${activeUrl}`;
         <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-hidden glass-card border-glass-border">
           {activeUrl ? (
             <>
-              <HLSPlayer url={activeUrl} onPlaybackError={tryNextStream} />
+              <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={tryNextStream} />
               {/* Quick Action Button - Overlay on player */}
               <div className="absolute top-4 right-4 z-30">
                 <DropdownMenu>
