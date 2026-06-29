@@ -129,6 +129,17 @@ export const iptvAPI = {
     return apiRequest(`/iptv/channels${query ? `?${query}` : ''}`);
   },
 
+  checkChannels: async (channels: Array<{
+    name: string;
+    url: string;
+    alternateUrls?: string[];
+  }>) => {
+    return apiRequest('/iptv/channels/check', {
+      method: 'POST',
+      body: JSON.stringify({ channels }),
+    });
+  },
+
   getCategories: async (params: {
     region?: string;
     country?: string;

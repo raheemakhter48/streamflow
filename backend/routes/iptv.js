@@ -1,6 +1,8 @@
 import express from 'express';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
+import dns from 'node:dns/promises';
+import net from 'node:net';
 import { protect } from '../middleware/auth.js';
 import supabase from '../config/supabase.js';
 
@@ -8,6 +10,9 @@ const router = express.Router();
 
 const DEFAULT_CHANNEL_LIMIT = 30;
 const MAX_CHANNEL_LIMIT = 100;
+const MAX_SELECTED_CHANNELS = 50;
+const STREAM_CHECK_TIMEOUT_MS = 8000;
+const STREAM_CHECK_CONCURRENCY = 8;
 
 const parsePositiveInteger = (value, fallback) => {
   const parsed = Number.parseInt(value, 10);
@@ -17,6 +22,122 @@ const parsePositiveInteger = (value, fallback) => {
 const normalizeQueryText = (value) => {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+};
+
+const isPrivateIp = (address) => {
+  if (net.isIPv4(address)) {
+    const octets = address.split('.').map(Number);
+    return octets[0] === 10
+      || octets[0] === 127
+      || (octets[0] === 169 && octets[1] === 254)
+      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+      || (octets[0] === 192 && octets[1] === 168)
+      || octets[0] === 0;
+  }
+
+  if (net.isIPv6(address)) {
+    const normalized = address.toLowerCase();
+    return normalized === '::1'
+      || normalized === '::'
+      || normalized.startsWith('fc')
+      || normalized.startsWith('fd')
+      || normalized.startsWith('fe8')
+      || normalized.startsWith('fe9')
+      || normalized.startsWith('fea')
+      || normalized.startsWith('feb');
+  }
+
+  return true;
+};
+
+const assertSafeStreamUrl = async (rawUrl, req) => {
+  const parsed = new URL(rawUrl);
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Only HTTP and HTTPS stream URLs are supported');
+  }
+
+  const requestHost = String(req.get('host') || '').split(':')[0].toLowerCase();
+  const isOwnStreamProxy = parsed.hostname.toLowerCase() === requestHost
+    && /^\/api\/iptv\/live\/[^/]+$/i.test(parsed.pathname);
+
+  if (isOwnStreamProxy) return parsed.toString();
+
+  if (parsed.hostname.toLowerCase() === 'localhost') {
+    throw new Error('Local network URLs are not allowed');
+  }
+
+  const addresses = await dns.lookup(parsed.hostname, { all: true });
+  if (addresses.length === 0 || addresses.some(({ address }) => isPrivateIp(address))) {
+    throw new Error('Local network URLs are not allowed');
+  }
+
+  return parsed.toString();
+};
+
+const checkStreamUrl = async (rawUrl, req) => {
+  const checkedAt = new Date().toISOString();
+
+  try {
+    let url = rawUrl;
+
+    for (let redirectCount = 0; redirectCount <= 5; redirectCount += 1) {
+      url = await assertSafeStreamUrl(url, req);
+      const response = await axios.get(url, {
+        responseType: 'stream',
+        timeout: STREAM_CHECK_TIMEOUT_MS,
+        maxRedirects: 0,
+        headers: {
+          Accept: '*/*',
+          Range: 'bytes=0-2048',
+          'User-Agent': 'VLC/3.0.11'
+        },
+        validateStatus: () => true
+      });
+
+      response.data?.destroy?.();
+
+      if (response.status >= 300 && response.status < 400 && response.headers.location) {
+        url = new URL(response.headers.location, url).toString();
+        continue;
+      }
+
+      const isWorking = response.status >= 200 && response.status < 300;
+      return {
+        isWorking,
+        url,
+        statusCode: response.status,
+        error: isWorking ? null : `HTTP ${response.status}`,
+        checkedAt
+      };
+    }
+
+    throw new Error('Too many stream redirects');
+  } catch (error) {
+    return {
+      isWorking: false,
+      url: rawUrl,
+      statusCode: error?.response?.status || null,
+      error: String(error?.message || 'Stream check failed').slice(0, 250),
+      checkedAt
+    };
+  }
+};
+
+const runConcurrent = async (items, worker, concurrency) => {
+  const results = new Array(items.length);
+  let cursor = 0;
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await worker(items[index], index);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
 };
 
 const getBearerToken = (req) => {
@@ -220,6 +341,101 @@ const fetchChannelsFallback = async ({ page, limit, search, category, country, c
     totalChannels: count || 0
   };
 };
+
+// @route   POST /api/iptv/channels/check
+// @desc    Check user-selected channels and return only channels with a live stream
+// @access  Private
+router.post('/channels/check', protect, async (req, res) => {
+  try {
+    const channels = Array.isArray(req.body?.channels) ? req.body.channels : [];
+
+    if (channels.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Select at least one channel'
+      });
+    }
+
+    if (channels.length > MAX_SELECTED_CHANNELS) {
+      return res.status(400).json({
+        success: false,
+        message: `You can check up to ${MAX_SELECTED_CHANNELS} channels at a time`
+      });
+    }
+
+    const normalizedChannels = channels.map((channel, index) => {
+      const primaryUrl = normalizeQueryText(channel?.url);
+      const alternateUrls = Array.isArray(channel?.alternateUrls) ? channel.alternateUrls : [];
+      const urls = [...new Set([primaryUrl, ...alternateUrls]
+        .map(normalizeQueryText)
+        .filter(Boolean))]
+        .slice(0, 5);
+
+      return {
+        name: normalizeQueryText(channel?.name) || `Channel ${index + 1}`,
+        inputUrl: primaryUrl,
+        urls
+      };
+    });
+
+    if (normalizedChannels.some((channel) => !channel.inputUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Every selected channel must have a stream URL'
+      });
+    }
+
+    const results = await runConcurrent(
+      normalizedChannels,
+      async (channel) => {
+        let lastCheck = null;
+
+        for (const url of channel.urls) {
+          lastCheck = await checkStreamUrl(url, req);
+          if (lastCheck.isWorking) {
+            return {
+              name: channel.name,
+              inputUrl: channel.inputUrl,
+              workingUrl: lastCheck.url,
+              isWorking: true,
+              statusCode: lastCheck.statusCode,
+              checkedAt: lastCheck.checkedAt
+            };
+          }
+        }
+
+        return {
+          name: channel.name,
+          inputUrl: channel.inputUrl,
+          workingUrl: null,
+          isWorking: false,
+          statusCode: lastCheck?.statusCode || null,
+          error: lastCheck?.error || 'No stream URL responded',
+          checkedAt: lastCheck?.checkedAt || new Date().toISOString()
+        };
+      },
+      STREAM_CHECK_CONCURRENCY
+    );
+
+    const workingChannels = results.filter((result) => result.isWorking);
+
+    res.set('Cache-Control', 'no-store');
+    return res.json({
+      success: true,
+      checked: results.length,
+      working: workingChannels.length,
+      failed: results.length - workingChannels.length,
+      data: workingChannels,
+      results
+    });
+  } catch (error) {
+    console.error('Unexpected error checking selected IPTV channels:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to check selected channels'
+    });
+  }
+});
 
 // @route   GET /api/iptv/regions
 // @desc    Fetch all available IPTV-org regions

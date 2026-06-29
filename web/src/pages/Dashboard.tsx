@@ -3,7 +3,7 @@ import { authAPI, iptvAPI, favoritesAPI, recentlyWatchedAPI } from "@/lib/api";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Heart, RefreshCw, Zap, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Heart, RefreshCw, Zap, ChevronLeft, ChevronRight, ScanSearch, X } from "lucide-react";
 import { toast } from "sonner";
 import ChannelCard from "@/components/ChannelCard";
 import CategoryFilter from "@/components/CategoryFilter";
@@ -44,6 +44,11 @@ interface RecentlyWatched {
   channelLogo?: string;
   category?: string;
   watchedAt: string;
+}
+
+interface ChannelCheckResult {
+  inputUrl: string;
+  workingUrl: string;
 }
 
 const getInitialPage = (value: string | null) => {
@@ -204,6 +209,10 @@ const Dashboard = () => {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isCheckingChannels, setIsCheckingChannels] = useState(false);
+  const [selectedChannelUrls, setSelectedChannelUrls] = useState<Set<string>>(new Set());
+  const [validatedChannels, setValidatedChannels] = useState<Channel[] | null>(null);
   const [currentPage, setCurrentPage] = useState(getInitialPage(searchParams.get("page")));
   const iptvOrgRequestId = useRef(0);
   const didHydrateSearchRef = useRef(false);
@@ -254,6 +263,12 @@ const Dashboard = () => {
   }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage]);
 
   useEffect(() => {
+    setValidatedChannels(null);
+    setSelectedChannelUrls(new Set());
+    setIsSelectionMode(false);
+  }, [viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage]);
+
+  useEffect(() => {
     if (user && viewMode === 'live') {
       loadCategories();
     }
@@ -293,7 +308,7 @@ const Dashboard = () => {
   }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, searchQuery, currentPage, navigate]);
 
   const filteredChannels = useMemo(() => {
-    let filtered = [...channels];
+    let filtered = validatedChannels ? [...validatedChannels] : [...channels];
 
     if (viewMode === 'live') {
       return showFavoritesOnly
@@ -322,7 +337,7 @@ const Dashboard = () => {
     }
 
     return filtered;
-  }, [channels, searchQuery, selectedCategory, showFavoritesOnly, favoriteUrls, viewMode]);
+  }, [channels, validatedChannels, searchQuery, selectedCategory, showFavoritesOnly, favoriteUrls, viewMode]);
 
   const paginatedChannels = useMemo(() => {
     if (viewMode === 'live') {
@@ -508,6 +523,74 @@ const Dashboard = () => {
     }
   };
 
+  const toggleChannelSelection = (url: string) => {
+    setSelectedChannelUrls((current) => {
+      const next = new Set(current);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  };
+
+  const handleSelectVisible = () => {
+    const visibleUrls = paginatedChannels.map((channel) => channel.url);
+    const allVisibleSelected = visibleUrls.length > 0
+      && visibleUrls.every((url) => selectedChannelUrls.has(url));
+
+    setSelectedChannelUrls((current) => {
+      const next = new Set(current);
+      visibleUrls.forEach((url) => {
+        if (allVisibleSelected) next.delete(url);
+        else next.add(url);
+      });
+      return next;
+    });
+  };
+
+  const handleCheckSelectedChannels = async () => {
+    const selectedChannels = channels.filter((channel) => selectedChannelUrls.has(channel.url));
+    if (selectedChannels.length === 0) {
+      toast.error("Select at least one channel");
+      return;
+    }
+
+    try {
+      setIsCheckingChannels(true);
+      const response = await iptvAPI.checkChannels(selectedChannels.map((channel) => ({
+        name: channel.name,
+        url: channel.url,
+        alternateUrls: channel.alternateUrls,
+      })));
+      const resultByUrl = new Map<string, ChannelCheckResult>(
+        ((response.data || []) as ChannelCheckResult[]).map((result) => [result.inputUrl, result])
+      );
+      const workingChannels = selectedChannels
+        .filter((channel) => resultByUrl.has(channel.url))
+        .map((channel) => {
+          const result = resultByUrl.get(channel.url);
+          const workingUrl = result?.workingUrl || channel.url;
+          return {
+            ...channel,
+            url: workingUrl,
+            isWorking: true,
+            alternateUrls: [
+              workingUrl,
+              ...(channel.alternateUrls || []).filter((url) => url !== workingUrl),
+            ],
+          };
+        });
+
+      setValidatedChannels(workingChannels);
+      setSelectedChannelUrls(new Set());
+      setIsSelectionMode(false);
+      toast.success(`${response.working} of ${response.checked} selected channels are working`);
+    } catch (error: any) {
+      toast.error(error.message || "Channel check failed");
+    } finally {
+      setIsCheckingChannels(false);
+    }
+  };
+
   const parseM3U = (content: string, countriesForInference: string[] = []): Channel[] => {
     const lines = content.split("\n");
     const channels: Channel[] = [];
@@ -650,6 +733,9 @@ const Dashboard = () => {
             isFavorite={favoriteUrls.has(channel.url)}
             onToggleFavorite={loadFavorites}
             returnTo={dashboardReturnUrl}
+            selectable={isSelectionMode}
+            selected={selectedChannelUrls.has(channel.url)}
+            onSelect={() => toggleChannelSelection(channel.url)}
           />
         ))}
       </div>
@@ -765,6 +851,31 @@ const Dashboard = () => {
               {viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : viewMode === 'movie' ? 'Movies' : 'Series'}
             </h2>
             <div className="flex items-center gap-2">
+              {validatedChannels && (
+                <button
+                  onClick={() => setValidatedChannels(null)}
+                  className="flex items-center gap-1 rounded-lg border border-[#1e1e1e] px-2.5 py-1.5 text-xs font-bold text-gray-400 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Show all
+                </button>
+              )}
+              {!validatedChannels && (
+                <button
+                  onClick={() => {
+                    setIsSelectionMode((current) => !current);
+                    setSelectedChannelUrls(new Set());
+                  }}
+                  className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors ${
+                    isSelectionMode
+                      ? "border-[#00D7E5] bg-[#00D7E5]/10 text-[#00D7E5]"
+                      : "border-[#1e1e1e] text-gray-400 hover:text-white"
+                  }`}
+                >
+                  <ScanSearch className="h-3.5 w-3.5" />
+                  {isSelectionMode ? "Cancel" : "Find working"}
+                </button>
+              )}
               {viewMode === 'live' && (
                 <span className="text-xs text-gray-600">{totalChannels.toLocaleString()} ch</span>
               )}
@@ -784,6 +895,33 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {isSelectionMode && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#00D7E5]/20 bg-[#00D7E5]/5 p-3">
+              <div>
+                <p className="text-sm font-bold text-white">Select channels to test</p>
+                <p className="text-xs text-gray-500">{selectedChannelUrls.size} selected · maximum 50</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSelectVisible}
+                  className="rounded-lg border border-[#263333] px-3 py-2 text-xs font-bold text-gray-300 hover:text-white"
+                >
+                  {paginatedChannels.length > 0 && paginatedChannels.every((channel) => selectedChannelUrls.has(channel.url))
+                    ? "Clear visible"
+                    : "Select visible"}
+                </button>
+                <button
+                  disabled={selectedChannelUrls.size === 0 || selectedChannelUrls.size > 50 || isCheckingChannels}
+                  onClick={handleCheckSelectedChannels}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#00D7E5] px-3 py-2 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ScanSearch className={`h-3.5 w-3.5 ${isCheckingChannels ? "animate-pulse" : ""}`} />
+                  {isCheckingChannels ? "Checking..." : "Show working"}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Category filter chips */}
           <div className="mb-3">
             <CategoryFilter
@@ -797,7 +935,7 @@ const Dashboard = () => {
           {renderChannelGrid()}
 
           {/* Pagination (live) */}
-          {viewMode === 'live' && totalPages > 1 && (
+          {viewMode === 'live' && !validatedChannels && totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 py-5">
               <button
                 disabled={currentPage <= 1 || isLoading}

@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Play, Tv } from "lucide-react";
+import { Check, Star, Play, Tv } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { favoritesAPI, toPasswordlessStreamUrl } from "@/lib/api";
 import { toast } from "sonner";
@@ -24,9 +24,20 @@ interface ChannelCardProps {
   isFavorite: boolean;
   onToggleFavorite: () => void;
   returnTo?: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: () => void;
 }
 
-const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: ChannelCardProps) => {
+const ChannelCard = ({
+  channel,
+  isFavorite,
+  onToggleFavorite,
+  returnTo,
+  selectable = false,
+  selected = false,
+  onSelect,
+}: ChannelCardProps) => {
   const navigate = useNavigate();
   const [localIsFavorite, setLocalIsFavorite] = useState(isFavorite);
   const [imageError, setImageError] = useState(false);
@@ -39,6 +50,11 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
   }, [isFavorite]);
 
   const handlePlay = () => {
+    if (selectable) {
+      onSelect?.();
+      return;
+    }
+
     const safeUrl = toPasswordlessStreamUrl(channel.url);
     const safeAlternateUrls = (channel.alternateUrls || []).map(toPasswordlessStreamUrl);
     const params = new URLSearchParams({
@@ -86,7 +102,9 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
 
   return (
     <Card
-      className="glass-card hover-scale group cursor-pointer overflow-hidden relative rounded-xl"
+      className={`glass-card hover-scale group cursor-pointer overflow-hidden relative rounded-xl ${
+        selected ? "ring-2 ring-[#00D7E5] bg-[#00D7E5]/5" : ""
+      }`}
       onClick={handlePlay}
     >
       {/* Channel Image/Icon */}
@@ -102,6 +120,24 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
           />
         ) : (
           <Tv className="w-9 h-9 sm:w-12 sm:h-12 text-muted-foreground" />
+        )}
+
+        {selectable && (
+          <button
+            type="button"
+            aria-label={selected ? `Deselect ${channel.name}` : `Select ${channel.name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect?.();
+            }}
+            className={`absolute top-2 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
+              selected
+                ? "border-[#00D7E5] bg-[#00D7E5] text-black"
+                : "border-white/40 bg-black/70 text-transparent hover:border-white"
+            }`}
+          >
+            <Check className="h-4 w-4" strokeWidth={3} />
+          </button>
         )}
 
         {/* Working Badge */}
@@ -144,7 +180,7 @@ const ChannelCard = ({ channel, isFavorite, onToggleFavorite, returnTo }: Channe
         <Button
           variant="ghost"
           size="icon"
-          className={`absolute top-2 right-2 z-10 hover:bg-black/20 ${
+          className={`absolute top-2 right-2 z-10 hover:bg-black/20 ${selectable ? "hidden" : ""} ${
             localIsFavorite ? "text-primary" : "text-white opacity-0 group-hover:opacity-100"
           }`}
           onClick={handleToggleFavorite}
