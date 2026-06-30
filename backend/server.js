@@ -13,6 +13,9 @@ import adminRoutes from './routes/admin.js';
 const app = express();
 const PORT = process.env.PORT || 7860;
 
+// Required behind Nginx/OCI so req.protocol and generated stream URLs use HTTPS.
+app.set('trust proxy', 1);
+
 // Basic Middleware
 app.use(cors());
 app.use(express.json());
