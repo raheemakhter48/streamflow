@@ -13,16 +13,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to Oracle via SSH
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.ORACLE_HOST }}
-          username: ${{ secrets.ORACLE_USER }}
-          key: ${{ secrets.ORACLE_SSH_KEY }}
-          port: 22
-          script: |
-            cd ~/streamhub/backend
-            git pull origin main
-            npm ci --omit=dev
-            pm2 restart streamhub-backend || pm2 start server.js --name streamhub-backend
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.ORACLE_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Oracle
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "
+            cd ~/streamflow/backend &&
+            git pull origin main &&
+            npm ci --omit=dev &&
+            (pm2 restart streamhub-backend || pm2 start server.js --name streamhub-backend) &&
             pm2 save
+          "
