@@ -270,6 +270,21 @@ router.put('/channels/:id', async (req, res) => {
       if (channelError) throw channelError;
 
       if (managedId.streamId && streamUrl) {
+        const { data: previousStream, error: previousStreamError } = await supabase
+          .from('iptv_streams')
+          .select('id, channel_id, url')
+          .eq('id', managedId.streamId)
+          .eq('channel_id', managedId.channelId)
+          .maybeSingle();
+
+        if (previousStreamError) throw previousStreamError;
+        if (!previousStream) {
+          return res.status(404).json({
+            success: false,
+            message: 'The selected IPTV stream no longer exists. Refresh and try again.'
+          });
+        }
+
         const { error: streamError } = await supabase
           .from('iptv_streams')
           .update({
@@ -278,9 +293,28 @@ router.put('/channels/:id', async (req, res) => {
             last_checked_at: new Date().toISOString(),
             last_error: null
           })
-          .eq('id', managedId.streamId);
+          .eq('id', managedId.streamId)
+          .eq('channel_id', managedId.channelId);
 
         if (streamError) throw streamError;
+
+        // Keep user-facing references in sync when an admin replaces a dead URL.
+        if (previousStream.url && previousStream.url !== streamUrl) {
+          const referenceUpdates = await Promise.all([
+            supabase
+              .from('recently_watched')
+              .update({ channel_url: streamUrl })
+              .eq('channel_url', previousStream.url),
+            supabase
+              .from('favorites')
+              .update({ channel_url: streamUrl })
+              .eq('channel_url', previousStream.url)
+          ]);
+
+          referenceUpdates
+            .filter((result) => result.error)
+            .forEach((result) => console.warn('Could not sync a saved channel URL:', result.error.message));
+        }
       }
 
       await createLog({

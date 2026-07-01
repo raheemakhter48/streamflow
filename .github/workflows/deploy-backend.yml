@@ -6,26 +6,37 @@ on:
       - main
     paths:
       - 'backend/**'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-backend.yml'
   workflow_dispatch:
+
+concurrency:
+  group: streamflow-oracle-production
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/deploy_key
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.ORACLE_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to Oracle
         run: |
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "
-            cd ~/streamflow/backend &&
-            git pull origin main &&
-            npm ci --omit=dev &&
-            (pm2 restart streamhub-backend || pm2 start server.js --name streamhub-backend) &&
-            pm2 save
+            set -e &&
+            cd ~/streamflow &&
+            git pull --ff-only origin main &&
+            cd backend &&
+            sudo docker compose up -d --build &&
+            sleep 5 &&
+            curl --fail --silent --show-error http://127.0.0.1:7860/health
           "

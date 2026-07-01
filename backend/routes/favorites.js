@@ -167,7 +167,14 @@ router.post('/recently-watched', protect, async (req, res, next) => {
       });
     }
 
-    // Delete existing entry to avoid duplicates (Supabase equivalent of deleteOne)
+    // Keep one recent entry per channel, even when an admin replaces its URL.
+    await supabase
+      .from('recently_watched')
+      .delete()
+      .eq('user_id', req.user.id)
+      .eq('channel_name', channelName);
+
+    // Also remove an older entry that may use the same URL under another label.
     await supabase
       .from('recently_watched')
       .delete()
