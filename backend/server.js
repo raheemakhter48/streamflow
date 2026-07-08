@@ -1,5 +1,6 @@
 import 'dotenv/config'; // 🚀 MUST BE ON LINE 1: Loads variables before any other route or config imports
 import express from 'express';
+import './config/env.js';
 import cors from 'cors';
 import supabase from './config/supabase.js';
 
@@ -9,6 +10,8 @@ import iptvRoutes from './routes/iptv.js';
 import favoritesRoutes from './routes/favorites.js';
 import streamRoutes from './routes/stream.js';
 import adminRoutes from './routes/admin.js';
+import movieRoutes from './routes/movies.js';
+import sitemapRoutes from './routes/sitemap.js';
 
 const app = express();
 const PORT = process.env.PORT || 7860;
@@ -60,11 +63,13 @@ app.get('/', (req, res) => {
 });
 
 // API Routes
+app.use('/', sitemapRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/iptv', iptvRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/stream', streamRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api', movieRoutes);
 
 // 404 Handler
 app.use((req, res) => {
@@ -74,10 +79,12 @@ app.use((req, res) => {
 // Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  const message = process.env.NODE_ENV === 'production'
+  const statusCode = err.statusCode || 500;
+  const canExposeMessage = statusCode >= 400 && statusCode < 500;
+  const message = process.env.NODE_ENV === 'production' && !canExposeMessage
     ? 'Internal Server Error'
     : err.message || 'Internal Server Error';
-  res.status(err.statusCode || 500).json({ success: false, message });
+  res.status(statusCode).json({ success: false, message });
 });
 
 // Start server - 0.0.0.0 is MANDATORY for Hugging Face

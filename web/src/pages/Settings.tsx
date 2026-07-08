@@ -28,7 +28,7 @@ const Settings = () => {
   const handleProxyChange = (checked: boolean) => {
     setUseProxy(checked);
     localStorage.setItem("use_proxy", checked.toString());
-    toast.success("Proxy setting saved");
+    toast.success(checked ? "Global Smart Routing enabled" : "Direct playback enabled");
   };
 
   const handleLogout = async () => {
@@ -94,8 +94,8 @@ const Settings = () => {
           {/* Proxy toggle */}
           <div className="flex items-center justify-between px-4 py-4 border-t border-[#1e1e1e]">
             <div>
-              <p className="text-sm font-bold text-white">Use Stream Proxy</p>
-              <p className="text-xs text-gray-600 mt-0.5">Bypass local ISP restrictions for better connectivity</p>
+              <p className="text-sm font-bold text-white">Global Smart Routing</p>
+              <p className="text-xs text-gray-600 mt-0.5">Try direct playback, then automatically find a working region</p>
             </div>
             <Switch checked={useProxy} onCheckedChange={handleProxyChange} />
           </div>

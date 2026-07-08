@@ -8,6 +8,7 @@ import { favoritesAPI, toPasswordlessStreamUrl } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Channel {
+  id?: string;
   name: string;
   url: string;
   logo?: string;
@@ -62,6 +63,9 @@ const ChannelCard = ({
       url: safeUrl,
       category: channel.group || "",
     });
+    if (channel.id) {
+      params.append("channelId", channel.id);
+    }
     if (channel.logo && !imageError) {
       params.append("logo", channel.logo);
     }

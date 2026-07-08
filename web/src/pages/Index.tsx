@@ -5,6 +5,7 @@ import { Zap, Tv, Shield, Play, Heart, Grid3X3, Sparkles, Lock, Smartphone } fro
 import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
+import SEO from "@/components/SEO";
 
 const stats = [
   { icon: Zap,    title: 'Ultra Fast',      desc: 'Low latency global servers' },
@@ -34,6 +35,21 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white pb-20 lg:pb-0">
+      <SEO
+        title="StreamFlow - IPTV Player and Streaming Dashboard"
+        description="StreamFlow helps you organize live TV, movies, and series with fast playback, favorites, and multi-device access."
+        path="/"
+        structuredData={{
+          "@type": "WebSite",
+          name: "StreamFlow",
+          url: import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin,
+          potentialAction: {
+            "@type": "SearchAction",
+            target: `${import.meta.env.VITE_PUBLIC_SITE_URL || window.location.origin}/dashboard?search={search_term_string}`,
+            "query-input": "required name=search_term_string",
+          },
+        }}
+      />
       <AppHeader />
 
       <main className="px-5 max-w-lg lg:max-w-5xl mx-auto">

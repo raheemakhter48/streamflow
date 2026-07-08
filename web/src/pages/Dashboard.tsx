@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { authAPI, iptvAPI, favoritesAPI, recentlyWatchedAPI } from "@/lib/api";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Heart, RefreshCw, Zap, ChevronLeft, ChevronRight, ScanSearch, X } from "lucide-react";
@@ -9,6 +9,9 @@ import ChannelCard from "@/components/ChannelCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
+import MovieBrowser from "@/components/MovieBrowser";
+import AdSlot from "@/components/AdSlot";
+import SEO from "@/components/SEO";
 
 export type ContentType = 'live' | 'movie' | 'series';
 type DashboardView = ContentType | 'home' | 'epg';
@@ -17,8 +20,10 @@ const CHANNELS_PER_PAGE = 36;
 const DEFAULT_DASHBOARD_VIEW: DashboardView = 'home';
 const DASHBOARD_FILTERS_STORAGE_KEY = 'streamvault_dashboard_filters';
 const M3U_CATEGORY_FILTER = 'M3U';
+const DASHBOARD_VIEWS = new Set<DashboardView>(['home', 'live', 'movie', 'series', 'epg']);
 
 interface Channel {
+  id?: string;
   name: string;
   url: string;
   logo?: string;
@@ -39,6 +44,7 @@ interface IptvRegion {
 }
 
 interface RecentlyWatched {
+  channelId?: string;
   channelName: string;
   channelUrl: string;
   channelLogo?: string;
@@ -53,6 +59,10 @@ interface ChannelCheckResult {
 
 const getInitialPage = (value: string | null) => {
   return Math.max(1, Number.parseInt(value || "1", 10) || 1);
+};
+
+const getDashboardView = (value: string | null, fallback: DashboardView = DEFAULT_DASHBOARD_VIEW) => {
+  return DASHBOARD_VIEWS.has(value as DashboardView) ? (value as DashboardView) : fallback;
 };
 
 const getStoredDashboardFilters = () => {
@@ -172,6 +182,7 @@ const mapIptvOrgChannel = (channel: any): Channel | null => {
   }
 
   return {
+    id: channel.id,
     name: channel.name,
     url: stream.url,
     logo: channel.logo_url,
@@ -188,11 +199,12 @@ const mapIptvOrgChannel = (channel: any): Channel | null => {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const storedFilters = useMemo(() => getStoredDashboardFilters(), []);
   const [user, setUser] = useState<any>(null);
   const [viewMode, setViewMode] = useState<DashboardView>(
-    (searchParams.get("view") as DashboardView) || storedFilters.viewMode || DEFAULT_DASHBOARD_VIEW
+    getDashboardView(searchParams.get("view"), getDashboardView(storedFilters.viewMode))
   );
   const [channels, setChannels] = useState<Channel[]>([]);
   const [recentlyWatched, setRecentlyWatched] = useState<RecentlyWatched[]>([]);
@@ -241,6 +253,24 @@ const Dashboard = () => {
   const favoriteUrls = useMemo(() => new Set(favorites), [favorites]);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextViewMode = getDashboardView(params.get("view"));
+    const nextSelectedRegion = params.get("region") || "All";
+    const nextSelectedCountry = params.get("country") || "All";
+    const nextSelectedCategory = params.get("category") || "All";
+    const nextSearchQuery = params.get("search") || "";
+    const nextCurrentPage = getInitialPage(params.get("page"));
+
+    setViewMode((current) => current === nextViewMode ? current : nextViewMode);
+    setSelectedRegion((current) => current === nextSelectedRegion ? current : nextSelectedRegion);
+    setSelectedCountry((current) => current === nextSelectedCountry ? current : nextSelectedCountry);
+    setSelectedCategory((current) => current === nextSelectedCategory ? current : nextSelectedCategory);
+    setSearchQuery((current) => current === nextSearchQuery ? current : nextSearchQuery);
+    setDebouncedSearchQuery((current) => current === nextSearchQuery ? current : nextSearchQuery);
+    setCurrentPage((current) => current === nextCurrentPage ? current : nextCurrentPage);
+  }, [location.search]);
+
+  useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       const nextSearch = searchQuery.trim();
       setDebouncedSearchQuery(nextSearch);
@@ -282,7 +312,7 @@ const Dashboard = () => {
   }, [availableCategories, selectedCategory, viewMode]);
 
   useEffect(() => {
-    if (user && viewMode !== 'home' && viewMode !== 'live' && channels.length === 0) {
+    if (user && viewMode === 'series' && channels.length === 0) {
       loadCredentialsAndChannels();
     }
   }, [user, viewMode]);
@@ -290,14 +320,18 @@ const Dashboard = () => {
   useEffect(() => {
     if (!user) return;
 
-    navigate(buildDashboardPath({
+    const nextPath = buildDashboardPath({
       viewMode,
       selectedRegion,
       selectedCountry,
       selectedCategory,
-      searchQuery,
+      searchQuery: debouncedSearchQuery,
       currentPage,
-    }), { replace: true });
+    });
+
+    if (`${location.pathname}${location.search}` !== nextPath) {
+      navigate(nextPath, { replace: true });
+    }
 
     localStorage.setItem(DASHBOARD_FILTERS_STORAGE_KEY, JSON.stringify({
       viewMode,
@@ -305,7 +339,7 @@ const Dashboard = () => {
       selectedCountry,
       selectedCategory,
     }));
-  }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, searchQuery, currentPage, navigate]);
+  }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage, navigate, location.pathname, location.search]);
 
   const filteredChannels = useMemo(() => {
     let filtered = validatedChannels ? [...validatedChannels] : [...channels];
@@ -744,6 +778,18 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white pb-20 lg:pb-0">
+      <SEO
+        title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : "Streaming Dashboard"} - StreamFlow`}
+        description="Browse live TV channels, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
+        path={buildDashboardPath({
+          viewMode,
+          selectedRegion,
+          selectedCountry,
+          selectedCategory,
+          searchQuery: debouncedSearchQuery,
+          currentPage,
+        })}
+      />
       <AppHeader />
 
       {!hasCredentials && !isLoading ? (
@@ -823,8 +869,14 @@ const Dashboard = () => {
           )}
           </div>
 
+          <AdSlot
+            slot={import.meta.env.VITE_ADSENSE_DASHBOARD_SLOT || ""}
+            className="mb-5 min-h-[90px]"
+            format="horizontal"
+          />
+
           {/* Continue Watching */}
-          {recentlyWatched.length > 0 && (
+          {viewMode !== 'movie' && recentlyWatched.length > 0 && (
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-black text-white">Continue Watching</h2>
@@ -834,7 +886,7 @@ const Dashboard = () => {
                 {recentlyWatched.slice(0, 8).map((item, idx) => (
                   <div key={idx} className="min-w-[160px]">
                     <ChannelCard
-                      channel={{ name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category }}
+                      channel={{ id: item.channelId, name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category }}
                       isFavorite={favoriteUrls.has(item.channelUrl)}
                       onToggleFavorite={loadFavorites}
                       returnTo={dashboardReturnUrl}
@@ -845,6 +897,10 @@ const Dashboard = () => {
             </div>
           )}
 
+          {viewMode === 'movie' ? (
+            <MovieBrowser searchQuery={debouncedSearchQuery} />
+          ) : (
+          <>
           {/* Channels header */}
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-black text-white">
@@ -953,6 +1009,8 @@ const Dashboard = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+          )}
+          </>
           )}
         </div>
       )}

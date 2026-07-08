@@ -4,6 +4,28 @@ import supabase from '../config/supabase.js';
 
 const router = express.Router();
 
+const getCurrentIptvChannelsByName = async (names = []) => {
+  const uniqueNames = [...new Set(names.filter(Boolean))];
+  if (uniqueNames.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from('iptv_channels')
+    .select('id, name, iptv_streams(url, is_working)')
+    .in('name', uniqueNames);
+
+  if (error) {
+    console.warn(`Could not refresh saved channel URLs: ${error.message}`);
+    return new Map();
+  }
+
+  return new Map((data || []).map((channel) => {
+    const streams = Array.isArray(channel.iptv_streams) ? channel.iptv_streams : [];
+    const currentStream = streams.find((stream) => stream?.url && stream?.is_working === true)
+      || streams.find((stream) => stream?.url);
+    return [channel.name, { id: channel.id, url: currentStream?.url }];
+  }));
+};
+
 // ========== FAVORITES ==========
 
 // @route   GET /api/favorites
@@ -137,16 +159,24 @@ router.get('/recently-watched', protect, async (req, res, next) => {
 
     if (error) throw error;
 
+    const currentChannels = await getCurrentIptvChannelsByName(
+      recentlyWatched.map((item) => item.channel_name)
+    );
+
     res.json({
       success: true,
-      data: recentlyWatched.map(item => ({
-        id: item.id,
-        channelName: item.channel_name,
-        channelUrl: item.channel_url,
-        channelLogo: item.channel_logo,
-        category: item.category,
-        watchedAt: item.watched_at
-      }))
+      data: recentlyWatched.map(item => {
+        const currentChannel = currentChannels.get(item.channel_name);
+        return {
+          id: item.id,
+          channelId: currentChannel?.id,
+          channelName: item.channel_name,
+          channelUrl: currentChannel?.url || item.channel_url,
+          channelLogo: item.channel_logo,
+          category: item.category,
+          watchedAt: item.watched_at
+        };
+      })
     });
   } catch (error) {
     next(error);

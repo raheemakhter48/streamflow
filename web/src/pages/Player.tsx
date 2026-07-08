@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import HLSPlayer from "@/components/HLSPlayer";
-import { favoritesAPI, recentlyWatchedAPI, streamAPI, toPasswordlessStreamUrl } from "@/lib/api";
+import { favoritesAPI, iptvAPI, recentlyWatchedAPI, streamAPI, toPasswordlessStreamUrl } from "@/lib/api";
 import { toast } from "sonner";
 
 const Player = () => {
@@ -18,9 +18,10 @@ const Player = () => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   const channelName = searchParams.get("name") || "Unknown Channel";
+  const channelId = searchParams.get("channelId") || "";
   const rawChannelUrl = searchParams.get("url") || "";
   const channelUrl = toPasswordlessStreamUrl(rawChannelUrl);
-  const alternateUrls = useMemo(() => {
+  const queryAlternateUrls = useMemo(() => {
     try {
       const parsed = JSON.parse(searchParams.get("urls") || "[]");
       return Array.isArray(parsed) ? parsed.filter(Boolean).map(toPasswordlessStreamUrl) : [];
@@ -28,11 +29,13 @@ const Player = () => {
       return [];
     }
   }, [searchParams]);
+  const [latestUrls, setLatestUrls] = useState<string[] | null>(null);
   const fallbackUrls = useMemo(() => {
-    return [...new Set([channelUrl, ...alternateUrls].filter(Boolean))];
-  }, [alternateUrls, channelUrl]);
-  const [activeUrlIndex, setActiveUrlIndex] = useState(0);
-  const activeUrl = fallbackUrls[activeUrlIndex] || channelUrl;
+    const candidates = latestUrls || [channelUrl, ...queryAlternateUrls];
+    return [...new Set(candidates.filter(Boolean))];
+  }, [channelUrl, latestUrls, queryAlternateUrls]);
+  const activeUrl = fallbackUrls[0] || channelUrl;
+  const alternateUrls = fallbackUrls.slice(1);
   const channelLogo = searchParams.get("logo") || "";
   const channelCategory = searchParams.get("category") || "";
   const returnTo = searchParams.get("returnTo") || "/dashboard";
@@ -40,16 +43,41 @@ const Player = () => {
   const needsExternalPlayer = playbackSupport === "external";
 
   useEffect(() => {
+    setLatestUrls(null);
+    if (!channelId) return;
+
+    let cancelled = false;
+    iptvAPI.getChannel(channelId)
+      .then((result) => {
+        const streams = Array.isArray(result?.data?.iptv_streams)
+          ? result.data.iptv_streams
+          : [];
+        const currentUrls = [...new Set(
+          streams
+            .map((stream: any) => stream?.url)
+            .filter(Boolean)
+            .map(toPasswordlessStreamUrl)
+        )] as string[];
+
+        if (!cancelled && currentUrls.length > 0) {
+          setLatestUrls(currentUrls);
+        }
+      })
+      .catch((error) => console.warn("Could not refresh channel URL:", error.message));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [channelId, rawChannelUrl]);
+
+  useEffect(() => {
     checkFavorite();
     addToRecentlyWatched();
   }, [activeUrl]);
 
-  const tryNextStream = useCallback(() => {
-    if (activeUrlIndex < fallbackUrls.length - 1) {
-      setActiveUrlIndex((index) => index + 1);
-      toast.info(`Trying backup stream ${activeUrlIndex + 2}/${fallbackUrls.length}...`);
-    }
-  }, [activeUrlIndex, fallbackUrls.length]);
+  const handlePlaybackError = useCallback(() => {
+    toast.error("No working route was found for this channel.");
+  }, []);
 
   const checkFavorite = async () => {
     try {
@@ -271,7 +299,7 @@ ${activeUrl}`;
         <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-hidden glass-card border-glass-border">
           {activeUrl ? (
             <>
-              <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={tryNextStream} />
+              <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
               {/* Quick Action Button - Overlay on player */}
               <div className="absolute top-4 right-4 z-30">
                 <DropdownMenu>

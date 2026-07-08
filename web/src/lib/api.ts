@@ -129,6 +129,10 @@ export const iptvAPI = {
     return apiRequest(`/iptv/channels${query ? `?${query}` : ''}`);
   },
 
+  getChannel: async (channelId: string) => {
+    return apiRequest(`/iptv/channel/${encodeURIComponent(channelId)}`);
+  },
+
   checkChannels: async (channels: Array<{
     name: string;
     url: string;
@@ -257,8 +261,9 @@ export const recentlyWatchedAPI = {
 
 // Stream API
 export const streamAPI = {
-  getProxyUrl: (streamUrl: string) => {
-    return `${API_URL}/stream/proxy?url=${encodeURIComponent(streamUrl)}`;
+  getProxyUrl: (streamUrl: string, region = 'auto') => {
+    const params = new URLSearchParams({ url: streamUrl, region });
+    return `${API_URL}/stream/proxy?${params.toString()}`;
   },
 
   resolveUrl: async (streamUrl: string) => {
@@ -272,6 +277,33 @@ export const streamAPI = {
       console.error('Error resolving URL:', error);
       return { success: false, finalUrl: streamUrl };
     }
+  },
+};
+
+export const movieAPI = {
+  getCategories: async () => {
+    return apiRequest('/movies/categories');
+  },
+
+  getMovies: async (params: {
+    category?: string;
+    page?: number;
+    query?: string;
+    region?: string;
+    country?: string;
+  } = {}) => {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value).trim() !== '') {
+        searchParams.set(key, String(value));
+      }
+    });
+    return apiRequest(`/movies?${searchParams.toString()}`);
+  },
+
+  getMovie: async (movieId: string, region = 'PK') => {
+    const searchParams = new URLSearchParams({ region });
+    return apiRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`);
   },
 };
 
