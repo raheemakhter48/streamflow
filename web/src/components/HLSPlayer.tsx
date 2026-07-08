@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
-import { AlertCircle, Loader2, Maximize, Minimize, Play } from "lucide-react";
+import { AlertCircle, Loader2, Maximize, Minimize, Play, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { streamAPI } from "@/lib/api";
 import { lockLandscape, unlockOrientation } from "@/lib/orientation";
@@ -29,6 +29,7 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isRotated, setIsRotated] = useState(false);
 
   const preferredPlayer = localStorage.getItem("preferred_player") || "auto";
   const smartRoutingEnabled = localStorage.getItem("use_proxy") !== "false";
@@ -244,6 +245,12 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
     }
   };
 
+  const toggleRotate = async () => {
+    setIsRotated((current) => !current);
+    if (!isRotated) await lockLandscape();
+    else unlockOrientation();
+  };
+
   if (!streamUrl) {
     return (
       <div className="aspect-video bg-black flex items-center justify-center text-white">
@@ -255,7 +262,11 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   return (
     <div
       ref={containerRef}
-      className="relative aspect-video bg-black group overflow-hidden rounded-lg shadow-2xl"
+      className={`relative bg-black group overflow-hidden rounded-lg shadow-2xl ${
+        isRotated
+          ? "fixed left-1/2 top-1/2 z-[9999] h-[100vw] w-[100vh] max-h-[100vw] max-w-[100vh] -translate-x-1/2 -translate-y-1/2 rotate-90 rounded-none"
+          : "aspect-video"
+      }`}
     >
       <video
         ref={videoRef}
@@ -313,6 +324,17 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
         </button>
       )}
 
+      {isRotated && (
+        <button
+          type="button"
+          aria-label="Exit rotated view"
+          onClick={toggleRotate}
+          className="absolute right-3 top-3 z-40 rounded-full bg-black/70 px-3 py-2 text-xs font-bold text-white"
+        >
+          Exit rotate
+        </button>
+      )}
+
       <div className="absolute bottom-0 left-0 right-0 z-30 flex translate-y-full items-center justify-between bg-gradient-to-t from-black/90 to-transparent p-4 transition-transform group-hover:translate-y-0">
         <div className="flex items-center gap-4">
           <Button
@@ -335,6 +357,15 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
             LIVE
           </div>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-white hover:bg-white/20"
+          onClick={toggleRotate}
+          title="Rotate player"
+        >
+          <RotateCw className="h-5 w-5" />
+        </Button>
         <Button
           variant="ghost"
           size="icon"

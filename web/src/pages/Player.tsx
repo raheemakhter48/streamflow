@@ -296,7 +296,7 @@ ${activeUrl}`;
 
       {/* Video Player */}
       <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-hidden glass-card border-glass-border">
+        <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-visible glass-card border-glass-border">
           {activeUrl ? (
             <>
               <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
