@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Play, Maximize2, RefreshCw } from "lucide-react";
+import { lockLandscape } from "@/lib/orientation";
 
 // ---------------------------------------------------------------------------
 // Stream source definitions — add / remove sources here only
@@ -172,9 +173,10 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
         {/* Native fullscreen button (top-right overlay) */}
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
             const el = document.querySelector(`iframe[title="${title} — ${currentSource.label}"]`) as HTMLIFrameElement | null;
-            el?.requestFullscreen?.();
+            await el?.requestFullscreen?.();
+            await lockLandscape();
           }}
           className="absolute right-3 top-3 z-10 rounded bg-black/60 p-1.5 text-white opacity-0 transition hover:opacity-100 focus:opacity-100"
           title="Fullscreen"

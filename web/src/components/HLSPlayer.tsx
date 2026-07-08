@@ -4,6 +4,7 @@ import mpegts from "mpegts.js";
 import { AlertCircle, Loader2, Maximize, Minimize, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { streamAPI } from "@/lib/api";
+import { lockLandscape, unlockOrientation } from "@/lib/orientation";
 
 interface HLSPlayerProps {
   url: string;
@@ -223,7 +224,12 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   ]);
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const handleFullscreenChange = () => {
+      const fullscreen = !!document.fullscreenElement;
+      setIsFullscreen(fullscreen);
+      if (fullscreen) lockLandscape();
+      else unlockOrientation();
+    };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
@@ -234,6 +240,7 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
       await document.exitFullscreen();
     } else {
       await containerRef.current.requestFullscreen();
+      await lockLandscape();
     }
   };
 
