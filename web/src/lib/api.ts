@@ -61,6 +61,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const contentType = response.headers.get('content-type') || '';
 
   if (!contentType.includes('application/json')) {
+    if (!response.ok) {
+      throw new Error(`Backend unavailable (${response.status}). Please retry.`);
+    }
     throw new Error('API returned HTML instead of JSON. Check the backend URL/deployment.');
   }
 

@@ -148,10 +148,37 @@ const getCategoryRequest = (category, query, originCountry) => {
     };
   }
 
-  const allowedCategories = new Set(['popular', 'now_playing', 'top_rated', 'upcoming']);
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+  const nextMonth = new Date(today);
+  nextMonth.setDate(today.getDate() + 45);
+  const nextMonthIso = nextMonth.toISOString().slice(0, 10);
+  const lastMonth = new Date(today);
+  lastMonth.setDate(today.getDate() - 45);
+  const lastMonthIso = lastMonth.toISOString().slice(0, 10);
+
+  const categoryParams = {
+    popular: { sort_by: 'popularity.desc' },
+    top_rated: { sort_by: 'vote_average.desc', 'vote_count.gte': 200 },
+    now_playing: {
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': lastMonthIso,
+      'primary_release_date.lte': todayIso
+    },
+    upcoming: {
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': todayIso,
+      'primary_release_date.lte': nextMonthIso
+    }
+  };
+
   return {
-    path: `/movie/${allowedCategories.has(category) ? category : 'popular'}`,
-    params: {}
+    path: '/discover/movie',
+    params: {
+      ...(categoryParams[category] || categoryParams.popular),
+      include_adult: false,
+      include_video: false
+    }
   };
 };
 
@@ -217,7 +244,7 @@ router.get('/movie/:id', protect, async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'A valid TMDB movie id is required' });
     }
 
-    const region = String(req.query.region || 'PK').trim().toUpperCase().slice(0, 2);
+    const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
     const details = await tmdbGet(`/movie/${movieId}`, {
       language: 'en-US',
       append_to_response: 'external_ids,videos,watch/providers'

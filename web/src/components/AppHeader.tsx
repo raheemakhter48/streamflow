@@ -44,8 +44,12 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
   const isActive = (path: string) => {
     if (path === '/settings') return location.pathname === '/settings';
-    if (path === '/dashboard') return location.pathname === '/dashboard' && !location.search.includes('view=');
-    return location.pathname + location.search === path || location.search.includes(path.split('?')[1] || '__');
+    if (path === '/dashboard') return location.pathname === '/dashboard' && !new URLSearchParams(location.search).get('view');
+
+    const [pathname, query = ""] = path.split('?');
+    if (location.pathname !== pathname) return false;
+    const expectedView = new URLSearchParams(query).get('view');
+    return expectedView ? new URLSearchParams(location.search).get('view') === expectedView : false;
   };
 
   return (

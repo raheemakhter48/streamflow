@@ -818,7 +818,14 @@ const Dashboard = () => {
             {viewTabs.map((t) => (
               <button
                 key={t.id}
-                onClick={() => { setViewMode(t.id); setCurrentPage(1); }}
+                onClick={() => navigate(buildDashboardPath({
+                  viewMode: t.id,
+                  selectedRegion,
+                  selectedCountry,
+                  selectedCategory: "All",
+                  searchQuery: debouncedSearchQuery,
+                  currentPage: 1,
+                }))}
                 className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all ${
                   viewMode === t.id
                     ? 'bg-[#00D7E5] text-black shadow-[0_0_12px_rgba(0,215,229,0.3)]'

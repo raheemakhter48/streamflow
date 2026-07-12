@@ -52,6 +52,9 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     movieAPI.getCategories()
@@ -70,6 +73,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setLoadError("");
 
     movieAPI.getMovies({
       category: selectedCategory,
@@ -81,10 +85,12 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         if (cancelled) return;
         setMovies(response.data || []);
         setTotalPages(response.totalPages || 1);
+        setHasLoadedOnce(true);
       })
       .catch((error) => {
         if (!cancelled) {
-          setMovies([]);
+          setLoadError(error.message || "Could not load movies");
+          if (!hasLoadedOnce) setMovies([]);
           toast.error(error.message || "Could not load movies");
         }
       })
@@ -95,7 +101,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, selectedCategory, selectedRegion]);
+  }, [page, searchQuery, selectedCategory, selectedRegion, hasLoadedOnce, reloadKey]);
 
   useEffect(() => {
     localStorage.setItem(MOVIE_REGION_STORAGE_KEY, selectedRegion);
@@ -156,9 +162,49 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex min-h-[360px] items-center justify-center">
+      {loading && !hasLoadedOnce ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="enterprise-card animate-pulse overflow-hidden rounded-2xl">
+              <div className="aspect-[2/3] bg-[#111827]" />
+              <div className="space-y-2 p-3.5">
+                <div className="h-4 w-4/5 rounded bg-[#1F2937]" />
+                <div className="h-3 w-1/3 rounded bg-[#1F2937]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : loading ? (
+        <div className="flex min-h-[220px] items-center justify-center">
           <Loader2 className="h-9 w-9 animate-spin text-[#00CFE8]" />
+        </div>
+      ) : loadError ? (
+        <div className="enterprise-card flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-3xl p-6 text-center">
+          <Film className="h-12 w-12 text-gray-700" />
+          <p className="text-sm font-bold text-white">Movies could not load</p>
+          <p className="max-w-sm text-xs text-gray-500">{loadError}</p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCategory("popular");
+                setPage(1);
+              }}
+              className="rounded-xl border border-[#1F2937] px-4 py-2 text-xs font-bold text-gray-300"
+            >
+              Back to Popular
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLoadError("");
+                setReloadKey((current) => current + 1);
+              }}
+              className="rounded-xl bg-[#00CFE8] px-4 py-2 text-xs font-black text-black"
+            >
+              Retry
+            </button>
+          </div>
         </div>
       ) : movies.length === 0 ? (
         <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 text-center">
