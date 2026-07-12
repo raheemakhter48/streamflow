@@ -61,7 +61,7 @@ const tmdbGet = async (path, params = {}) => {
     const status = error.response?.status;
     const tmdbMessage = error.response?.data?.status_message;
     const upstreamError = new Error(tmdbMessage || 'TMDB request failed');
-    upstreamError.statusCode = status === 404 ? 404 : status === 429 ? 429 : 502;
+    upstreamError.statusCode = status && status >= 400 && status < 500 ? status : 502;
     throw upstreamError;
   }
 };
@@ -85,6 +85,17 @@ const normalizeProvider = (provider) => ({
   id: provider.provider_id,
   name: provider.provider_name,
   logo: imageUrl(provider.logo_path, 'w92')
+});
+
+const emptyWatchProviders = (region) => ({
+  region,
+  attribution: 'Streaming availability data provided by JustWatch via TMDB',
+  link: null,
+  flatrate: [],
+  free: [],
+  ads: [],
+  rent: [],
+  buy: []
 });
 
 const getCategoryRequest = (category, query, originCountry) => {
@@ -216,12 +227,28 @@ router.get('/movies', protect, async (req, res, next) => {
     const countryParam = String(req.query.country || '').trim().toUpperCase().slice(0, 2);
     const originCountry = /^[A-Z]{2}$/.test(countryParam) ? countryParam : '';
     const request = getCategoryRequest(category, query, originCountry);
-    const data = await tmdbGet(request.path, {
-      ...request.params,
-      page,
-      language: 'en-US',
-      region
-    });
+    let data;
+
+    try {
+      data = await tmdbGet(request.path, {
+        ...request.params,
+        page,
+        language: 'en-US',
+        region
+      });
+    } catch (categoryError) {
+      if (query || (category === 'popular' && page === 1)) {
+        throw categoryError;
+      }
+
+      const fallbackRequest = getCategoryRequest('popular', '', '');
+      data = await tmdbGet(fallbackRequest.path, {
+        ...fallbackRequest.params,
+        page: 1,
+        language: 'en-US',
+        region
+      });
+    }
 
     res.set('Cache-Control', 'private, max-age=120');
     res.json({
@@ -245,24 +272,46 @@ router.get('/movie/:id', protect, async (req, res, next) => {
     }
 
     const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
-    const details = await tmdbGet(`/movie/${movieId}`, {
-      language: 'en-US',
-      append_to_response: 'external_ids,videos,watch/providers'
-    });
+    let details;
+    let externalIds = {};
+    let videos = [];
+    let watchProviderResults = {};
+
+    try {
+      details = await tmdbGet(`/movie/${movieId}`, {
+        language: 'en-US',
+        append_to_response: 'external_ids,videos,watch/providers'
+      });
+      externalIds = details.external_ids || {};
+      videos = details.videos?.results || [];
+      watchProviderResults = details['watch/providers']?.results || {};
+    } catch (combinedError) {
+      details = await tmdbGet(`/movie/${movieId}`, { language: 'en-US' });
+
+      const [externalIdsResult, videosResult, providersResult] = await Promise.allSettled([
+        tmdbGet(`/movie/${movieId}/external_ids`),
+        tmdbGet(`/movie/${movieId}/videos`, { language: 'en-US' }),
+        tmdbGet(`/movie/${movieId}/watch/providers`)
+      ]);
+
+      if (externalIdsResult.status === 'fulfilled') externalIds = externalIdsResult.value || {};
+      if (videosResult.status === 'fulfilled') videos = videosResult.value?.results || [];
+      if (providersResult.status === 'fulfilled') watchProviderResults = providersResult.value?.results || {};
+    }
+
     const imdbId = details.imdb_id || details.external_ids?.imdb_id;
 
-    const videos = details.videos?.results || [];
     const trailer = videos.find((video) =>
       video.site === 'YouTube' && video.type === 'Trailer' && video.official
     ) || videos.find((video) => video.site === 'YouTube' && video.type === 'Trailer');
-    const regionProviders = details['watch/providers']?.results?.[region] || {};
+    const regionProviders = watchProviderResults?.[region] || {};
 
     res.set('Cache-Control', 'private, max-age=300');
     return res.json({
       success: true,
       data: {
         id: details.id,
-        imdbId: imdbId || null,
+        imdbId: imdbId || externalIds?.imdb_id || null,
         title: details.title,
         originalTitle: details.original_title,
         tagline: details.tagline,
@@ -283,16 +332,15 @@ router.get('/movie/:id', protect, async (req, res, next) => {
               embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(trailer.key)}`
             }
           : null,
-        watchProviders: {
-          region,
-          attribution: 'Streaming availability data provided by JustWatch via TMDB',
+        watchProviders: regionProviders ? {
+          ...emptyWatchProviders(region),
           link: regionProviders.link || null,
           flatrate: (regionProviders.flatrate || []).map(normalizeProvider),
           free: (regionProviders.free || []).map(normalizeProvider),
           ads: (regionProviders.ads || []).map(normalizeProvider),
           rent: (regionProviders.rent || []).map(normalizeProvider),
           buy: (regionProviders.buy || []).map(normalizeProvider)
-        }
+        } : emptyWatchProviders(region)
       }
     });
   } catch (error) {

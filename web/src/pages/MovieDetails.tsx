@@ -27,6 +27,7 @@ const MovieDetails = () => {
   const [movie, setMovie] = useState<MovieDetailsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +48,7 @@ const MovieDetails = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, region]);
+  }, [id, region, reloadKey]);
 
   if (loading) {
     return (
@@ -61,10 +62,18 @@ const MovieDetails = () => {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#090909] px-5 text-center text-white">
         <Film className="h-14 w-14 text-gray-700" />
-        <p className="text-gray-400">{error || "Movie not found"}</p>
-        <button onClick={() => navigate(from)} className="text-[#00D7E5]">
-          Back to Movies
-        </button>
+        <p className="max-w-sm text-gray-400">{error || "Movie not found"}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setReloadKey((current) => current + 1)}
+            className="rounded-xl bg-[#00CFE8] px-4 py-2 text-sm font-black text-black"
+          >
+            Retry
+          </button>
+          <button onClick={() => navigate(from)} className="rounded-xl border border-[#1F2937] px-4 py-2 text-sm font-bold text-[#00CFE8]">
+            Back to Movies
+          </button>
+        </div>
       </div>
     );
   }
