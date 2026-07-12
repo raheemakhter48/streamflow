@@ -37,10 +37,10 @@ const Settings = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-24 lg:pb-6">
+    <div className="enterprise-bg min-h-screen pb-24 text-white lg:pb-6 lg:pl-64">
       <AppHeader />
 
-      <div className="px-4 pt-5 max-w-lg lg:max-w-2xl mx-auto space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4 px-4 pt-5 sm:px-6 lg:px-8">
         {/* Page title */}
         <div className="mb-5">
           <h1 className="text-2xl font-black text-white">Settings</h1>
@@ -48,7 +48,7 @@ const Settings = () => {
         </div>
 
         {/* Playback section */}
-        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl overflow-hidden">
+        <div className="enterprise-card overflow-hidden rounded-3xl">
           <div className="flex items-center gap-2.5 px-4 py-4 border-b border-[#1e1e1e]">
             <Play className="w-5 h-5 text-[#00D7E5]" />
             <span className="font-bold text-[#00D7E5] text-base">Playback</span>
@@ -102,7 +102,7 @@ const Settings = () => {
         </div>
 
         {/* App Info section */}
-        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl overflow-hidden">
+        <div className="enterprise-card overflow-hidden rounded-3xl">
           <div className="flex items-center gap-2.5 px-4 py-4 border-b border-[#1e1e1e]">
             <Info className="w-5 h-5 text-[#00D7E5]" />
             <span className="font-bold text-[#00D7E5] text-base">App Info</span>

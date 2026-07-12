@@ -12,6 +12,12 @@ const getToken = () => {
   return localStorage.getItem('auth_token');
 };
 
+export const ADMIN_SESSION_STORAGE_KEY = 'streamflow_admin_session';
+
+const getAdminSessionToken = () => {
+  return localStorage.getItem(ADMIN_SESSION_STORAGE_KEY);
+};
+
 export const toPasswordlessStreamUrl = (streamUrl: string) => {
   if (!streamUrl) return streamUrl;
 
@@ -45,6 +51,9 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
+      ...(endpoint.startsWith('/admin') && endpoint !== '/admin/login' && getAdminSessionToken()
+        ? { 'X-Admin-Session': getAdminSessionToken() as string }
+        : {}),
       ...options.headers,
     },
   });
@@ -308,6 +317,17 @@ export const movieAPI = {
 };
 
 export const adminAPI = {
+  login: async (email: string, password: string) => {
+    const data = await apiRequest('/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (data.token) {
+      localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, data.token);
+    }
+    return data;
+  },
+
   getChannels: async (params: { page?: number; search?: string; status?: string; limit?: number } = {}) => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

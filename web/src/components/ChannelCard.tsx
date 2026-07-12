@@ -106,20 +106,20 @@ const ChannelCard = ({
 
   return (
     <Card
-      className={`glass-card hover-scale group cursor-pointer overflow-hidden relative rounded-xl ${
-        selected ? "ring-2 ring-[#00D7E5] bg-[#00D7E5]/5" : ""
+      className={`enterprise-card enterprise-card-hover group relative cursor-pointer overflow-hidden rounded-2xl ${
+        selected ? "ring-2 ring-[#00CFE8] bg-[#00CFE8]/5" : ""
       }`}
       onClick={handlePlay}
     >
       {/* Channel Image/Icon */}
-      <div className="aspect-square bg-secondary/50 flex items-center justify-center relative overflow-hidden">
+      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#07090B] sm:aspect-square">
         {channel.logo && !imageError ? (
           <img
             src={channel.logo}
             alt={channel.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
             onError={() => setImageError(true)}
           />
         ) : (
@@ -171,7 +171,7 @@ const ChannelCard = ({
         )}
 
         {/* Overlay on Hover */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
           <Button
             size="icon"
             className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-primary hover:bg-primary/90"
@@ -194,12 +194,12 @@ const ChannelCard = ({
       </div>
 
       {/* Channel Info */}
-      <div className="p-2.5 sm:p-3">
-        <h3 className="font-semibold text-sm line-clamp-2 mb-1">
+      <div className="p-3">
+        <h3 className="mb-1 line-clamp-2 min-h-[2.25rem] text-sm font-bold leading-5 text-white">
           {channel.name}
         </h3>
         {channel.group && (
-          <p className="text-xs text-muted-foreground truncate">{channel.group}</p>
+          <p className="truncate text-xs font-medium text-gray-500">{channel.group}</p>
         )}
       </div>
     </Card>

@@ -1,6 +1,7 @@
 import express from 'express';
 import os from 'os';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 import { requireAdmin } from '../middleware/admin.js';
 import supabase from '../config/supabase.js';
 
@@ -93,6 +94,39 @@ const loadScraper = async () => {
 };
 
 const VALID_SCRAPER_TYPES = ['generic', 'crictime', 'streameast', 'sportsurge'];
+
+router.post('/login', async (req, res) => {
+  try {
+    const email = normalizeText(req.body.email).toLowerCase();
+    const password = normalizeText(req.body.password);
+    const configuredEmail = normalizeText(process.env.ADMIN_PANEL_EMAIL).toLowerCase();
+    const configuredPassword = normalizeText(process.env.ADMIN_PANEL_PASSWORD);
+
+    if (!configuredEmail || !configuredPassword) {
+      return res.status(503).json({
+        success: false,
+        message: 'Admin panel login is not configured'
+      });
+    }
+
+    if (email !== configuredEmail || password !== configuredPassword) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid admin panel credentials'
+      });
+    }
+
+    const token = jwt.sign(
+      { purpose: 'admin-panel', email },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({ success: true, token });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 const validateChannelPayload = (body) => {
   const name = normalizeText(body.name);

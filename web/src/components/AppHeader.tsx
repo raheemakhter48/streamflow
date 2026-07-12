@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, Shield, LogOut, User } from 'lucide-react';
+import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
 
@@ -17,7 +17,6 @@ const navItems = [
 
 const quickItems = [
   { icon: Zap,    label: 'IPTV Setup', path: '/setup'  },
-  { icon: Shield, label: 'Admin',      path: '/admin'  },
 ];
 
 const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
@@ -51,43 +50,21 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
   return (
     <>
-      {/* Header bar */}
-      <header className="flex items-center justify-between px-4 py-3 bg-[#0A0A0A] sticky top-0 z-40 border-b border-[#111]">
-        {/* Left: hamburger (mobile) + logo */}
+      {/* Mobile header */}
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[#1F2937]/80 bg-[#07090B]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setOpen(true)}
-            className="lg:hidden p-1.5 rounded-lg text-gray-500 hover:text-white transition-colors"
+            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:text-white"
             aria-label="Open menu"
           >
             <Menu className="w-6 h-6" />
           </button>
-          <span className="text-[#00D7E5] font-bold text-xl tracking-tight">{title}</span>
+          <span className="text-lg font-extrabold tracking-tight text-[#00CFE8]">{title}</span>
         </div>
-
-        {/* Center: desktop nav links */}
-        <nav className="hidden lg:flex items-center gap-1">
-          {navItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <button
-                key={item.label}
-                onClick={() => handleNav(item.path)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                  active ? 'bg-[#00D7E5]/10 text-[#00D7E5]' : 'text-gray-400 hover:text-white hover:bg-[#151515]'
-                }`}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right: avatar */}
         <button
           onClick={() => navigate('/settings')}
-          className="w-9 h-9 rounded-full bg-[#1a1a2e] border border-[#2a2a3e] overflow-hidden flex items-center justify-center"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#1F2937] bg-[#111827]"
           aria-label="Profile"
         >
           <img
@@ -98,6 +75,76 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
           />
         </button>
       </header>
+
+      {/* Desktop sidebar */}
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[#1F2937]/85 bg-[#0B1115]/95 backdrop-blur-xl lg:flex">
+        <div className="flex h-16 items-center gap-3 border-b border-[#1F2937]/70 px-5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00CFE8] text-black shadow-[0_0_30px_rgba(0,207,232,0.18)]">
+            <img src="/logo.png" alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+          </div>
+          <div>
+            <p className="text-sm font-extrabold leading-none text-white">StreamFlow</p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#00CFE8]/80">Enterprise Console</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 space-y-1 px-3 py-5">
+          {navItems.map((item) => {
+            const active = isActive(item.path);
+            return (
+              <button
+                key={item.label}
+                onClick={() => handleNav(item.path)}
+                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
+                  active
+                    ? 'bg-[#00CFE8]/12 text-[#00CFE8] ring-1 ring-[#00CFE8]/16'
+                    : 'text-gray-400 hover:bg-[#111827] hover:text-white'
+                }`}
+              >
+                <item.icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 2} />
+                <span>{item.label}</span>
+                {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#00CFE8]" />}
+              </button>
+            );
+          })}
+
+          <div className="pt-5">
+            <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">Workspace</p>
+            {quickItems.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => handleNav(item.path)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-400 transition-colors hover:bg-[#111827] hover:text-white"
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className="border-t border-[#1F2937]/70 p-4">
+          <button
+            onClick={() => navigate('/settings')}
+            className="mb-3 flex w-full items-center gap-3 rounded-xl border border-[#1F2937] bg-[#0D1117] p-3 text-left"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#111827] text-[#00CFE8]">
+              <User className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-white">{email ? email.split('@')[0] : 'Account'}</p>
+              <p className="truncate text-xs text-gray-500">{email || 'Secure session'}</p>
+            </div>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/8 px-3 py-2.5 text-sm font-bold text-red-300 transition-colors hover:bg-red-500/15"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </aside>
 
       {/* Backdrop */}
       {open && (

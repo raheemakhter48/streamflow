@@ -779,7 +779,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white pb-20 lg:pb-0">
+    <div className="enterprise-bg min-h-screen pb-20 text-white lg:pb-0 lg:pl-64">
       <SEO
         title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : "Streaming Dashboard"} - StreamFlow`}
         description="Browse live TV channels, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
@@ -812,7 +812,7 @@ const Dashboard = () => {
           </button>
         </div>
       ) : (
-        <div className="px-4 max-w-lg lg:max-w-7xl mx-auto">
+        <div className="mx-auto max-w-[1520px] px-4 sm:px-5 lg:px-8">
           {/* Category tabs — mobile only (desktop uses top nav) */}
           <div className="lg:hidden flex gap-2 pt-4 pb-3 overflow-x-auto scrollbar-hide">
             {viewTabs.map((t) => (
@@ -831,12 +831,12 @@ const Dashboard = () => {
           </div>
 
           {/* Search + filters row */}
-          <div className="flex flex-col lg:flex-row lg:items-center gap-3 pt-4 lg:pt-5 mb-4">
+          <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-[#1F2937]/80 bg-[#0D1117]/70 p-3 backdrop-blur lg:mt-5 lg:flex-row lg:items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
               <Input
                 placeholder="Search channels, movies, series..."
-                className="pl-10 h-11 bg-[#111] border-[#1e1e1e] rounded-xl text-sm text-white placeholder-gray-700 focus:border-[#00D7E5]/40"
+                className="h-11 rounded-xl border-[#1F2937] bg-[#07090B] pl-10 text-sm text-white placeholder-gray-700 focus:border-[#00CFE8]/50"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
@@ -846,7 +846,7 @@ const Dashboard = () => {
           {(viewMode === 'live' || viewMode === 'home') && (
             <div className="flex gap-2 lg:shrink-0">
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                <SelectTrigger className="flex-1 h-10 bg-[#111] border-[#1e1e1e] rounded-xl text-white text-xs font-bold">
+                <SelectTrigger className="h-10 flex-1 rounded-xl border-[#1F2937] bg-[#07090B] text-xs font-bold text-white">
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#111] border-[#1e1e1e] text-white">
@@ -857,7 +857,7 @@ const Dashboard = () => {
                 </SelectContent>
               </Select>
               <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
-                <SelectTrigger className="flex-1 h-10 bg-[#111] border-[#1e1e1e] rounded-xl text-white text-xs font-bold disabled:opacity-40">
+                <SelectTrigger className="h-10 flex-1 rounded-xl border-[#1F2937] bg-[#07090B] text-xs font-bold text-white disabled:opacity-40">
                   <SelectValue placeholder="Country" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#111] border-[#1e1e1e] text-white">
@@ -904,7 +904,7 @@ const Dashboard = () => {
           ) : (
           <>
           {/* Channels header */}
-          <div className="flex items-center justify-between mb-3">
+          <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-black text-white">
               {viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : viewMode === 'movie' ? 'Movies' : 'Series'}
             </h2>
@@ -912,7 +912,7 @@ const Dashboard = () => {
               {validatedChannels && (
                 <button
                   onClick={() => setValidatedChannels(null)}
-                  className="flex items-center gap-1 rounded-lg border border-[#1e1e1e] px-2.5 py-1.5 text-xs font-bold text-gray-400 hover:text-white"
+                  className="rounded-lg border border-[#1F2937] px-2.5 py-1.5 text-xs font-bold text-gray-400 hover:text-white"
                 >
                   <X className="h-3.5 w-3.5" />
                   Show all
@@ -926,7 +926,7 @@ const Dashboard = () => {
                   }}
                   className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors ${
                     isSelectionMode
-                      ? "border-[#00D7E5] bg-[#00D7E5]/10 text-[#00D7E5]"
+                      ? "border-[#00CFE8] bg-[#00CFE8]/10 text-[#00CFE8]"
                       : "border-[#1e1e1e] text-gray-400 hover:text-white"
                   }`}
                 >

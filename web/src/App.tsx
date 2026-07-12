@@ -11,6 +11,7 @@ import Setup from "./pages/Setup";
 import Player from "./pages/Player";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
 import MovieDetails from "./pages/MovieDetails";
 import NotFound from "./pages/NotFound";
 import InstallBanner from "./components/InstallBanner";
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/settings" element={<Settings />} />
             <Route path="/player" element={<Player />} />
             <Route path="/movie/:id" element={<MovieDetails />} />
+            <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

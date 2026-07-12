@@ -70,7 +70,7 @@ const MovieDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#090909] pb-24 text-white lg:pb-8">
+    <div className="enterprise-bg min-h-screen pb-24 text-white lg:pb-8 lg:pl-64">
       <SEO
         title={`${movie.title}${movie.releaseDate ? ` (${movie.releaseDate.slice(0, 4)})` : ""}`}
         description={movie.overview || `Watch ${movie.title} on StreamFlow.`}
@@ -99,7 +99,7 @@ const MovieDetails = () => {
           <button
             type="button"
             onClick={() => navigate(from)}
-            className="flex items-center gap-2 rounded-lg border border-[#202020] bg-[#101010] px-3 py-2 text-sm font-bold text-gray-300 hover:text-white"
+            className="flex items-center gap-2 rounded-xl border border-[#1F2937] bg-[#0D1117] px-3 py-2 text-sm font-bold text-gray-300 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
             Movies
@@ -114,7 +114,7 @@ const MovieDetails = () => {
         {movie.imdbId ? (
           <MoviePlayer imdbId={movie.imdbId} title={movie.title} />
         ) : (
-          <div className="rounded-xl border border-[#202020] bg-[#0a0a0a] p-6 text-center">
+          <div className="enterprise-card rounded-3xl p-6 text-center">
             <Film className="mx-auto mb-3 h-10 w-10 text-gray-700" />
             <h2 className="text-base font-black text-white">{movie.title}</h2>
             <p className="mt-2 text-sm text-gray-500">

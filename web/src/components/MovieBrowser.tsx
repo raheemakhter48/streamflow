@@ -110,7 +110,8 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
 
   return (
     <section className="pb-8">
-      <div className="mb-5 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="mb-5 rounded-3xl border border-[#1F2937]/80 bg-[#0D1117]/70 p-3">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {categories.map((category) => (
           <button
             key={category.id}
@@ -118,18 +119,20 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
             onClick={() => setSelectedCategory(category.id)}
             className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-colors ${
               selectedCategory === category.id && !searchQuery
-                ? "bg-[#00D7E5] text-black"
-                : "border border-[#1e1e1e] bg-[#111] text-gray-400 hover:text-white"
+                ? "bg-[#00CFE8] text-black shadow-[0_0_28px_rgba(0,207,232,0.14)]"
+                : "border border-[#1F2937] bg-[#07090B] text-gray-400 hover:text-white"
             }`}
           >
             {category.name}
           </button>
         ))}
+        </div>
       </div>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-black text-white">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00CFE8]">TMDB Catalog</p>
+          <h2 className="text-2xl font-black text-white sm:text-3xl">
             {searchQuery ? `Results for “${searchQuery}”` : "Movies"}
           </h2>
           <p className="mt-0.5 text-xs text-gray-600">
@@ -140,7 +143,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
           <select
             value={selectedRegion}
             onChange={(event) => setSelectedRegion(event.target.value)}
-            className="h-9 rounded-lg border border-[#252525] bg-[#101010] px-3 text-xs font-bold text-gray-200 outline-none focus:border-[#00D7E5]"
+            className="h-10 rounded-xl border border-[#1F2937] bg-[#07090B] px-3 text-xs font-bold text-gray-200 outline-none focus:border-[#00CFE8]"
             aria-label="Movie country"
           >
             {MOVIE_REGIONS.map((region) => (
@@ -155,7 +158,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
 
       {loading ? (
         <div className="flex min-h-[360px] items-center justify-center">
-          <Loader2 className="h-9 w-9 animate-spin text-[#00D7E5]" />
+          <Loader2 className="h-9 w-9 animate-spin text-[#00CFE8]" />
         </div>
       ) : movies.length === 0 ? (
         <div className="flex min-h-[360px] flex-col items-center justify-center gap-3 text-center">
@@ -163,13 +166,13 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
           <p className="text-sm text-gray-500">No movies found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
           {movies.map((movie) => (
             <button
               key={movie.id}
               type="button"
               onClick={() => openMovie(movie.id)}
-              className="group overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#101010] text-left transition-all hover:-translate-y-1 hover:border-[#00D7E5]/40"
+              className="enterprise-card enterprise-card-hover group overflow-hidden rounded-2xl text-left"
             >
               <div className="relative aspect-[2/3] overflow-hidden bg-[#181818]">
                 {movie.poster ? (
@@ -192,7 +195,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
                   </span>
                 )}
               </div>
-              <div className="p-3">
+              <div className="p-3.5">
                 <h3 className="line-clamp-2 min-h-10 text-sm font-bold text-white">{movie.title}</h3>
                 <p className="mt-1 text-xs text-gray-600">{movie.releaseDate?.slice(0, 4) || "TBA"}</p>
               </div>

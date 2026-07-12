@@ -56,10 +56,10 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
+    <div className="enterprise-bg flex min-h-screen flex-col text-white">
       {/* Logo */}
       <div className="flex flex-col items-center pt-14 pb-8">
-        <div className="w-16 h-16 rounded-2xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center mb-3">
+        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#00CFE8]/20 bg-[#00CFE8]/10 shadow-[0_0_42px_rgba(0,207,232,0.14)]">
           <img
             src="/logo.png"
             alt="StreamFlow"
@@ -72,7 +72,7 @@ const Auth = () => {
 
       {/* Card */}
       <div className="flex-1 flex flex-col px-5 max-w-md mx-auto w-full">
-        <div className="bg-[#111] border border-[#1e1e1e] rounded-2xl overflow-hidden flex-1 max-h-[500px]">
+        <div className="enterprise-panel max-h-[520px] flex-1 overflow-hidden rounded-3xl">
           {/* Tabs */}
           <div className="flex border-b border-[#1e1e1e]">
             {(['login', 'signup'] as const).map((t) => (
@@ -106,7 +106,7 @@ const Auth = () => {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                      className="w-full h-12 bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl pl-10 pr-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/50 transition-colors"
+                    className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
                     />
                   </div>
                 </div>
@@ -122,7 +122,7 @@ const Auth = () => {
                       value={loginPassword}
                       onChange={(e) => setLoginPass(e.target.value)}
                       required
-                      className="w-full h-12 bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl pl-10 pr-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/50 transition-colors"
+                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
                     />
                   </div>
                 </div>
@@ -141,7 +141,7 @@ const Auth = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl text-[15px] transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-1"
+                  className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Login'}
                 </button>
@@ -158,7 +158,7 @@ const Auth = () => {
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required
-                      className="w-full h-12 bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl pl-10 pr-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/50 transition-colors"
+                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
                     />
                   </div>
                 </div>
@@ -172,14 +172,14 @@ const Auth = () => {
                       value={signupPassword}
                       onChange={(e) => setSignupPass(e.target.value)}
                       required
-                      className="w-full h-12 bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl pl-10 pr-4 text-white text-sm placeholder-gray-700 focus:outline-none focus:border-[#00D7E5]/50 transition-colors"
+                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
                     />
                   </div>
                 </div>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full h-12 bg-[#00D7E5] hover:bg-[#00b8c5] text-black font-bold rounded-xl text-[15px] transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
                 </button>

@@ -231,9 +231,9 @@ ${activeUrl}`;
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="enterprise-bg min-h-screen bg-background lg:pl-64">
       {/* Header */}
-      <header className="glass-card border-b border-glass-border sticky top-0 z-50 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-[#1F2937]/80 bg-[#07090B]/90 backdrop-blur-xl">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <Button variant="ghost" onClick={() => navigate(returnTo)} className="w-fit">
@@ -296,7 +296,7 @@ ${activeUrl}`;
 
       {/* Video Player */}
       <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        <div className="relative aspect-video min-h-[220px] sm:min-h-0 bg-black rounded-xl overflow-visible glass-card border-glass-border">
+        <div className="enterprise-panel relative aspect-video min-h-[220px] overflow-visible rounded-3xl bg-black sm:min-h-0">
           {activeUrl ? (
             <>
               <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
@@ -352,7 +352,7 @@ ${activeUrl}`;
         </div>
         
         {/* Channel Info */}
-        <div className="mt-6 glass-card rounded-xl p-4 sm:p-6">
+        <div className="enterprise-card mt-6 rounded-3xl p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4">
             {channelLogo && (
               <img
