@@ -21,6 +21,7 @@ const DEFAULT_DASHBOARD_VIEW: DashboardView = 'home';
 const DASHBOARD_FILTERS_STORAGE_KEY = 'streamvault_dashboard_filters';
 const M3U_CATEGORY_FILTER = 'M3U';
 const DASHBOARD_VIEWS = new Set<DashboardView>(['home', 'live', 'movie', 'series', 'epg']);
+const CHANNEL_VIEWS = new Set<DashboardView>(['home', 'live']);
 
 interface Channel {
   id?: string;
@@ -64,6 +65,8 @@ const getInitialPage = (value: string | null) => {
 const getDashboardView = (value: string | null, fallback: DashboardView = DEFAULT_DASHBOARD_VIEW) => {
   return DASHBOARD_VIEWS.has(value as DashboardView) ? (value as DashboardView) : fallback;
 };
+
+const isChannelView = (viewMode: DashboardView) => CHANNEL_VIEWS.has(viewMode);
 
 const getStoredDashboardFilters = () => {
   try {
@@ -157,13 +160,14 @@ const buildDashboardPath = ({
   currentPage: number;
 }) => {
   const params = new URLSearchParams();
+  const includeChannelFilters = isChannelView(viewMode) || viewMode === 'series';
 
   if (viewMode !== DEFAULT_DASHBOARD_VIEW) params.set("view", viewMode);
-  if (selectedRegion !== "All") params.set("region", selectedRegion);
-  if (selectedCountry !== "All") params.set("country", selectedCountry);
-  if (selectedCategory !== "All") params.set("category", selectedCategory);
+  if (includeChannelFilters && selectedRegion !== "All") params.set("region", selectedRegion);
+  if (includeChannelFilters && selectedCountry !== "All") params.set("country", selectedCountry);
+  if (includeChannelFilters && selectedCategory !== "All") params.set("category", selectedCategory);
   if (searchQuery.trim()) params.set("search", searchQuery.trim());
-  if (currentPage > 1) params.set("page", String(currentPage));
+  if (includeChannelFilters && currentPage > 1) params.set("page", String(currentPage));
 
   const query = params.toString();
   return `/dashboard${query ? `?${query}` : ''}`;
@@ -204,7 +208,7 @@ const Dashboard = () => {
   const storedFilters = useMemo(() => getStoredDashboardFilters(), []);
   const [user, setUser] = useState<any>(null);
   const [viewMode, setViewMode] = useState<DashboardView>(
-    getDashboardView(searchParams.get("view"), getDashboardView(storedFilters.viewMode))
+    getDashboardView(searchParams.get("view"))
   );
   const [channels, setChannels] = useState<Channel[]>([]);
   const [recentlyWatched, setRecentlyWatched] = useState<RecentlyWatched[]>([]);
@@ -246,7 +250,6 @@ const Dashboard = () => {
       loadFavorites();
       loadRecentlyWatched();
       setHasCredentials(true);
-      setIsLoading(false);
     }
   }, [user, loadFavorites]);
 
@@ -287,7 +290,7 @@ const Dashboard = () => {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (user && viewMode === 'live') {
+    if (user && isChannelView(viewMode)) {
       loadIptvOrgChannels();
     }
   }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage]);
@@ -299,13 +302,13 @@ const Dashboard = () => {
   }, [viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage]);
 
   useEffect(() => {
-    if (user && viewMode === 'live') {
+    if (user && isChannelView(viewMode)) {
       loadCategories();
     }
   }, [user, viewMode, selectedRegion, selectedCountry]);
 
   useEffect(() => {
-    if (viewMode === 'live' && selectedCategory !== "All" && !availableCategories.includes(selectedCategory)) {
+    if (isChannelView(viewMode) && selectedCategory !== "All" && !availableCategories.includes(selectedCategory)) {
       setSelectedCategory("All");
       setCurrentPage(1);
     }
@@ -334,7 +337,6 @@ const Dashboard = () => {
     }
 
     localStorage.setItem(DASHBOARD_FILTERS_STORAGE_KEY, JSON.stringify({
-      viewMode,
       selectedRegion,
       selectedCountry,
       selectedCategory,
@@ -374,7 +376,7 @@ const Dashboard = () => {
   }, [channels, validatedChannels, searchQuery, selectedCategory, showFavoritesOnly, favoriteUrls, viewMode]);
 
   const paginatedChannels = useMemo(() => {
-    if (viewMode === 'live') {
+    if (isChannelView(viewMode)) {
       return filteredChannels;
     }
 
@@ -546,7 +548,7 @@ const Dashboard = () => {
 
   const handleRefreshChannels = async () => {
     try {
-      if (viewMode === 'live') {
+      if (isChannelView(viewMode)) {
         await loadIptvOrgChannels();
       } else {
         await parseM3UPlaylist();
@@ -681,7 +683,7 @@ const Dashboard = () => {
   };
 
   const categories = useMemo(() => {
-    if (viewMode === 'live') {
+    if (isChannelView(viewMode)) {
       return availableCategories;
     }
 
@@ -932,7 +934,7 @@ const Dashboard = () => {
                   {isSelectionMode ? "Cancel" : "Find working"}
                 </button>
               )}
-              {viewMode === 'live' && (
+              {isChannelView(viewMode) && (
                 <span className="text-xs text-gray-600">{totalChannels.toLocaleString()} ch</span>
               )}
               <button
@@ -991,7 +993,7 @@ const Dashboard = () => {
           {renderChannelGrid()}
 
           {/* Pagination (live) */}
-          {viewMode === 'live' && !validatedChannels && totalPages > 1 && (
+          {isChannelView(viewMode) && !validatedChannels && totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 py-5">
               <button
                 disabled={currentPage <= 1 || isLoading}

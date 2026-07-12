@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Film, Loader2, Star } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { movieAPI } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -24,9 +24,9 @@ interface MovieBrowserProps {
 }
 
 const MOVIE_REGIONS = [
+  { code: "US", name: "Global" },
   { code: "PK", name: "Pakistan" },
   { code: "IN", name: "India" },
-  { code: "US", name: "United States" },
   { code: "GB", name: "United Kingdom" },
   { code: "AE", name: "United Arab Emirates" },
   { code: "SA", name: "Saudi Arabia" },
@@ -41,10 +41,12 @@ const MOVIE_REGION_STORAGE_KEY = "streamflow_movie_region";
 
 const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [categories, setCategories] = useState<MovieCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("popular");
   const [selectedRegion, setSelectedRegion] = useState(() => {
-    return localStorage.getItem(MOVIE_REGION_STORAGE_KEY) || "PK";
+    const storedRegion = localStorage.getItem(MOVIE_REGION_STORAGE_KEY);
+    return storedRegion === "PK" || storedRegion === "IN" ? "US" : storedRegion || "US";
   });
   const [movies, setMovies] = useState<MovieCard[]>([]);
   const [page, setPage] = useState(1);
@@ -62,6 +64,10 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   }, []);
 
   useEffect(() => {
+    setPage((current) => current === 1 ? current : 1);
+  }, [searchQuery, selectedCategory, selectedRegion]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
@@ -70,7 +76,6 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
       page,
       query: searchQuery.trim() || undefined,
       region: selectedRegion,
-      country: selectedRegion,
     })
       .then((response) => {
         if (cancelled) return;
@@ -93,12 +98,15 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   }, [page, searchQuery, selectedCategory, selectedRegion]);
 
   useEffect(() => {
-    setPage(1);
-  }, [searchQuery, selectedCategory, selectedRegion]);
-
-  useEffect(() => {
     localStorage.setItem(MOVIE_REGION_STORAGE_KEY, selectedRegion);
   }, [selectedRegion]);
+
+  const openMovie = (movieId: number) => {
+    const params = new URLSearchParams();
+    params.set("region", selectedRegion);
+    params.set("from", `${location.pathname}${location.search}`);
+    navigate(`/movie/${movieId}?${params.toString()}`);
+  };
 
   return (
     <section className="pb-8">
@@ -160,7 +168,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
             <button
               key={movie.id}
               type="button"
-              onClick={() => navigate(`/movie/${movie.id}`)}
+              onClick={() => openMovie(movie.id)}
               className="group overflow-hidden rounded-xl border border-[#1e1e1e] bg-[#101010] text-left transition-all hover:-translate-y-1 hover:border-[#00D7E5]/40"
             >
               <div className="relative aspect-[2/3] overflow-hidden bg-[#181818]">

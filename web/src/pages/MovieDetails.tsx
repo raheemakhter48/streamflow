@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Film, Loader2 } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
@@ -9,7 +9,7 @@ import { movieAPI } from "@/lib/api";
 
 interface MovieDetailsData {
   id: number;
-  imdbId: string;
+  imdbId?: string | null;
   title: string;
   overview?: string;
   poster?: string;
@@ -21,6 +21,9 @@ interface MovieDetailsData {
 const MovieDetails = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const region = searchParams.get("region") || localStorage.getItem("streamflow_movie_region") || "US";
+  const from = searchParams.get("from") || "/dashboard?view=movie";
   const [movie, setMovie] = useState<MovieDetailsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -30,7 +33,7 @@ const MovieDetails = () => {
     setLoading(true);
     setError("");
 
-    movieAPI.getMovie(id, "PK")
+    movieAPI.getMovie(id, region)
       .then((response) => {
         if (!cancelled) setMovie(response.data);
       })
@@ -44,7 +47,7 @@ const MovieDetails = () => {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, region]);
 
   if (loading) {
     return (
@@ -59,7 +62,7 @@ const MovieDetails = () => {
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#090909] px-5 text-center text-white">
         <Film className="h-14 w-14 text-gray-700" />
         <p className="text-gray-400">{error || "Movie not found"}</p>
-        <button onClick={() => navigate("/dashboard?view=movie")} className="text-[#00D7E5]">
+        <button onClick={() => navigate(from)} className="text-[#00D7E5]">
           Back to Movies
         </button>
       </div>
@@ -95,7 +98,7 @@ const MovieDetails = () => {
         <div className="mb-4 flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => navigate("/dashboard?view=movie")}
+            onClick={() => navigate(from)}
             className="flex items-center gap-2 rounded-lg border border-[#202020] bg-[#101010] px-3 py-2 text-sm font-bold text-gray-300 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -108,7 +111,17 @@ const MovieDetails = () => {
           </div>
         </div>
 
-        <MoviePlayer imdbId={movie.imdbId} title={movie.title} />
+        {movie.imdbId ? (
+          <MoviePlayer imdbId={movie.imdbId} title={movie.title} />
+        ) : (
+          <div className="rounded-xl border border-[#202020] bg-[#0a0a0a] p-6 text-center">
+            <Film className="mx-auto mb-3 h-10 w-10 text-gray-700" />
+            <h2 className="text-base font-black text-white">{movie.title}</h2>
+            <p className="mt-2 text-sm text-gray-500">
+              TMDB metadata loaded, but this movie has no IMDb ID attached yet.
+            </p>
+          </div>
+        )}
       </main>
 
       <BottomNav />

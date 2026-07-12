@@ -179,14 +179,15 @@ router.get('/movies/categories', protect, async (_req, res, next) => {
   }
 });
 
-// GET /api/movies?category=popular&page=1&query=&region=PK
+// GET /api/movies?category=popular&page=1&query=&region=PK&country=
 router.get('/movies', protect, async (req, res, next) => {
   try {
     const page = Math.min(500, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
     const category = String(req.query.category || 'popular').trim().toLowerCase();
     const query = String(req.query.query || '').trim().slice(0, 120);
-    const region = String(req.query.region || 'PK').trim().toUpperCase().slice(0, 2);
-    const originCountry = String(req.query.country || region).trim().toUpperCase().slice(0, 2);
+    const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
+    const countryParam = String(req.query.country || '').trim().toUpperCase().slice(0, 2);
+    const originCountry = /^[A-Z]{2}$/.test(countryParam) ? countryParam : '';
     const request = getCategoryRequest(category, query, originCountry);
     const data = await tmdbGet(request.path, {
       ...request.params,
@@ -223,13 +224,6 @@ router.get('/movie/:id', protect, async (req, res, next) => {
     });
     const imdbId = details.imdb_id || details.external_ids?.imdb_id;
 
-    if (!imdbId) {
-      return res.status(422).json({
-        success: false,
-        message: 'TMDB did not provide an IMDb ID for this movie'
-      });
-    }
-
     const videos = details.videos?.results || [];
     const trailer = videos.find((video) =>
       video.site === 'YouTube' && video.type === 'Trailer' && video.official
@@ -241,7 +235,7 @@ router.get('/movie/:id', protect, async (req, res, next) => {
       success: true,
       data: {
         id: details.id,
-        imdbId,
+        imdbId: imdbId || null,
         title: details.title,
         originalTitle: details.original_title,
         tagline: details.tagline,
