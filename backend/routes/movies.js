@@ -36,7 +36,15 @@ const getTmdbAuth = () => {
   };
 };
 
-const tmdbGet = async (path, params = {}) => {
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientTmdbError = (error) => {
+  const status = error.response?.status;
+  if (!status) return true; // network error / timeout — no response at all
+  return status >= 500;
+};
+
+const tmdbGet = async (path, params = {}, retriesLeft = 2) => {
   const { headers, apiKey } = getTmdbAuth();
   const cacheKey = `${path}:${JSON.stringify(params)}`;
   const cached = responseCache.get(cacheKey);
@@ -58,6 +66,11 @@ const tmdbGet = async (path, params = {}) => {
     cacheResponse(cacheKey, response.data);
     return response.data;
   } catch (error) {
+    if (retriesLeft > 0 && isTransientTmdbError(error)) {
+      await sleep(300);
+      return tmdbGet(path, params, retriesLeft - 1);
+    }
+
     const status = error.response?.status;
     const tmdbMessage = error.response?.data?.status_message;
     const upstreamError = new Error(tmdbMessage || 'TMDB request failed');
