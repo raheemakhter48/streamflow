@@ -15,6 +15,7 @@ import AdminLogin from "./pages/AdminLogin";
 import MovieDetails from "./pages/MovieDetails";
 import NotFound from "./pages/NotFound";
 import InstallBanner from "./components/InstallBanner";
+import { SidebarProvider } from "./context/SidebarContext";
 
 const queryClient = new QueryClient();
 const Router = import.meta.env.VITE_DESKTOP === "true" ? HashRouter : BrowserRouter;
@@ -26,21 +27,23 @@ const App = () => (
         <Toaster />
         <Sonner />
         <InstallBanner />
-        <Router>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/setup" element={<Setup />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/player" element={<Player />} />
-            <Route path="/movie/:id" element={<MovieDetails />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Router>
+        <SidebarProvider>
+          <Router>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/setup" element={<Setup />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/player" element={<Player />} />
+              <Route path="/movie/:id" element={<MovieDetails />} />
+              <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin" element={<Admin />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Router>
+        </SidebarProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>

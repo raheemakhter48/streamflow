@@ -102,7 +102,7 @@ const normalizeProvider = (provider) => ({
 
 const emptyWatchProviders = (region) => ({
   region,
-  attribution: 'Streaming availability data provided by JustWatch via TMDB',
+  attribution: '',
   link: null,
   flatrate: [],
   free: [],

@@ -10,6 +10,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MovieBrowser from "@/components/MovieBrowser";
+import { useSidebar } from "@/context/SidebarContext";
 import AdSlot from "@/components/AdSlot";
 import SEO from "@/components/SEO";
 
@@ -204,6 +205,7 @@ const mapIptvOrgChannel = (channel: any): Channel | null => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { collapsed } = useSidebar();
   const [searchParams] = useSearchParams();
   const storedFilters = useMemo(() => getStoredDashboardFilters(), []);
   const [user, setUser] = useState<any>(null);
@@ -785,7 +787,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="enterprise-bg min-h-screen pb-20 text-white lg:pb-0 lg:pl-64">
+    <div className={`enterprise-bg min-h-screen pb-20 text-white transition-[padding] duration-200 lg:pb-0 ${collapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
       <SEO
         title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : "Streaming Dashboard"} - StreamFlow`}
         description="Browse live TV channels, movies, series, favorites, and recently watched content in your StreamFlow dashboard."

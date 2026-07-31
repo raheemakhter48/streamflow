@@ -1,11 +1,29 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Film, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ExternalLink, Film, Loader2 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
 import SEO from "@/components/SEO";
 import { movieAPI } from "@/lib/api";
+import { useSidebar } from "@/context/SidebarContext";
+
+interface WatchProvider {
+  id: number;
+  name: string;
+  logo: string | null;
+}
+
+interface WatchProviders {
+  region: string;
+  attribution: string;
+  link: string | null;
+  flatrate: WatchProvider[];
+  free: WatchProvider[];
+  ads: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
+}
 
 interface MovieDetailsData {
   id: number;
@@ -16,11 +34,37 @@ interface MovieDetailsData {
   backdrop?: string;
   releaseDate?: string;
   rating?: number;
+  watchProviders?: WatchProviders;
 }
+
+const ProviderRow = ({ label, providers }: { label: string; providers: WatchProvider[] }) => {
+  if (providers.length === 0) return null;
+
+  return (
+    <div className="mb-3 last:mb-0">
+      <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-600">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {providers.map((provider) => (
+          <span
+            key={provider.id}
+            title={provider.name}
+            className="flex items-center gap-2 rounded-xl border border-[#1F2937] bg-[#07090B] px-2.5 py-1.5"
+          >
+            {provider.logo && (
+              <img src={provider.logo} alt="" className="h-6 w-6 rounded-md object-cover" />
+            )}
+            <span className="text-xs font-semibold text-gray-300">{provider.name}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const MovieDetails = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const { collapsed } = useSidebar();
   const [searchParams] = useSearchParams();
   const region = searchParams.get("region") || localStorage.getItem("streamflow_movie_region") || "US";
   const from = searchParams.get("from") || "/dashboard?view=movie";
@@ -28,6 +72,15 @@ const MovieDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
+
+  const streamingProviders = useMemo(() => {
+    if (!movie?.watchProviders) return [];
+    const seen = new Map<number, WatchProvider>();
+    [...movie.watchProviders.flatrate, ...movie.watchProviders.free, ...movie.watchProviders.ads].forEach((provider) => {
+      if (!seen.has(provider.id)) seen.set(provider.id, provider);
+    });
+    return Array.from(seen.values());
+  }, [movie]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,7 +132,7 @@ const MovieDetails = () => {
   }
 
   return (
-    <div className="enterprise-bg min-h-screen pb-24 text-white lg:pb-8 lg:pl-64">
+    <div className={`enterprise-bg min-h-screen pb-24 text-white transition-[padding] duration-200 lg:pb-8 ${collapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
       <SEO
         title={`${movie.title}${movie.releaseDate ? ` (${movie.releaseDate.slice(0, 4)})` : ""}`}
         description={movie.overview || `Watch ${movie.title} on StreamFlow.`}
@@ -128,6 +181,39 @@ const MovieDetails = () => {
             <h2 className="text-base font-black text-white">{movie.title}</h2>
             <p className="mt-2 text-sm text-gray-500">
               TMDB metadata loaded, but this movie has no IMDb ID attached yet.
+            </p>
+          </div>
+        )}
+
+        {movie.watchProviders && (
+          streamingProviders.length > 0 ||
+          movie.watchProviders.rent.length > 0 ||
+          movie.watchProviders.buy.length > 0
+        ) && (
+          <div className="enterprise-card mt-5 rounded-3xl p-5">
+            <h2 className="mb-3 text-sm font-black uppercase tracking-wide text-gray-400">
+              Where to Watch · {movie.watchProviders.region}
+            </h2>
+
+            <ProviderRow label="Stream" providers={streamingProviders} />
+            <ProviderRow label="Rent" providers={movie.watchProviders.rent} />
+            <ProviderRow label="Buy" providers={movie.watchProviders.buy} />
+
+            <p className="mt-3 text-[10px] text-gray-600">
+              {movie.watchProviders.attribution}
+              {movie.watchProviders.link && (
+                <>
+                  {" · "}
+                  <a
+                    href={movie.watchProviders.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[#00CFE8] hover:underline"
+                  >
+                    View on JustWatch <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </>
+              )}
             </p>
           </div>
         )}

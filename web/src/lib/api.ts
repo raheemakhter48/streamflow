@@ -1,8 +1,10 @@
 // API Client for Backend
+// Web builds use same-origin /api so the backend host is not exposed in DevTools.
+// Desktop builds cannot rely on host rewrites, so they may still use an explicit API URL.
 const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  '/api';
+  import.meta.env.VITE_DESKTOP === 'true'
+    ? import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '/api'
+    : '/api';
 const API_URL = API_BASE_URL.replace(/\/$/, '').endsWith('/api')
   ? API_BASE_URL.replace(/\/$/, '')
   : `${API_BASE_URL.replace(/\/$/, '')}/api`;

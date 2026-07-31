@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { authAPI } from "@/lib/api";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
+import { useSidebar } from "@/context/SidebarContext";
 
 const playerOptions = [
   { value: 'auto',    label: 'Auto',    desc: 'Recommended for most users' },
@@ -16,6 +17,7 @@ const playerOptions = [
 
 const Settings = () => {
   const navigate = useNavigate();
+  const { collapsed } = useSidebar();
   const [playerType, setPlayerType] = useState(localStorage.getItem("preferred_player") || "auto");
   const [useProxy, setUseProxy]     = useState(localStorage.getItem("use_proxy") !== "false");
 
@@ -37,7 +39,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="enterprise-bg min-h-screen pb-24 text-white lg:pb-6 lg:pl-64">
+    <div className={`enterprise-bg min-h-screen pb-24 text-white transition-[padding] duration-200 lg:pb-6 ${collapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
       <AppHeader />
 
       <div className="mx-auto max-w-4xl space-y-4 px-4 pt-5 sm:px-6 lg:px-8">
