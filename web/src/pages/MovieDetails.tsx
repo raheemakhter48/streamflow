@@ -180,7 +180,7 @@ const MovieDetails = () => {
             <Film className="mx-auto mb-3 h-10 w-10 text-gray-700" />
             <h2 className="text-base font-black text-white">{movie.title}</h2>
             <p className="mt-2 text-sm text-gray-500">
-              TMDB metadata loaded, but this movie has no IMDb ID attached yet.
+              Movie details loaded, but this title is not stream-ready yet.
             </p>
           </div>
         )}

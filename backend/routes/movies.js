@@ -6,6 +6,7 @@ import { protect } from '../middleware/auth.js';
 const router = express.Router();
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
+const ALLOWED_IMAGE_SIZES = new Set(['w92', 'w154', 'w185', 'w342', 'w500', 'w780', 'w1280', 'original']);
 const CACHE_TTL_MS = Number(process.env.TMDB_CACHE_TTL_MS || 300000);
 const CACHE_MAX_ENTRIES = Number(process.env.TMDB_CACHE_MAX_ENTRIES || 500);
 const responseCache = new Map();
@@ -23,7 +24,7 @@ const getTmdbAuth = () => {
   const apiKey = String(process.env.TMDB_API_KEY || '').trim();
 
   if (!token && !apiKey) {
-    const error = new Error('TMDB is not configured on the server');
+    const error = new Error('Movie catalog is not configured on the server');
     error.statusCode = 503;
     throw error;
   }
@@ -72,14 +73,17 @@ const tmdbGet = async (path, params = {}, retriesLeft = 2) => {
     }
 
     const status = error.response?.status;
-    const tmdbMessage = error.response?.data?.status_message;
-    const upstreamError = new Error(tmdbMessage || 'TMDB request failed');
+    const upstreamError = new Error('Movie catalog request failed');
     upstreamError.statusCode = status && status >= 400 && status < 500 ? status : 502;
     throw upstreamError;
   }
 };
 
-const imageUrl = (path, size) => path ? `${TMDB_IMAGE_BASE_URL}/${size}${path}` : null;
+const imageUrl = (path, size) => {
+  if (!path) return null;
+  const cleanPath = String(path).startsWith('/') ? String(path) : `/${path}`;
+  return `/api/movies/assets/${encodeURIComponent(size)}${cleanPath}`;
+};
 
 const normalizeMovieCard = (movie) => ({
   id: movie.id,
@@ -230,6 +234,33 @@ router.get('/movies/categories', protect, async (_req, res, next) => {
   }
 });
 
+// GET /api/movies/assets/:size/*
+router.get('/movies/assets/:size/*', async (req, res, next) => {
+  try {
+    const size = String(req.params.size || '').trim();
+    const assetPath = `/${String(req.params[0] || '').replace(/^\/+/, '')}`;
+
+    if (!ALLOWED_IMAGE_SIZES.has(size) || !/^\/[A-Za-z0-9_./-]+$/.test(assetPath)) {
+      return res.status(400).json({ success: false, message: 'Invalid movie asset request' });
+    }
+
+    const response = await axios.get(`${TMDB_IMAGE_BASE_URL}/${size}${assetPath}`, {
+      responseType: 'stream',
+      timeout: 10000
+    });
+
+    res.set({
+      'Content-Type': response.headers['content-type'] || 'image/jpeg',
+      'Cache-Control': 'public, max-age=86400, s-maxage=604800',
+      'X-Content-Type-Options': 'nosniff'
+    });
+
+    response.data.pipe(res);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/movies?category=popular&page=1&query=&region=PK&country=
 router.get('/movies', protect, async (req, res, next) => {
   try {
@@ -281,7 +312,7 @@ router.get('/movie/:id', protect, async (req, res, next) => {
   try {
     const movieId = Number.parseInt(req.params.id, 10);
     if (!Number.isInteger(movieId) || movieId <= 0) {
-      return res.status(400).json({ success: false, message: 'A valid TMDB movie id is required' });
+      return res.status(400).json({ success: false, message: 'A valid movie id is required' });
     }
 
     const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);

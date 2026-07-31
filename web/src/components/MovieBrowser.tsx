@@ -139,7 +139,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00CFE8]">TMDB Catalog</p>
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#00CFE8]">Movie Catalog</p>
           <h2 className="text-2xl font-black text-white sm:text-3xl">
             {searchQuery ? `Results for “${searchQuery}”` : "Movies"}
           </h2>
