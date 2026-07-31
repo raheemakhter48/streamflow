@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Film, Loader2, Star } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { movieAPI } from "@/lib/api";
@@ -53,6 +53,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -85,12 +86,13 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         if (cancelled) return;
         setMovies(response.data || []);
         setTotalPages(response.totalPages || 1);
+        hasLoadedOnceRef.current = true;
         setHasLoadedOnce(true);
       })
       .catch((error) => {
         if (!cancelled) {
           setLoadError(error.message || "Could not load movies");
-          if (!hasLoadedOnce) setMovies([]);
+          if (!hasLoadedOnceRef.current) setMovies([]);
           toast.error(error.message || "Could not load movies");
         }
       })
@@ -101,7 +103,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, selectedCategory, selectedRegion, hasLoadedOnce, reloadKey]);
+  }, [page, searchQuery, selectedCategory, selectedRegion, reloadKey]);
 
   useEffect(() => {
     localStorage.setItem(MOVIE_REGION_STORAGE_KEY, selectedRegion);

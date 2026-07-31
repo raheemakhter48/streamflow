@@ -341,7 +341,13 @@ const Dashboard = () => {
       selectedCountry,
       selectedCategory,
     }));
-  }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage, navigate, location.pathname, location.search]);
+    // location.pathname/location.search are intentionally excluded: this effect pushes
+    // state -> URL. Depending on location here would re-run it right after a direct
+    // navigate() (e.g. clicking a nav tab) but before the location -> state effect above
+    // has applied the new view, so it would read a stale `viewMode` and immediately
+    // overwrite the just-navigated URL, causing the view to bounce.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage, navigate]);
 
   const filteredChannels = useMemo(() => {
     let filtered = validatedChannels ? [...validatedChannels] : [...channels];
