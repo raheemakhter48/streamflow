@@ -207,4 +207,8 @@ Sitemap: ${siteUrl}/sitemap.xml
 `);
 });
 
+router.get('/google5b1c8a4894d1af7e.html', (req, res) => {
+  res.type('text/html').send('google-site-verification: google5b1c8a4894d1af7e.html');
+});
+
 export default router;

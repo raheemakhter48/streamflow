@@ -50,6 +50,7 @@ const SEO = ({ title, description, path = "/", image = "/logo.png", type = "webs
     document.title = pageTitle;
     setMeta('meta[name="description"]', "name", "description", description);
     setMeta('meta[name="author"]', "name", "author", SITE_NAME);
+    setMeta('meta[name="google-site-verification"]', "name", "google-site-verification", "raVOXnEGF46IgYaJf2Df0MdDKtqDijrkEmv9V3eaD8k");
     setMeta('meta[property="og:site_name"]', "property", "og:site_name", SITE_NAME);
     setMeta('meta[property="og:title"]', "property", "og:title", pageTitle);
     setMeta('meta[property="og:description"]', "property", "og:description", description);
