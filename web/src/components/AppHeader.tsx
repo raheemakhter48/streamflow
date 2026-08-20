@@ -3,6 +3,7 @@ import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User, PanelLef
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
 import { useSidebar } from '@/context/SidebarContext';
+import { toast } from 'sonner';
 
 interface AppHeaderProps {
   title?: string;
@@ -25,16 +26,33 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
   const location  = useLocation();
   const [open, setOpen]   = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(localStorage.getItem('guest_name'));
   const { collapsed, toggleCollapsed } = useSidebar();
 
   useEffect(() => {
     authAPI.getCurrentUser()
-      .then((d) => { if (d.success && d.user) setEmail(d.user.email); })
+      .then((d) => {
+        if (d.success && d.user) {
+          setEmail(d.user.email);
+          if (d.user.name) {
+            setUserName(d.user.name);
+          } else if (d.user.email?.includes('@guest.streamflow')) {
+            const stored = localStorage.getItem('guest_name');
+            setUserName(stored || 'Guest');
+          }
+        }
+      })
       .catch(() => {});
   }, []);
 
   const handleNav = (path: string) => {
     setOpen(false);
+    const isGuest = email?.includes('@guest.streamflow') || !!localStorage.getItem('guest_name');
+    if (path === '/setup' && isGuest) {
+      toast.error('Account login or registration required for IPTV Setup');
+      navigate('/auth');
+      return;
+    }
     navigate(path);
   };
 
@@ -153,7 +171,7 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
           <button
             onClick={() => navigate('/settings')}
-            title={collapsed ? (email || 'Account') : undefined}
+            title={collapsed ? (userName || email || 'Account') : undefined}
             className={`mb-3 flex w-full items-center gap-3 rounded-xl border border-[#1F2937] bg-[#0D1117] p-3 text-left ${
               collapsed ? 'justify-center' : ''
             }`}
@@ -163,7 +181,7 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{email ? email.split('@')[0] : 'Account'}</p>
+                <p className="truncate text-sm font-bold text-white">{userName || (email ? email.split('@')[0] : 'Account')}</p>
                 <p className="truncate text-xs text-gray-500">{email || 'Secure session'}</p>
               </div>
             )}
@@ -211,7 +229,7 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
           </div>
           <div className="min-w-0">
             <p className="text-white font-bold text-sm truncate">
-              {email ? email.split('@')[0] : 'Guest'}
+              {userName || (email ? email.split('@')[0] : 'Guest')}
             </p>
             <p className="text-gray-600 text-xs truncate">{email || 'Not signed in'}</p>
           </div>

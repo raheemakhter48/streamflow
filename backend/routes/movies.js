@@ -115,7 +115,7 @@ const emptyWatchProviders = (region) => ({
   buy: []
 });
 
-const getCategoryRequest = (category, query, originCountry) => {
+const getCategoryRequest = (category, query, originCountry, sort) => {
   if (query) {
     return {
       path: '/search/movie',
@@ -127,6 +127,30 @@ const getCategoryRequest = (category, query, originCountry) => {
     ? { with_origin_country: originCountry }
     : {};
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  let sortParams = {};
+  if (sort === 'newest') {
+    sortParams = {
+      sort_by: 'primary_release_date.desc',
+      'primary_release_date.lte': todayIso
+    };
+  } else if (sort === 'oldest') {
+    sortParams = {
+      sort_by: 'primary_release_date.asc',
+      'primary_release_date.gte': '1900-01-01'
+    };
+  } else if (sort === 'top_rated') {
+    sortParams = {
+      sort_by: 'vote_average.desc',
+      'vote_count.gte': 10
+    };
+  } else if (sort === 'popular') {
+    sortParams = {
+      sort_by: 'popularity.desc'
+    };
+  }
+
   if (category.startsWith('genre:')) {
     return {
       path: '/discover/movie',
@@ -135,49 +159,13 @@ const getCategoryRequest = (category, query, originCountry) => {
         with_genres: category.slice('genre:'.length),
         include_adult: false,
         include_video: false,
-        sort_by: 'popularity.desc'
-      }
-    };
-  }
-
-  if (originCountry) {
-    const today = new Date();
-    const todayIso = today.toISOString().slice(0, 10);
-    const nextMonth = new Date(today);
-    nextMonth.setDate(today.getDate() + 45);
-    const nextMonthIso = nextMonth.toISOString().slice(0, 10);
-    const lastMonth = new Date(today);
-    lastMonth.setDate(today.getDate() - 45);
-    const lastMonthIso = lastMonth.toISOString().slice(0, 10);
-
-    const categoryParams = {
-      popular: { sort_by: 'popularity.desc' },
-      top_rated: { sort_by: 'vote_average.desc', 'vote_count.gte': 50 },
-      now_playing: {
-        sort_by: 'popularity.desc',
-        'primary_release_date.gte': lastMonthIso,
-        'primary_release_date.lte': todayIso
-      },
-      upcoming: {
-        sort_by: 'popularity.desc',
-        'primary_release_date.gte': todayIso,
-        'primary_release_date.lte': nextMonthIso
-      }
-    };
-
-    return {
-      path: '/discover/movie',
-      params: {
-        ...discoverParams,
-        ...(categoryParams[category] || categoryParams.popular),
-        include_adult: false,
-        include_video: false
+        sort_by: sortParams.sort_by || 'popularity.desc',
+        ...sortParams
       }
     };
   }
 
   const today = new Date();
-  const todayIso = today.toISOString().slice(0, 10);
   const nextMonth = new Date(today);
   nextMonth.setDate(today.getDate() + 45);
   const nextMonthIso = nextMonth.toISOString().slice(0, 10);
@@ -187,7 +175,7 @@ const getCategoryRequest = (category, query, originCountry) => {
 
   const categoryParams = {
     popular: { sort_by: 'popularity.desc' },
-    top_rated: { sort_by: 'vote_average.desc', 'vote_count.gte': 200 },
+    top_rated: { sort_by: 'vote_average.desc', 'vote_count.gte': 10 },
     now_playing: {
       sort_by: 'popularity.desc',
       'primary_release_date.gte': lastMonthIso,
@@ -200,10 +188,15 @@ const getCategoryRequest = (category, query, originCountry) => {
     }
   };
 
+  const selectedCategoryParams = sortParams.sort_by
+    ? sortParams
+    : (categoryParams[category] || categoryParams.popular);
+
   return {
     path: '/discover/movie',
     params: {
-      ...(categoryParams[category] || categoryParams.popular),
+      ...discoverParams,
+      ...selectedCategoryParams,
       include_adult: false,
       include_video: false
     }
@@ -261,7 +254,7 @@ router.get('/movies/assets/:size/*', async (req, res, next) => {
   }
 });
 
-// GET /api/movies?category=popular&page=1&query=&region=PK&country=
+// GET /api/movies?category=popular&page=1&query=&region=PK&country=&sort=newest
 router.get('/movies', protect, async (req, res, next) => {
   try {
     const page = Math.min(500, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
@@ -269,8 +262,11 @@ router.get('/movies', protect, async (req, res, next) => {
     const query = String(req.query.query || '').trim().slice(0, 120);
     const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
     const countryParam = String(req.query.country || '').trim().toUpperCase().slice(0, 2);
-    const originCountry = /^[A-Z]{2}$/.test(countryParam) ? countryParam : '';
-    const request = getCategoryRequest(category, query, originCountry);
+    const sort = String(req.query.sort || '').trim().toLowerCase();
+    const originCountry = /^[A-Z]{2}$/.test(countryParam)
+      ? countryParam
+      : (/^[A-Z]{2}$/.test(region) && region !== 'US' ? region : '');
+    const request = getCategoryRequest(category, query, originCountry, sort);
     let data;
 
     try {
@@ -285,7 +281,7 @@ router.get('/movies', protect, async (req, res, next) => {
         throw categoryError;
       }
 
-      const fallbackRequest = getCategoryRequest('popular', '', '');
+      const fallbackRequest = getCategoryRequest('popular', '', '', sort);
       data = await tmdbGet(fallbackRequest.path, {
         ...fallbackRequest.params,
         page: 1,
@@ -294,10 +290,22 @@ router.get('/movies', protect, async (req, res, next) => {
       });
     }
 
+    let moviesList = (data.results || []).filter((movie) => movie?.id && movie?.title).map(normalizeMovieCard);
+
+    if (sort === 'newest') {
+      moviesList.sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || ''));
+    } else if (sort === 'oldest') {
+      moviesList.sort((a, b) => {
+        if (!a.releaseDate) return 1;
+        if (!b.releaseDate) return -1;
+        return a.releaseDate.localeCompare(b.releaseDate);
+      });
+    }
+
     res.set('Cache-Control', 'private, max-age=120');
     res.json({
       success: true,
-      data: (data.results || []).filter((movie) => movie?.id && movie?.title).map(normalizeMovieCard),
+      data: moviesList,
       page: data.page || page,
       totalPages: Math.min(data.total_pages || 1, 500),
       totalResults: data.total_results || 0

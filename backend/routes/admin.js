@@ -884,4 +884,66 @@ router.get('/scrape/history', async (req, res) => {
   }
 });
 
+// Get list of all registered & guest users with activity, favorites, and watch history
+router.get('/users', async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, email, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const [favsResult, watchedResult, credsResult] = await Promise.allSettled([
+      supabase.from('favorites').select('user_id, channel_name, channel_url, category, created_at'),
+      supabase.from('recently_watched').select('user_id, channel_name, channel_url, category, watched_at, created_at'),
+      supabase.from('iptv_credentials').select('user_id, provider_name, server_url, username, m3u_url, created_at'),
+    ]);
+
+    const favs = favsResult.status === 'fulfilled' ? (favsResult.value.data || []) : [];
+    const watched = watchedResult.status === 'fulfilled' ? (watchedResult.value.data || []) : [];
+    const creds = credsResult.status === 'fulfilled' ? (credsResult.value.data || []) : [];
+
+    const enrichedUsers = (users || []).map(u => {
+      const userFavs = favs.filter(f => f.user_id === u.id);
+      const userWatched = watched.filter(w => w.user_id === u.id);
+      const userCred = creds.find(c => c.user_id === u.id);
+      const isGuest = u.email?.includes('@guest.streamflow');
+      
+      let displayName = u.email;
+      if (isGuest && u.email) {
+        const parts = u.email.split('@')[0].split('_');
+        if (parts.length >= 2) {
+          const rawName = parts.slice(1, -1).join(' ');
+          if (rawName) {
+            displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+          }
+        }
+      }
+
+      return {
+        id: u.id,
+        email: u.email,
+        displayName: displayName || u.email,
+        isGuest,
+        createdAt: u.created_at,
+        favoritesCount: userFavs.length,
+        favorites: userFavs,
+        recentlyWatchedCount: userWatched.length,
+        recentlyWatched: userWatched,
+        hasCredentials: !!userCred,
+        credentialsProvider: userCred?.provider_name || (userCred?.server_url ? 'Xtream Codes' : userCred?.m3u_url ? 'M3U URL' : null),
+      };
+    });
+
+    res.json({
+      success: true,
+      data: enrichedUsers,
+      total: enrichedUsers.length
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

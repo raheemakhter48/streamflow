@@ -46,8 +46,18 @@ const Setup = () => {
   const checkAuth = async () => {
     try {
       const data = await authAPI.getCurrentUser();
-      if (!data.success || !data.user) navigate("/auth");
+      if (!data.success || !data.user) {
+        toast.error("Please login to configure IPTV playlists");
+        navigate("/auth");
+        return;
+      }
+      const isGuest = data.user.email?.includes('@guest.streamflow') || !!localStorage.getItem('guest_name');
+      if (isGuest) {
+        toast.error("Account login or registration required to access IPTV Setup.");
+        navigate("/auth");
+      }
     } catch {
+      toast.error("Please login to configure IPTV playlists");
       navigate("/auth");
     }
   };

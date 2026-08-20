@@ -140,15 +140,89 @@ router.post('/login', async (req, res, next) => {
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
+    let name = null;
+    if (req.user.email && req.user.email.includes('@guest.streamflow')) {
+      const parts = req.user.email.split('@')[0].split('_');
+      if (parts.length >= 2) {
+        name = parts.slice(1, -1).join(' ');
+        if (name) {
+          name = name.charAt(0).toUpperCase() + name.slice(1);
+        }
+      }
+    }
     res.json({
       success: true,
       user: {
         id: req.user.id,
-        email: req.user.email
+        email: req.user.email,
+        name: name || req.user.name || null
       }
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// @route   POST /api/auth/guest
+// @desc    Guest login with display name
+// @access  Public
+router.post('/guest', async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const cleanName = (name && typeof name === 'string' && name.trim()) ? name.trim() : 'Guest';
+    
+    const sanitizedIdentifier = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'guest';
+    const guestEmail = `guest_${sanitizedIdentifier}_${Date.now().toString(36)}@guest.streamflow`;
+
+    let user;
+
+    try {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('guestpass123', salt);
+
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert([
+          { 
+            email: guestEmail, 
+            password: hashedPassword 
+          }
+        ])
+        .select('id, email')
+        .single();
+
+      if (!error && newUser) {
+        user = newUser;
+      }
+    } catch (dbErr) {
+      console.warn('⚠️ Supabase guest creation warning:', dbErr?.message);
+    }
+
+    if (!user) {
+      user = {
+        id: `guest-${Date.now()}`,
+        email: guestEmail
+      };
+    }
+
+    const token = generateToken(user.id);
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: cleanName,
+        isGuest: true
+      }
+    });
+  } catch (error) {
+    console.error('Guest login failed:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Guest login failed'
+    });
   }
 });
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { authAPI } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, Mail, Lock, Shield, Zap } from "lucide-react";
+import { Loader2, Mail, Lock, Shield, Zap, User, UserCheck, Sparkles } from "lucide-react";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -12,12 +12,13 @@ const authSchema = z.object({
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [tab, setTab]               = useState<'login' | 'signup'>('login');
+  const [tab, setTab]               = useState<'login' | 'signup' | 'guest'>('login');
   const [isLoading, setIsLoading]   = useState(false);
   const [loginEmail, setLoginEmail]     = useState("");
   const [loginPassword, setLoginPass]   = useState("");
   const [signupEmail, setSignupEmail]   = useState("");
   const [signupPassword, setSignupPass] = useState("");
+  const [guestName, setGuestName]       = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +56,24 @@ const Auth = () => {
     }
   };
 
+  const handleGuestLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guestName.trim()) {
+      toast.error("Please enter a name to continue as Guest");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await authAPI.guestLogin(guestName);
+      toast.success(`Welcome, ${data.user?.name || guestName}!`);
+      navigate("/dashboard");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to continue as Guest");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="enterprise-bg flex min-h-screen flex-col text-white">
       {/* Logo */}
@@ -72,18 +91,18 @@ const Auth = () => {
 
       {/* Card */}
       <div className="flex-1 flex flex-col px-5 max-w-md mx-auto w-full">
-        <div className="enterprise-panel max-h-[520px] flex-1 overflow-hidden rounded-3xl">
+        <div className="enterprise-panel min-h-[460px] flex-1 overflow-hidden rounded-3xl flex flex-col">
           {/* Tabs */}
           <div className="flex border-b border-[#1e1e1e]">
-            {(['login', 'signup'] as const).map((t) => (
+            {(['login', 'signup', 'guest'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors relative ${
+                className={`flex-1 py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-colors relative ${
                   tab === t ? 'text-white' : 'text-gray-600 hover:text-gray-400'
                 }`}
               >
-                {t === 'login' ? 'Login' : 'Sign Up'}
+                {t === 'login' ? 'Login' : t === 'signup' ? 'Sign Up' : 'Guest'}
                 {tab === t && (
                   <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00D7E5]" />
                 )}
@@ -92,7 +111,7 @@ const Auth = () => {
           </div>
 
           {/* Form */}
-          <div className="p-5">
+          <div className="p-5 flex-1 flex flex-col justify-center">
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
                 {/* Email */}
@@ -106,7 +125,7 @@ const Auth = () => {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                    className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
                     />
                   </div>
                 </div>
@@ -145,8 +164,23 @@ const Auth = () => {
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Login'}
                 </button>
+
+                {/* Divider + Guest Button */}
+                <div className="relative my-3 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#1e1e1e]"></div></div>
+                  <span className="relative bg-[#0d1117] px-3 text-[10px] uppercase tracking-widest text-gray-600 font-bold">Or</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setTab('guest')}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#00CFE8]/30 bg-[#00CFE8]/10 text-xs font-bold text-[#00CFE8] transition-all hover:bg-[#00CFE8]/20 hover:border-[#00CFE8]/50"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  Continue as Guest
+                </button>
               </form>
-            ) : (
+            ) : tab === 'signup' ? (
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
@@ -182,6 +216,36 @@ const Auth = () => {
                   className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleGuestLogin} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Guest Name</label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <input
+                      type="text"
+                      placeholder="Enter your name (e.g. Alex)"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      required
+                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#00CFE8]/20 bg-[#00CFE8]/5 p-3 text-xs text-gray-400 flex items-start gap-2.5">
+                  <Sparkles className="w-4 h-4 text-[#00CFE8] shrink-0 mt-0.5" />
+                  <span>No password needed! Just enter your name to access live streams and movies immediately.</span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enter as Guest'}
                 </button>
               </form>
             )}

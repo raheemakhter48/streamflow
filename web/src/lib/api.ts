@@ -104,8 +104,24 @@ export const authAPI = {
     return data;
   },
 
+  guestLogin: async (name: string) => {
+    const data = await apiRequest('/auth/guest', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    const token = data.token || data.data?.token;
+    if (token) {
+      localStorage.setItem('auth_token', token);
+    }
+    if (data.user?.name) {
+      localStorage.setItem('guest_name', data.user.name);
+    }
+    return data;
+  },
+
   logout: () => {
     localStorage.removeItem('auth_token');
+    localStorage.removeItem('guest_name');
   },
 
   getCurrentUser: async () => {
@@ -124,9 +140,6 @@ export const iptvAPI = {
   },
 
   getChannels: async (params: {
-    page?: number;
-    limit?: number;
-    search?: string;
     category?: string;
     region?: string;
     country?: string;
@@ -305,6 +318,7 @@ export const movieAPI = {
     query?: string;
     region?: string;
     country?: string;
+    sort?: string;
   } = {}) => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -385,7 +399,6 @@ export const adminAPI = {
   getLogs: async (limit = 100) => {
     return apiRequest(`/admin/logs?limit=${limit}`);
   },
-
   getDauMetrics: async (days = 7) => {
     return apiRequest(`/admin/analytics/dau?days=${days}`);
   },
@@ -412,5 +425,9 @@ export const adminAPI = {
 
   getScrapeHistory: async (limit = 50) => {
     return apiRequest(`/admin/scrape/history?limit=${limit}`);
+  },
+
+  getUsers: async () => {
+    return apiRequest('/admin/users');
   },
 };

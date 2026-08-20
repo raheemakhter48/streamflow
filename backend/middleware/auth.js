@@ -26,6 +26,16 @@ export const protect = async (req, res, next) => {
         .eq('id', decoded.id)
         .maybeSingle();
       
+      if (user) {
+        req.user = user;
+        return next();
+      }
+
+      if (typeof decoded.id === 'string' && decoded.id.startsWith('guest-')) {
+        req.user = { id: decoded.id, email: `${decoded.id}@guest.streamflow` };
+        return next();
+      }
+
       if (error || !user) {
         console.error('❌ User not found in Supabase:', error?.message || 'User does not exist');
         return res.status(401).json({

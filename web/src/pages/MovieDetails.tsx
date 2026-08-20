@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
 import SEO from "@/components/SEO";
-import { movieAPI } from "@/lib/api";
+import { movieAPI, recentlyWatchedAPI } from "@/lib/api";
 import { useSidebar } from "@/context/SidebarContext";
 
 interface WatchProvider {
@@ -36,6 +36,27 @@ interface MovieDetailsData {
   rating?: number;
   watchProviders?: WatchProviders;
 }
+
+const saveRecentlyWatchedMovie = (m: MovieDetailsData) => {
+  try {
+    const key = "streamflow_recently_watched_movies";
+    const existing = JSON.parse(localStorage.getItem(key) || "[]");
+    const filtered = existing.filter((item: any) => item.id !== m.id);
+    const updated = [
+      {
+        id: m.id,
+        title: m.title,
+        poster: m.poster,
+        backdrop: m.backdrop,
+        rating: m.rating,
+        releaseDate: m.releaseDate,
+        watchedAt: new Date().toISOString(),
+      },
+      ...filtered,
+    ].slice(0, 15);
+    localStorage.setItem(key, JSON.stringify(updated));
+  } catch { /* ignore */ }
+};
 
 const ProviderRow = ({ label, providers }: { label: string; providers: WatchProvider[] }) => {
   if (providers.length === 0) return null;
@@ -89,7 +110,16 @@ const MovieDetails = () => {
 
     movieAPI.getMovie(id, region)
       .then((response) => {
-        if (!cancelled) setMovie(response.data);
+        if (!cancelled && response.data) {
+          setMovie(response.data);
+          saveRecentlyWatchedMovie(response.data);
+          recentlyWatchedAPI.addRecentlyWatched({
+            channelName: response.data.title,
+            channelUrl: `/movie/${response.data.id}`,
+            channelLogo: response.data.poster || undefined,
+            category: "Movie",
+          }).catch(() => {});
+        }
       })
       .catch((requestError) => {
         if (!cancelled) setError(requestError.message || "Could not load movie details");
