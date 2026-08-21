@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authAPI } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -75,84 +75,100 @@ const Auth = () => {
   };
 
   return (
-    <div className="enterprise-bg flex min-h-screen flex-col text-white">
-      {/* Logo */}
-      <div className="flex flex-col items-center pt-14 pb-8">
-        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-[#00CFE8]/20 bg-[#00CFE8]/10 shadow-[0_0_42px_rgba(0,207,232,0.14)]">
-          <img
-            src="/logo.png"
-            alt="StreamFlow"
-            className="w-10 h-10 object-contain"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        </div>
-        <span className="text-xl font-bold text-white tracking-tight">StreamFlow</span>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black text-white px-4 py-10">
+      {/* 3D Poster Collage Wall Background */}
+      <div className="absolute inset-0 z-0 overflow-hidden bg-black">
+        <img
+          src="/apple_tv_hero_collage.jpg"
+          alt="StreamFlow 3D Poster Wall"
+          className="h-full w-full object-cover object-center scale-105"
+        />
+        {/* Dark Apple Gradient Overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/60" />
+        <div className="absolute inset-0 bg-black/45 backdrop-blur-[5px]" />
       </div>
 
-      {/* Card */}
-      <div className="flex-1 flex flex-col px-5 max-w-md mx-auto w-full">
-        <div className="enterprise-panel min-h-[460px] flex-1 overflow-hidden rounded-3xl flex flex-col">
+      {/* Brand Header */}
+      <div className="relative z-10 flex flex-col items-center mb-6">
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-3 group"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-black font-black text-xl shadow-2xl transition-transform group-hover:scale-105">
+            
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-2xl font-black tracking-tight text-white leading-none">
+              StreamFlow
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">
+              tv+
+            </span>
+          </div>
+        </button>
+      </div>
+
+      {/* Apple TV Frosted Glass Auth Card */}
+      <div className="relative z-10 w-full max-w-md">
+        <div className="overflow-hidden rounded-[2rem] border border-white/15 bg-[#1C1C1E]/80 backdrop-blur-2xl shadow-2xl flex flex-col">
           {/* Tabs */}
-          <div className="flex border-b border-[#1e1e1e]">
+          <div className="flex border-b border-white/10 bg-black/30">
             {(['login', 'signup', 'guest'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-4 text-xs sm:text-sm font-bold uppercase tracking-widest transition-colors relative ${
-                  tab === t ? 'text-white' : 'text-gray-600 hover:text-gray-400'
+                className={`flex-1 py-4 text-xs font-extrabold uppercase tracking-widest transition-all relative ${
+                  tab === t ? 'text-white bg-white/10' : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {t === 'login' ? 'Login' : t === 'signup' ? 'Sign Up' : 'Guest'}
                 {tab === t && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#00D7E5]" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-white shadow-lg" />
                 )}
               </button>
             ))}
           </div>
 
-          {/* Form */}
-          <div className="p-5 flex-1 flex flex-col justify-center">
+          {/* Form Content */}
+          <div className="p-6 sm:p-8 flex-1 flex flex-col justify-center">
             {tab === 'login' ? (
               <form onSubmit={handleLogin} className="space-y-4">
-                {/* Email */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60 mb-2">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <input
                       type="email"
                       placeholder="name@streamflow.tv"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="h-12 w-full rounded-full border border-white/15 bg-white/10 pl-11 pr-4 text-sm text-white placeholder-white/30 transition-all focus:outline-none focus:border-white/40 focus:bg-white/15"
                     />
                   </div>
                 </div>
 
-                {/* Password */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60 mb-2">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <input
                       type="password"
                       placeholder="••••••••••"
                       value={loginPassword}
                       onChange={(e) => setLoginPass(e.target.value)}
                       required
-                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="h-12 w-full rounded-full border border-white/15 bg-white/10 pl-11 pr-4 text-sm text-white placeholder-white/30 transition-all focus:outline-none focus:border-white/40 focus:bg-white/15"
                     />
                   </div>
                 </div>
 
-                {/* Remember + Forgot */}
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-[#333] bg-[#0f0f0f] accent-[#00D7E5]" />
-                    <span className="text-xs text-gray-500">Remember me</span>
+                    <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-white/10 accent-white" />
+                    <span className="text-xs text-white/60">Remember me</span>
                   </label>
-                  <button type="button" className="text-xs text-[#00D7E5] font-semibold hover:text-[#00b8c5] transition-colors">
+                  <button type="button" className="text-xs text-white font-semibold hover:underline">
                     Forgot?
                   </button>
                 </div>
@@ -160,60 +176,61 @@ const Auth = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
+                  className="apple-pill-btn mt-2 flex h-12 w-full items-center justify-center gap-2 text-sm font-extrabold shadow-2xl disabled:opacity-60"
                 >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Login'}
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
                 </button>
 
-                {/* Divider + Guest Button */}
-                <div className="relative my-3 flex items-center justify-center">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#1e1e1e]"></div></div>
-                  <span className="relative bg-[#0d1117] px-3 text-[10px] uppercase tracking-widest text-gray-600 font-bold">Or</span>
+                <div className="relative my-4 flex items-center justify-center">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
+                  <span className="relative bg-[#1C1C1E] px-3 text-[10px] uppercase tracking-widest text-white/40 font-bold">Or</span>
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setTab('guest')}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#00CFE8]/30 bg-[#00CFE8]/10 text-xs font-bold text-[#00CFE8] transition-all hover:bg-[#00CFE8]/20 hover:border-[#00CFE8]/50"
+                  className="apple-pill-btn-secondary flex h-12 w-full items-center justify-center gap-2 text-xs font-bold"
                 >
-                  <UserCheck className="w-4 h-4" />
-                  Continue as Guest
+                  <UserCheck className="w-4 h-4 text-white" />
+                  Continue as 1-Click Guest
                 </button>
               </form>
             ) : tab === 'signup' ? (
               <form onSubmit={handleSignup} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60 mb-2">Email</label>
                   <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <input
                       type="email"
                       placeholder="name@streamflow.tv"
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       required
-                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="h-12 w-full rounded-full border border-white/15 bg-white/10 pl-11 pr-4 text-sm text-white placeholder-white/30 transition-all focus:outline-none focus:border-white/40 focus:bg-white/15"
                     />
                   </div>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60 mb-2">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <input
                       type="password"
                       placeholder="••••••••••"
                       value={signupPassword}
                       onChange={(e) => setSignupPass(e.target.value)}
                       required
-                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="h-12 w-full rounded-full border border-white/15 bg-white/10 pl-11 pr-4 text-sm text-white placeholder-white/30 transition-all focus:outline-none focus:border-white/40 focus:bg-white/15"
                     />
                   </div>
                 </div>
+
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
+                  className="apple-pill-btn mt-3 flex h-12 w-full items-center justify-center gap-2 text-sm font-extrabold shadow-2xl disabled:opacity-60"
                 >
                   {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
                 </button>
@@ -221,31 +238,31 @@ const Auth = () => {
             ) : (
               <form onSubmit={handleGuestLogin} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Guest Name</label>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-white/60 mb-2">Guest Name</label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <input
                       type="text"
                       placeholder="Enter your name (e.g. Alex)"
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       required
-                      className="enterprise-input h-12 w-full rounded-xl pl-10 pr-4 text-sm text-white placeholder-gray-700 transition-colors focus:outline-none focus:border-[#00CFE8]/50"
+                      className="h-12 w-full rounded-full border border-white/15 bg-white/10 pl-11 pr-4 text-sm text-white placeholder-white/30 transition-all focus:outline-none focus:border-white/40 focus:bg-white/15"
                     />
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-[#00CFE8]/20 bg-[#00CFE8]/5 p-3 text-xs text-gray-400 flex items-start gap-2.5">
-                  <Sparkles className="w-4 h-4 text-[#00CFE8] shrink-0 mt-0.5" />
+                <div className="rounded-2xl border border-white/15 bg-white/5 p-4 text-xs text-white/70 flex items-start gap-3">
+                  <Sparkles className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
                   <span>No password needed! Just enter your name to access live streams and movies immediately.</span>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00CFE8] text-[15px] font-black text-black transition-colors hover:bg-[#14E6FF] disabled:opacity-60"
+                  className="apple-pill-btn mt-3 flex h-12 w-full items-center justify-center gap-2 text-sm font-extrabold shadow-2xl disabled:opacity-60"
                 >
-                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Enter as Guest'}
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Launch as Guest'}
                 </button>
               </form>
             )}
@@ -254,16 +271,13 @@ const Auth = () => {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-8 px-4">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-700 mb-3">
-          Powered by StreamFlow V4.0
-        </p>
-        <div className="flex items-center justify-center gap-4">
-          <span className="flex items-center gap-1.5 text-gray-700 text-[10px] font-bold uppercase tracking-widest">
-            <Shield className="w-3 h-3" /> Secure
+      <div className="relative z-10 text-center pt-8">
+        <div className="flex items-center justify-center gap-5">
+          <span className="flex items-center gap-1.5 text-white/40 text-[10px] font-bold uppercase tracking-widest">
+            <Shield className="w-3 h-3 text-white/60" /> Encrypted Session
           </span>
-          <span className="flex items-center gap-1.5 text-gray-700 text-[10px] font-bold uppercase tracking-widest">
-            <Zap className="w-3 h-3" /> Ultra Fast
+          <span className="flex items-center gap-1.5 text-white/40 text-[10px] font-bold uppercase tracking-widest">
+            <Zap className="w-3 h-3 text-white/60" /> Ultra Fast Stream
           </span>
         </div>
       </div>

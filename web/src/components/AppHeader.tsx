@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
-import { useSidebar } from '@/context/SidebarContext';
 import { toast } from 'sonner';
 
 interface AppHeaderProps {
@@ -14,11 +13,8 @@ const navItems = [
   { icon: Tv,       label: 'Live TV',  path: '/dashboard?view=live'   },
   { icon: Film,     label: 'Movies',   path: '/dashboard?view=movie'  },
   { icon: Monitor,  label: 'Series',   path: '/dashboard?view=series' },
+  { icon: Zap,      label: 'IPTV Setup', path: '/setup'               },
   { icon: Settings, label: 'Settings', path: '/settings'              },
-];
-
-const quickItems = [
-  { icon: Zap,    label: 'IPTV Setup', path: '/setup'  },
 ];
 
 const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
@@ -27,7 +23,6 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
   const [open, setOpen]   = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(localStorage.getItem('guest_name'));
-  const { collapsed, toggleCollapsed } = useSidebar();
 
   useEffect(() => {
     authAPI.getCurrentUser()
@@ -64,6 +59,7 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
   const isActive = (path: string) => {
     if (path === '/settings') return location.pathname === '/settings';
+    if (path === '/setup') return location.pathname === '/setup';
     if (path === '/dashboard') return location.pathname === '/dashboard' && !new URLSearchParams(location.search).get('view');
 
     const [pathname, query = ""] = path.split('?');
@@ -74,214 +70,153 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
   return (
     <>
-      {/* Mobile header */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-[#1F2937]/80 bg-[#07090B]/92 px-4 py-3 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-3">
+      {/* Apple TV+ Header */}
+      <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-[#000000]/90 px-4 sm:px-8 backdrop-blur-2xl transition-colors">
+        {/* Left Side: Mobile Hamburger Menu Button + Logo */}
+        <div className="flex items-center gap-3 md:gap-6">
           <button
             onClick={() => setOpen(true)}
-            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:text-white"
-            aria-label="Open menu"
+            className="md:hidden flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition-colors hover:bg-white/20 active:scale-95"
+            aria-label="Open left menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5" />
           </button>
-          <span className="text-lg font-extrabold tracking-tight text-[#00CFE8]">{title}</span>
-        </div>
-        <button
-          onClick={() => navigate('/settings')}
-          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-[#1F2937] bg-[#111827]"
-          aria-label="Profile"
-        >
-          <img
-            src="/logo.png"
-            alt="avatar"
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        </button>
-      </header>
 
-      {/* Desktop sidebar */}
-      <aside className={`fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-[#1F2937]/85 bg-[#0B1115]/95 backdrop-blur-xl transition-[width] duration-200 lg:flex ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}>
-        <div className={`flex h-16 items-center gap-3 border-b border-[#1F2937]/70 ${collapsed ? 'justify-center px-2' : 'px-5'}`}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#00CFE8] text-black shadow-[0_0_30px_rgba(0,207,232,0.18)]">
-            <img src="/logo.png" alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold leading-none text-white">StreamFlow</p>
-              <p className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-[#00CFE8]/80">Enterprise Console</p>
-            </div>
-          )}
-        </div>
-
-        <nav className="flex-1 space-y-1 px-3 py-5">
-          {navItems.map((item) => {
-            const active = isActive(item.path);
-            return (
-              <button
-                key={item.label}
-                onClick={() => handleNav(item.path)}
-                title={collapsed ? item.label : undefined}
-                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-colors ${
-                  collapsed ? 'justify-center' : ''
-                } ${
-                  active
-                    ? 'bg-[#00CFE8]/12 text-[#00CFE8] ring-1 ring-[#00CFE8]/16'
-                    : 'text-gray-400 hover:bg-[#111827] hover:text-white'
-                }`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 2} />
-                {!collapsed && <span>{item.label}</span>}
-                {active && !collapsed && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#00CFE8]" />}
-              </button>
-            );
-          })}
-
-          <div className="pt-5">
-            {!collapsed && <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-gray-600">Workspace</p>}
-            {quickItems.map((item) => (
-              <button
-                key={item.label}
-                onClick={() => handleNav(item.path)}
-                title={collapsed ? item.label : undefined}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-gray-400 transition-colors hover:bg-[#111827] hover:text-white ${
-                  collapsed ? 'justify-center' : ''
-                }`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            ))}
-          </div>
-        </nav>
-
-        <div className="border-t border-[#1F2937]/70 p-4">
           <button
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`mb-3 flex w-full items-center gap-3 rounded-xl border border-[#1F2937] px-3 py-2.5 text-left text-sm font-semibold text-gray-400 transition-colors hover:bg-[#111827] hover:text-white ${
-              collapsed ? 'justify-center' : ''
-            }`}
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2.5 group"
           >
-            {collapsed ? <PanelLeftOpen className="h-4 w-4 shrink-0" /> : <PanelLeftClose className="h-4 w-4 shrink-0" />}
-            {!collapsed && <span>Collapse</span>}
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black font-black text-sm shadow-md transition-transform group-hover:scale-105">
+              
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-base font-black tracking-tight text-white leading-none">
+                {title}
+              </span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50">
+                tv+
+              </span>
+            </div>
           </button>
 
+          {/* Desktop Horizontal Navigation Bar */}
+          <nav className="hidden md:flex items-center gap-1.5">
+            {navItems.map((item) => {
+              const active = isActive(item.path);
+              return (
+                <button
+                  key={item.label}
+                  onClick={() => handleNav(item.path)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+                    active
+                      ? 'bg-white text-black shadow-lg scale-105'
+                      : 'text-white/70 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Right Side: Account / Profile */}
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => navigate('/settings')}
-            title={collapsed ? (userName || email || 'Account') : undefined}
-            className={`mb-3 flex w-full items-center gap-3 rounded-xl border border-[#1F2937] bg-[#0D1117] p-3 text-left ${
-              collapsed ? 'justify-center' : ''
-            }`}
+            className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/20"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#111827] text-[#00CFE8]">
-              <User className="h-4 w-4" />
-            </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-white">{userName || (email ? email.split('@')[0] : 'Account')}</p>
-                <p className="truncate text-xs text-gray-500">{email || 'Secure session'}</p>
-              </div>
-            )}
+            <User className="h-3.5 w-3.5 text-white/80" />
+            <span className="max-w-[100px] sm:max-w-[140px] truncate">{userName || (email ? email.split('@')[0] : 'Account')}</span>
           </button>
+
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Logout' : undefined}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/8 px-3 py-2.5 text-sm font-bold text-red-300 transition-colors hover:bg-red-500/15"
+            className="hidden sm:flex items-center gap-1.5 rounded-full bg-red-500/15 border border-red-500/20 px-3.5 py-1.5 text-xs font-bold text-red-300 transition-all hover:bg-red-500/25"
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && 'Logout'}
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Logout</span>
           </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Backdrop */}
+      {/* Mobile Backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md md:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
-      {/* Sidebar drawer */}
+      {/* Mobile Left Drawer Sidebar (with Close / Cross button) */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-72 bg-[#0d0d0d] border-r border-[#1e1e1e] flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 z-50 h-full w-80 max-w-[85vw] bg-[#0C0D12] border-r border-white/15 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out md:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e]">
-          <span className="text-[#00D7E5] font-bold text-lg">StreamFlow</span>
+        {/* Drawer Header with Close Cross Button */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10 bg-black/40">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-black font-black text-sm">
+              
+            </div>
+            <div className="flex flex-col text-left">
+              <span className="text-white font-black text-base tracking-tight leading-none">StreamFlow</span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/50 mt-0.5">Navigation Menu</span>
+            </div>
+          </div>
           <button
             onClick={() => setOpen(false)}
-            className="p-1.5 rounded-lg text-gray-600 hover:text-white transition-colors"
+            className="p-2 rounded-full border border-white/15 bg-white/10 text-white hover:bg-white/20 active:scale-95 transition-colors"
+            aria-label="Close menu"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* User info */}
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#1e1e1e]">
-          <div className="w-10 h-10 rounded-full bg-[#1a1a2e] border border-[#2a2a3e] flex items-center justify-center shrink-0">
-            <User className="w-5 h-5 text-[#00D7E5]" />
+        {/* User Account Info Pill */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-white/10 bg-white/5">
+          <div className="w-10 h-10 rounded-full bg-white/10 border border-white/15 flex items-center justify-center shrink-0 text-white">
+            <User className="w-5 h-5" />
           </div>
-          <div className="min-w-0">
-            <p className="text-white font-bold text-sm truncate">
-              {userName || (email ? email.split('@')[0] : 'Guest')}
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-extrabold text-sm truncate">
+              {userName || (email ? email.split('@')[0] : 'Guest User')}
             </p>
-            <p className="text-gray-600 text-xs truncate">{email || 'Not signed in'}</p>
+            <p className="text-white/50 text-xs truncate">{email || 'Active Streaming Session'}</p>
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-700 px-3 mb-2 mt-1">Navigation</p>
+        {/* Navigation Items */}
+        <div className="flex-1 overflow-y-auto py-4 px-4 space-y-2">
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (
               <button
                 key={item.label}
                 onClick={() => handleNav(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-colors text-left ${
+                className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-full transition-all text-left text-sm font-bold ${
                   active
-                    ? 'bg-[#00D7E5]/10 text-[#00D7E5] border border-[#00D7E5]/20'
-                    : 'text-gray-400 hover:bg-[#151515] hover:text-white'
+                    ? 'bg-white text-black shadow-lg'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.5 : 1.8} />
-                <span className="font-semibold text-sm">{item.label}</span>
-                {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00D7E5]" />}
+                <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
+                <span>{item.label}</span>
               </button>
             );
           })}
-
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-700 px-3 mb-2 mt-4">Quick Access</p>
-          {quickItems.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => handleNav(item.path)}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-400 hover:bg-[#151515] hover:text-white transition-colors text-left"
-            >
-              <item.icon className="w-5 h-5 shrink-0" strokeWidth={1.8} />
-              <span className="font-semibold text-sm">{item.label}</span>
-            </button>
-          ))}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-[#1e1e1e] space-y-3">
+        {/* Footer Logout Button */}
+        <div className="p-5 border-t border-white/10 bg-black/40">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-3.5 rounded-full bg-red-500/15 border border-red-500/25 text-red-300 hover:bg-red-500/25 active:scale-95 transition-colors font-bold text-xs"
           >
-            <LogOut className="w-5 h-5 shrink-0" />
-            <span className="font-bold text-sm">Logout</span>
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
           </button>
-          <p className="text-center text-[10px] text-gray-700 font-bold uppercase tracking-widest">
-            StreamFlow v2.4.12
-          </p>
         </div>
       </aside>
     </>

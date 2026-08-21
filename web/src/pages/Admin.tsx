@@ -1188,7 +1188,7 @@ export default function Admin() {
   }, [navigate]);
 
   return (
-    <div className="enterprise-bg min-h-screen pb-8 text-white lg:pl-64">
+    <div className="enterprise-bg min-h-screen pb-8 text-white">
       <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[#1F2937]/85 bg-[#0B1115]/95 backdrop-blur-xl lg:flex">
         <div className="flex h-16 items-center gap-3 border-b border-[#1F2937]/70 px-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00CFE8] text-black">

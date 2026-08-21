@@ -29,35 +29,38 @@ const InstallBanner = () => {
   return (
     <div style={{
       position: "fixed",
-      bottom: 20,
+      bottom: 24,
       left: "50%",
       transform: "translateX(-50%)",
       zIndex: 9999,
-      background: "linear-gradient(135deg, #00D7E5, #00A8B5)",
-      borderRadius: 16,
-      padding: "14px 20px",
+      background: "rgba(28, 28, 30, 0.92)",
+      backdropFilter: "blur(24px)",
+      WebkitBackdropFilter: "blur(24px)",
+      border: "1px solid rgba(255, 255, 255, 0.15)",
+      borderRadius: 9999,
+      padding: "10px 20px",
       display: "flex",
       alignItems: "center",
       gap: 12,
-      boxShadow: "0 8px 32px rgba(0,215,229,0.4)",
+      boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
       width: "calc(100% - 40px)",
-      maxWidth: 420,
+      maxWidth: 440,
     }}>
-      <span style={{ fontSize: 26 }}>📲</span>
+      <span style={{ fontSize: 22 }}></span>
       <div style={{ flex: 1 }}>
-        <div style={{ color: "#000", fontWeight: 900, fontSize: 14 }}>Install StreamFlow</div>
-        <div style={{ color: "rgba(0,0,0,0.7)", fontSize: 12 }}>Add to home screen for best experience</div>
+        <div style={{ color: "#FFFFFF", fontWeight: 800, fontSize: 13 }}>Install StreamFlow tv+</div>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 11 }}>Add to home screen for best experience</div>
       </div>
       <button
         onClick={handleInstall}
         style={{
-          background: "#000",
-          color: "#00D7E5",
+          background: "#FFFFFF",
+          color: "#000000",
           border: "none",
-          borderRadius: 10,
-          padding: "8px 16px",
-          fontWeight: 900,
-          fontSize: 13,
+          borderRadius: 9999,
+          padding: "7px 18px",
+          fontWeight: 800,
+          fontSize: 12,
           cursor: "pointer",
         }}>
         Install
@@ -67,10 +70,10 @@ const InstallBanner = () => {
         style={{
           background: "transparent",
           border: "none",
-          color: "rgba(0,0,0,0.6)",
-          fontSize: 20,
+          color: "rgba(255,255,255,0.6)",
+          fontSize: 16,
           cursor: "pointer",
-          padding: 4,
+          padding: "4px 8px",
         }}>
         ✕
       </button>

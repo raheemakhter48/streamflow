@@ -125,63 +125,111 @@ All colors MUST be HSL.
 @layer utilities {
   .enterprise-bg {
     background:
-      radial-gradient(circle at 20% 0%, rgba(0, 207, 232, 0.09), transparent 28rem),
-      radial-gradient(circle at 95% 20%, rgba(79, 70, 229, 0.11), transparent 30rem),
-      linear-gradient(180deg, #07090B 0%, #07090B 48%, #050607 100%);
+      radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 40rem),
+      radial-gradient(circle at 10% 40%, rgba(0, 113, 227, 0.05) 0%, transparent 35rem),
+      radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.04) 0%, transparent 35rem),
+      #000000;
   }
 
   .enterprise-panel {
-    border: 1px solid rgba(31, 41, 55, 0.9);
-    background: linear-gradient(180deg, rgba(17, 24, 39, 0.84), rgba(10, 14, 18, 0.94));
-    box-shadow: 0 18px 60px rgba(0, 0, 0, 0.38);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(28, 28, 30, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
   }
 
   .enterprise-card {
-    border: 1px solid rgba(31, 41, 55, 0.82);
-    background: #0D1117;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #1C1C1E;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    border-radius: 1.25rem;
   }
 
   .enterprise-card-hover {
-    transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease, border-color 0.4s ease;
   }
 
   @media (hover: hover) and (pointer: fine) {
     .enterprise-card-hover:hover {
-      border-color: rgba(0, 207, 232, 0.38);
-      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
-      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.25);
+      box-shadow: 0 24px 50px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.2);
+      transform: scale(1.04);
     }
   }
 
   .enterprise-input {
-    border: 1px solid rgba(31, 41, 55, 0.95);
-    background: rgba(7, 9, 11, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(28, 28, 30, 0.7);
+    backdrop-filter: blur(12px);
+    border-radius: 9999px;
   }
 
   .enterprise-chip {
-    border: 1px solid rgba(31, 41, 55, 0.95);
-    background: rgba(17, 24, 39, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
   }
 
   .glass-card {
-    background: linear-gradient(180deg, rgba(17, 24, 39, 0.82), rgba(8, 12, 16, 0.94));
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(31, 41, 55, 0.86);
+    background: rgba(28, 28, 30, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1.5rem;
+  }
+
+  .apple-glass-header {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .apple-pill-btn {
+    background: #FFFFFF;
+    color: #000000;
+    font-weight: 700;
+    border-radius: 9999px;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  }
+
+  .apple-pill-btn:hover {
+    opacity: 0.92;
+    transform: scale(1.02);
+  }
+
+  .apple-pill-btn:active {
+    transform: scale(0.97);
+  }
+
+  .apple-pill-btn-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: #FFFFFF;
+    font-weight: 600;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+
+  .apple-pill-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.02);
   }
   
   .neon-text {
-    color: hsl(var(--neon-cyan));
-    text-shadow: 0 0 10px hsl(var(--neon-cyan) / 0.5);
+    color: #0071E3;
   }
   
   .hover-scale {
-    transition: transform 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   
   @media (hover: hover) and (pointer: fine) {
     .hover-scale:hover {
-      transform: scale(1.03);
+      transform: scale(1.04);
     }
   }
 
@@ -197,6 +245,6 @@ All colors MUST be HSL.
   }
   
   .hover-glow:hover {
-    box-shadow: 0 0 0 1px rgba(0, 207, 232, 0.3), 0 16px 42px rgba(0, 0, 0, 0.36);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25), 0 20px 48px rgba(0, 0, 0, 0.7);
   }
 }

@@ -787,7 +787,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className={`enterprise-bg min-h-screen pb-20 text-white transition-[padding] duration-200 lg:pb-0 ${collapsed ? 'lg:pl-20' : 'lg:pl-64'}`}>
+    <div className="enterprise-bg min-h-screen pb-20 text-white">
       <SEO
         title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : "Streaming Dashboard"} - StreamFlow`}
         description="Browse live TV channels, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
@@ -821,37 +821,13 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="mx-auto max-w-[1520px] px-4 sm:px-5 lg:px-8">
-          {/* Category tabs — mobile only (desktop uses top nav) */}
-          <div className="lg:hidden flex gap-2 pt-4 pb-3 overflow-x-auto scrollbar-hide">
-            {viewTabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => navigate(buildDashboardPath({
-                  viewMode: t.id,
-                  selectedRegion,
-                  selectedCountry,
-                  selectedCategory: "All",
-                  searchQuery: debouncedSearchQuery,
-                  currentPage: 1,
-                }))}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-all ${
-                  viewMode === t.id
-                    ? 'bg-[#00D7E5] text-black shadow-[0_0_12px_rgba(0,215,229,0.3)]'
-                    : 'bg-[#111] border border-[#1e1e1e] text-gray-400 hover:text-white'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
           {/* Search + filters row */}
-          <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-[#1F2937]/80 bg-[#0D1117]/70 p-3 backdrop-blur lg:mt-5 lg:flex-row lg:items-center">
+          <div className="mb-6 flex flex-col gap-3 rounded-full border border-white/10 bg-[#1C1C1E]/80 p-2 backdrop-blur-xl lg:mt-5 lg:flex-row lg:items-center">
             <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
               <Input
                 placeholder="Search channels, movies, series..."
-                className="h-11 rounded-xl border-[#1F2937] bg-[#07090B] pl-10 text-sm text-white placeholder-gray-700 focus:border-[#00CFE8]/50"
+                className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
               />
@@ -859,23 +835,23 @@ const Dashboard = () => {
 
           {/* Region + Country (live view only) */}
           {(viewMode === 'live' || viewMode === 'home') && (
-            <div className="flex gap-2 lg:shrink-0">
+            <div className="flex gap-2 lg:shrink-0 pr-2">
               <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                <SelectTrigger className="h-10 flex-1 rounded-xl border-[#1F2937] bg-[#07090B] text-xs font-bold text-white">
+                <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15">
                   <SelectValue placeholder="Region" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#111] border-[#1e1e1e] text-white">
-                  <SelectItem value="All">Region: Global</SelectItem>
+                <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
+                  <SelectItem value="All">Region: Global 🌐</SelectItem>
                   {regions.map((r) => (
                     <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
-                <SelectTrigger className="h-10 flex-1 rounded-xl border-[#1F2937] bg-[#07090B] text-xs font-bold text-white disabled:opacity-40">
+                <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40 hover:bg-white/15">
                   <SelectValue placeholder="Country" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#111] border-[#1e1e1e] text-white">
+                <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
                   <SelectItem value="All">Country: All</SelectItem>
                   {selectedRegionCountries.map((c) => (
                     <SelectItem key={c} value={c}>{getCountryDisplayName(c)}</SelectItem>

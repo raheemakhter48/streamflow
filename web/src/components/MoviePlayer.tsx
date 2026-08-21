@@ -3,28 +3,32 @@ import { Play, Maximize2, RefreshCw } from "lucide-react";
 import { lockLandscape } from "@/lib/orientation";
 
 // ---------------------------------------------------------------------------
-// Stream source definitions — add / remove sources here only
+// Stream source definitions — supports both IMDb ID and TMDB ID for 100% movie coverage
 // ---------------------------------------------------------------------------
 const SOURCES = [
   {
     id: "vidsrc",
     label: "VidSrc",
-    buildUrl: (imdbId: string) => `https://vidsrc.xyz/embed/movie/${imdbId}`,
+    buildUrl: (imdbId?: string, tmdbId?: number) =>
+      tmdbId ? `https://vidsrc.me/embed/movie?tmdb=${tmdbId}` : `https://vidsrc.xyz/embed/movie/${imdbId}`,
   },
   {
     id: "autoembed",
     label: "AutoEmbed",
-    buildUrl: (imdbId: string) => `https://autoembed.co/movie/imdb/${imdbId}`,
+    buildUrl: (imdbId?: string, tmdbId?: number) =>
+      tmdbId ? `https://autoembed.co/movie/tmdb/${tmdbId}` : `https://autoembed.co/movie/imdb/${imdbId}`,
   },
   {
     id: "2embed",
     label: "2Embed",
-    buildUrl: (imdbId: string) => `https://www.2embed.cc/embed/${imdbId}`,
+    buildUrl: (imdbId?: string, tmdbId?: number) =>
+      tmdbId ? `https://www.2embed.cc/embed/tmdb/movie?id=${tmdbId}` : `https://www.2embed.cc/embed/${imdbId}`,
   },
   {
     id: "videasy",
     label: "Videasy",
-    buildUrl: (imdbId: string) => `https://player.videasy.net/movie/${imdbId}`,
+    buildUrl: (imdbId?: string, tmdbId?: number) =>
+      tmdbId ? `https://player.videasy.net/movie/${tmdbId}` : `https://player.videasy.net/movie/${imdbId}`,
   },
 ] as const;
 
@@ -49,26 +53,24 @@ const LANGUAGE_OPTIONS = [
 type LanguageId = (typeof LANGUAGE_OPTIONS)[number]["id"];
 
 interface MoviePlayerProps {
-  imdbId: string;
+  imdbId?: string;
+  tmdbId?: number;
   title?: string;
 }
 
-// ---------------------------------------------------------------------------
-// MoviePlayer
-// ---------------------------------------------------------------------------
-const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
+const MoviePlayer = ({ imdbId, tmdbId, title = "Movie" }: MoviePlayerProps) => {
   const [activeSource, setActiveSource] = useState<SourceId>("vidsrc");
   const [activeQuality, setActiveQuality] = useState<QualityId>("auto");
   const [activeLanguage, setActiveLanguage] = useState<LanguageId>("auto");
   const [isLoaded, setIsLoaded] = useState(false);
-  // iframeKey forces a full remount when source changes (prevents stale embeds)
   const [iframeKey, setIframeKey] = useState(0);
 
   const currentSource = SOURCES.find((s) => s.id === activeSource)!;
   const currentQuality = QUALITY_OPTIONS.find((q) => q.id === activeQuality)!;
   const currentLanguage = LANGUAGE_OPTIONS.find((l) => l.id === activeLanguage)!;
+
   const embedUrl = (() => {
-    const url = currentSource.buildUrl(imdbId);
+    const url = currentSource.buildUrl(imdbId, tmdbId);
     const params = new URLSearchParams();
 
     if (currentQuality.value) params.set("quality", currentQuality.value);
@@ -106,12 +108,10 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
 
   const handleReload = () => setIframeKey((k) => k + 1);
 
-  // ── Not yet activated ──────────────────────────────────────────────────
   if (!isLoaded) {
     return (
-      <div className="overflow-hidden rounded-xl border border-[#202020] bg-[#0a0a0a]">
-        {/* Source tabs */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1a1a1a] px-3 py-1.5">
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#1C1C1E] shadow-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2 bg-black/40">
           <SourceTabs active={activeSource} onChange={handleSourceChange} />
           <div className="flex flex-wrap gap-2">
             <QualityTabs active={activeQuality} onChange={handleQualityChange} />
@@ -119,29 +119,26 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
           </div>
         </div>
 
-        {/* Play gate — user must click to load embed (saves bandwidth + privacy) */}
         <button
           type="button"
           onClick={() => setIsLoaded(true)}
-          className="group relative flex aspect-video w-full items-center justify-center bg-[#0d0d0d] transition hover:bg-[#141414]"
+          className="group relative flex aspect-video w-full items-center justify-center bg-[#0C0D12] transition hover:bg-[#14151B]"
           aria-label={`Play ${title}`}
         >
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#00D7E5]/20 ring-2 ring-[#00D7E5]/40 transition group-hover:bg-[#00D7E5]/30 group-hover:ring-[#00D7E5]/70">
-            <Play className="h-9 w-9 translate-x-0.5 fill-[#00D7E5] text-[#00D7E5]" />
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-black font-extrabold shadow-2xl transition group-hover:scale-110">
+            <Play className="h-8 w-8 translate-x-0.5 fill-current" />
           </div>
-          <p className="absolute bottom-4 text-xs font-semibold tracking-wider text-gray-500">
-            Click to stream · {currentSource.label}
+          <p className="absolute bottom-5 text-xs font-semibold tracking-widest text-white/60">
+            Click to Stream · {currentSource.label} HD
           </p>
         </button>
       </div>
     );
   }
 
-  // ── Active player ──────────────────────────────────────────────────────
   return (
-    <div className="overflow-hidden rounded-xl border border-[#202020] bg-black">
-      {/* Source tabs + reload */}
-      <div className="flex items-center justify-between border-b border-[#1a1a1a] px-3 py-1.5">
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <SourceTabs active={activeSource} onChange={handleSourceChange} />
           <QualityTabs active={activeQuality} onChange={handleQualityChange} />
@@ -151,13 +148,12 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
           type="button"
           onClick={handleReload}
           title="Reload player"
-          className="ml-2 shrink-0 rounded p-1 text-gray-500 transition hover:text-[#00D7E5]"
+          className="ml-2 shrink-0 rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
         >
           <RefreshCw className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Iframe embed */}
       <div className="relative aspect-video w-full">
         <iframe
           key={iframeKey}
@@ -170,7 +166,6 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
           referrerPolicy="origin"
         />
 
-        {/* Native fullscreen button (top-right overlay) */}
         <button
           type="button"
           onClick={async () => {
@@ -178,25 +173,21 @@ const MoviePlayer = ({ imdbId, title = "Movie" }: MoviePlayerProps) => {
             await el?.requestFullscreen?.();
             await lockLandscape();
           }}
-          className="absolute right-3 top-3 z-10 rounded bg-black/60 p-1.5 text-white opacity-0 transition hover:opacity-100 focus:opacity-100"
+          className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white opacity-0 transition hover:opacity-100 focus:opacity-100 backdrop-blur-md"
           title="Fullscreen"
         >
           <Maximize2 className="h-4 w-4" />
         </button>
       </div>
 
-      <p className="px-3 py-2 text-[10px] text-gray-700">
-        Stream provided by <span className="text-gray-500">{currentSource.label}</span>. If playback
-        fails, switch to another source above. Quality: <span className="text-gray-500">{currentQuality.label}</span>.
-        Language: <span className="text-gray-500">{currentLanguage.label}</span>.
+      <p className="px-4 py-2 text-[10px] text-white/40">
+        Stream provided by <span className="text-white/70 font-bold">{currentSource.label}</span>. If playback
+        fails, switch to another source above.
       </p>
     </div>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Source tab strip (extracted for reuse in both states)
-// ---------------------------------------------------------------------------
 const SourceTabs = ({
   active,
   onChange,
@@ -204,16 +195,16 @@ const SourceTabs = ({
   active: SourceId;
   onChange: (id: SourceId) => void;
 }) => (
-  <div className="flex gap-1 p-1.5">
+  <div className="flex gap-1.5 p-1">
     {SOURCES.map((source) => (
       <button
         key={source.id}
         type="button"
         onClick={() => onChange(source.id)}
-        className={`rounded-md px-3 py-1 text-xs font-bold transition ${
+        className={`rounded-full px-3.5 py-1 text-xs font-extrabold transition ${
           active === source.id
-            ? "bg-[#00D7E5] text-black"
-            : "text-gray-400 hover:bg-[#1a1a1a] hover:text-white"
+            ? "bg-white text-black shadow-md"
+            : "text-white/60 hover:bg-white/10 hover:text-white"
         }`}
       >
         {source.label}
@@ -229,16 +220,16 @@ const QualityTabs = ({
   active: QualityId;
   onChange: (id: QualityId) => void;
 }) => (
-  <div className="flex gap-1 rounded-lg border border-[#1f1f1f] bg-[#080808] p-1">
+  <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-1">
     {QUALITY_OPTIONS.map((quality) => (
       <button
         key={quality.id}
         type="button"
         onClick={() => onChange(quality.id)}
-        className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+        className={`rounded-full px-2.5 py-0.5 text-xs font-bold transition ${
           active === quality.id
-            ? "bg-[#00D7E5] text-black"
-            : "text-gray-500 hover:bg-[#1a1a1a] hover:text-white"
+            ? "bg-white text-black"
+            : "text-white/50 hover:text-white"
         }`}
       >
         {quality.label}
@@ -254,16 +245,16 @@ const LanguageTabs = ({
   active: LanguageId;
   onChange: (id: LanguageId) => void;
 }) => (
-  <div className="flex gap-1 rounded-lg border border-[#1f1f1f] bg-[#080808] p-1">
+  <div className="flex gap-1 rounded-full border border-white/10 bg-white/5 p-1">
     {LANGUAGE_OPTIONS.map((language) => (
       <button
         key={language.id}
         type="button"
         onClick={() => onChange(language.id)}
-        className={`rounded-md px-2.5 py-1 text-xs font-bold transition ${
+        className={`rounded-full px-2.5 py-0.5 text-xs font-bold transition ${
           active === language.id
-            ? "bg-[#00D7E5] text-black"
-            : "text-gray-500 hover:bg-[#1a1a1a] hover:text-white"
+            ? "bg-white text-black"
+            : "text-white/50 hover:text-white"
         }`}
       >
         {language.label}

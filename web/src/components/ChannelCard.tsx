@@ -106,24 +106,24 @@ const ChannelCard = ({
 
   return (
     <Card
-      className={`enterprise-card enterprise-card-hover group relative cursor-pointer overflow-hidden rounded-2xl ${
-        selected ? "ring-2 ring-[#00CFE8] bg-[#00CFE8]/5" : ""
+      className={`enterprise-card enterprise-card-hover group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-[#1C1C1E] ${
+        selected ? "ring-2 ring-white bg-white/10" : ""
       }`}
       onClick={handlePlay}
     >
       {/* Channel Image/Icon */}
-      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#07090B] sm:aspect-square">
+      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#141416] sm:aspect-square">
         {channel.logo && !imageError ? (
           <img
             src={channel.logo}
             alt={channel.name}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             onError={() => setImageError(true)}
           />
         ) : (
-          <Tv className="w-9 h-9 sm:w-12 sm:h-12 text-muted-foreground" />
+          <Tv className="w-9 h-9 sm:w-12 sm:h-12 text-white/30" />
         )}
 
         {selectable && (
@@ -134,9 +134,9 @@ const ChannelCard = ({
               event.stopPropagation();
               onSelect?.();
             }}
-            className={`absolute top-2 right-2 z-20 flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
+            className={`absolute top-2.5 right-2.5 z-20 flex h-7 w-7 items-center justify-center rounded-full border transition-colors ${
               selected
-                ? "border-[#00D7E5] bg-[#00D7E5] text-black"
+                ? "border-white bg-white text-black font-extrabold"
                 : "border-white/40 bg-black/70 text-transparent hover:border-white"
             }`}
           >
@@ -147,7 +147,7 @@ const ChannelCard = ({
         {/* Working Badge */}
         {channel.isWorking && (
           <Badge
-            className={`absolute top-2 left-2 z-10 border shadow-lg ${
+            className={`absolute top-2.5 left-2.5 z-10 border shadow-lg backdrop-blur-md ${
               channel.playbackSupport === "external"
                 ? "border-amber-300/40 bg-amber-400 text-black shadow-amber-400/20"
                 : "border-emerald-400/40 bg-emerald-500 text-black shadow-emerald-500/20"
@@ -157,35 +157,19 @@ const ChannelCard = ({
           </Badge>
         )}
 
-        {/* Quality Badge */}
-        {channel.quality && (
-          <Badge
-            className={`absolute ${channel.isWorking ? "top-9" : "top-2"} left-2 z-10 ${
-              channel.quality === "HD"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground"
-            }`}
-          >
-            {channel.quality}
-          </Badge>
-        )}
-
         {/* Overlay on Hover */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
-          <Button
-            size="icon"
-            className="w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-primary hover:bg-primary/90"
-          >
-            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
-          </Button>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+          <div className="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-2xl scale-95 group-hover:scale-100 transition-transform">
+            <Play className="w-5 h-5 fill-current ml-0.5" />
+          </div>
         </div>
 
         {/* Favorite Button - Top Right */}
         <Button
           variant="ghost"
           size="icon"
-          className={`absolute top-2 right-2 z-10 hover:bg-black/20 ${selectable ? "hidden" : ""} ${
-            localIsFavorite ? "text-primary" : "text-white opacity-0 group-hover:opacity-100"
+          className={`absolute top-2 right-2 z-10 hover:bg-black/40 ${selectable ? "hidden" : ""} ${
+            localIsFavorite ? "text-amber-400" : "text-white opacity-0 group-hover:opacity-100"
           }`}
           onClick={handleToggleFavorite}
         >
@@ -199,7 +183,7 @@ const ChannelCard = ({
           {channel.name}
         </h3>
         {channel.group && (
-          <p className="truncate text-xs font-medium text-gray-500">{channel.group}</p>
+          <p className="truncate text-xs font-medium text-white/40">{channel.group}</p>
         )}
       </div>
     </Card>
