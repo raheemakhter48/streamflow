@@ -10,6 +10,7 @@ import CategoryFilter from "@/components/CategoryFilter";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MovieBrowser from "@/components/MovieBrowser";
+import SeriesBrowser from "@/components/SeriesBrowser";
 import { useSidebar } from "@/context/SidebarContext";
 import AdSlot from "@/components/AdSlot";
 import SEO from "@/components/SEO";
@@ -892,6 +893,8 @@ const Dashboard = () => {
 
           {viewMode === 'movie' ? (
             <MovieBrowser searchQuery={debouncedSearchQuery} />
+          ) : viewMode === 'series' ? (
+            <SeriesBrowser />
           ) : (
           <>
           {/* Channels header */}

@@ -431,3 +431,28 @@ export const adminAPI = {
     return apiRequest('/admin/users');
   },
 };
+
+// Series API
+export const seriesAPI = {
+  getSeries: async (params: {
+    category?: string;
+    page?: number;
+    query?: string;
+  } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.category) searchParams.set("category", params.category);
+    if (params.page) searchParams.set("page", String(params.page));
+    if (params.query) searchParams.set("query", params.query);
+
+    const query = searchParams.toString();
+    return apiRequest(`/series${query ? `?${query}` : ''}`);
+  },
+
+  getSeriesDetails: async (id: number) => {
+    return apiRequest(`/series/${id}`);
+  },
+
+  getSeasonEpisodes: async (id: number, seasonNumber: number) => {
+    return apiRequest(`/series/${id}/season/${seasonNumber}`);
+  },
+};

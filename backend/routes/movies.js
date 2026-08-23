@@ -400,4 +400,114 @@ router.get('/movie/:id', protect, async (req, res, next) => {
   }
 });
 
+const normalizeSeriesCard = (show) => ({
+  id: show.id,
+  title: show.name || show.title,
+  originalTitle: show.original_name || show.original_title,
+  overview: show.overview,
+  poster: imageUrl(show.poster_path, 'w500'),
+  backdrop: imageUrl(show.backdrop_path, 'w1280'),
+  firstAirDate: show.first_air_date || null,
+  rating: show.vote_average,
+  voteCount: show.vote_count,
+  genreIds: show.genre_ids || []
+});
+
+// GET /api/series?category=popular&page=1&query=
+router.get('/series', protect, async (req, res, next) => {
+  try {
+    const page = Math.min(500, Math.max(1, Number.parseInt(req.query.page, 10) || 1));
+    const query = String(req.query.query || '').trim().slice(0, 120);
+
+    let path = query ? '/search/tv' : '/discover/tv';
+    let params = query
+      ? { query, include_adult: false, page }
+      : { sort_by: 'popularity.desc', include_adult: false, page };
+
+    const data = await tmdbGet(path, params);
+    const seriesList = (data.results || []).filter((show) => show?.id && (show?.name || show?.title)).map(normalizeSeriesCard);
+
+    res.set('Cache-Control', 'private, max-age=120');
+    res.json({
+      success: true,
+      data: seriesList,
+      page: data.page || page,
+      totalPages: Math.min(data.total_pages || 1, 500),
+      totalResults: data.total_results || 0
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/series/:id
+router.get('/series/:id', protect, async (req, res, next) => {
+  try {
+    const seriesId = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(seriesId) || seriesId <= 0) {
+      return res.status(400).json({ success: false, message: 'A valid series id is required' });
+    }
+
+    const details = await tmdbGet(`/tv/${seriesId}`, {
+      language: 'en-US',
+      append_to_response: 'external_ids'
+    });
+
+    res.set('Cache-Control', 'private, max-age=300');
+    res.json({
+      success: true,
+      data: {
+        id: details.id,
+        imdbId: details.external_ids?.imdb_id || details.imdb_id || null,
+        title: details.name || details.title,
+        overview: details.overview,
+        poster: imageUrl(details.poster_path, 'w780'),
+        backdrop: imageUrl(details.backdrop_path, 'original'),
+        firstAirDate: details.first_air_date || null,
+        numberOfSeasons: details.number_of_seasons || 1,
+        numberOfEpisodes: details.number_of_episodes || 1,
+        seasons: (details.seasons || []).map(s => ({
+          seasonNumber: s.season_number,
+          name: s.name,
+          episodeCount: s.episode_count,
+          poster: imageUrl(s.poster_path, 'w342')
+        })).filter(s => s.seasonNumber > 0),
+        rating: details.vote_average,
+        genres: details.genres || []
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/series/:id/season/:seasonNumber
+router.get('/series/:id/season/:seasonNumber', protect, async (req, res, next) => {
+  try {
+    const seriesId = Number.parseInt(req.params.id, 10);
+    const seasonNumber = Number.parseInt(req.params.seasonNumber, 10) || 1;
+
+    const data = await tmdbGet(`/tv/${seriesId}/season/${seasonNumber}`, { language: 'en-US' });
+
+    res.set('Cache-Control', 'private, max-age=300');
+    res.json({
+      success: true,
+      data: {
+        seasonNumber: data.season_number,
+        name: data.name,
+        episodes: (data.episodes || []).map(ep => ({
+          episodeNumber: ep.episode_number,
+          name: ep.name,
+          overview: ep.overview,
+          stillPath: imageUrl(ep.still_path, 'w500'),
+          airDate: ep.air_date,
+          rating: ep.vote_average
+        }))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
