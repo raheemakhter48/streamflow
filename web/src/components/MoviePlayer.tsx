@@ -11,22 +11,41 @@ const SOURCES = [
     label: "VidSrc",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, isHindi = false) => {
       if (type === "tv") {
-        const path = `tv/${tmdbId || imdbId}/${season}/${episode}`;
-        return isHindi ? `https://vidsrc.cc/v2/embed/${path}?lang=hi` : `https://vidsrc.cc/v2/embed/${path}`;
+        const path = `${tmdbId || imdbId}/${season}/${episode}`;
+        return isHindi ? `https://vidsrc.pro/embed/tv/${path}` : `https://vidsrc.cc/v2/embed/tv/${path}`;
       }
-      const path = imdbId ? `movie/${imdbId}` : `movie/${tmdbId}`;
-      return isHindi ? `https://vidsrc.cc/v2/embed/${path}?lang=hi` : `https://vidsrc.xyz/embed/${path}`;
+      const path = tmdbId ? `${tmdbId}` : `${imdbId}`;
+      return isHindi ? `https://vidsrc.pro/embed/movie/${path}` : `https://vidsrc.xyz/embed/movie/${path}`;
+    },
+  },
+  {
+    id: "smashy",
+    label: "SmashyStream (Hindi)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
+      }
+      return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId || imdbId}`;
+    },
+  },
+  {
+    id: "moviesapi",
+    label: "MoviesAPI",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`;
+      }
+      return `https://moviesapi.club/movie/${tmdbId || imdbId}`;
     },
   },
   {
     id: "autoembed",
     label: "AutoEmbed",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, isHindi = false) => {
-      const lang = isHindi ? "?lang=hi" : "";
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
       if (type === "tv") {
-        return `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}${lang}`;
+        return `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`;
       }
-      return tmdbId ? `https://autoembed.co/movie/tmdb/${tmdbId}${lang}` : `https://autoembed.co/movie/imdb/${imdbId}${lang}`;
+      return tmdbId ? `https://autoembed.co/movie/tmdb/${tmdbId}` : `https://autoembed.co/movie/imdb/${imdbId}`;
     },
   },
   {
@@ -91,9 +110,8 @@ const MoviePlayer = ({
   const handleAudioModeChange = (mode: "original" | "hindi") => {
     if (mode === audioMode) return;
     setAudioMode(mode);
-    // If Hindi Dubbed is clicked, auto-shift to SuperEmbed or AutoEmbed if current source doesn't support hindi parameter
-    if (mode === "hindi" && activeSource === "videasy") {
-      setActiveSource("multiembed");
+    if (mode === "hindi") {
+      setActiveSource("smashy");
     }
     setIframeKey((k) => k + 1);
   };
