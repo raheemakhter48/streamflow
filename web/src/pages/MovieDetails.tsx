@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ExternalLink, Film, Loader2 } from "lucide-react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
@@ -85,11 +85,13 @@ const ProviderRow = ({ label, providers }: { label: string; providers: WatchProv
 const MovieDetails = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const preview = location.state?.movie as MovieDetailsData | undefined;
   const { collapsed } = useSidebar();
   const [searchParams] = useSearchParams();
   const region = searchParams.get("region") || localStorage.getItem("streamflow_movie_region") || "US";
   const from = searchParams.get("from") || "/dashboard?view=movie";
-  const [movie, setMovie] = useState<MovieDetailsData | null>(null);
+  const [movie, setMovie] = useState<MovieDetailsData | null>(() => preview?.id === Number(id) ? preview : null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -105,10 +107,11 @@ const MovieDetails = () => {
 
   useEffect(() => {
     let cancelled = false;
+    setMovie(preview?.id === Number(id) ? preview : null);
     setLoading(true);
     setError("");
 
-    movieAPI.getMovie(id, region)
+    movieAPI.getMovie(id, region, reloadKey > 0)
       .then((response) => {
         if (!cancelled && response.data) {
           setMovie(response.data);
@@ -131,9 +134,9 @@ const MovieDetails = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, region, reloadKey]);
+  }, [id, region, reloadKey, preview]);
 
-  if (loading) {
+  if (loading && !movie) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#090909]">
         <Loader2 className="h-10 w-10 animate-spin text-[#00D7E5]" />
@@ -141,7 +144,7 @@ const MovieDetails = () => {
     );
   }
 
-  if (error || !movie) {
+  if (!movie) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#090909] px-5 text-center text-white">
         <Film className="h-14 w-14 text-gray-700" />
@@ -204,6 +207,7 @@ const MovieDetails = () => {
         </div>
 
         <MoviePlayer imdbId={movie.imdbId || undefined} tmdbId={movie.id} title={movie.title} />
+        {error && <p role="status" className="mt-3 text-sm text-white/60">Extra movie details could not load. <button className="underline" onClick={() => setReloadKey((current) => current + 1)}>Retry details</button></p>}
 
         {movie.watchProviders && (
           streamingProviders.length > 0 ||

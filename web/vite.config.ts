@@ -52,6 +52,16 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ["**/*.{js,css,html,ico,png,svg}"],
+          // These large, optional routes should not compete with catalog loading.
+          globIgnores: ["**/Player-*.js", "**/Admin-*.js"],
+          runtimeCaching: [{
+            urlPattern: /\/assets\/(?:Player|Admin)-[^/]+\.js$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "optional-page-chunks",
+              expiration: { maxEntries: 8, maxAgeSeconds: 30 * 24 * 60 * 60 },
+            },
+          }],
         },
       }),
     ],

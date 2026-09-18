@@ -79,6 +79,8 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 // Auth API
+let currentUserRequest: { token: string; promise: ReturnType<typeof apiRequest> } | null = null;
+
 export const authAPI = {
   register: async (email: string, password: string) => {
     const data = await apiRequest('/auth/register', {
@@ -125,7 +127,14 @@ export const authAPI = {
   },
 
   getCurrentUser: async () => {
-    return apiRequest('/auth/me');
+    const token = getToken();
+    if (!token) return { success: false, user: null };
+    if (currentUserRequest?.token === token) return currentUserRequest.promise;
+    const promise = apiRequest('/auth/me').finally(() => {
+      if (currentUserRequest?.promise === promise) currentUserRequest = null;
+    });
+    currentUserRequest = { token, promise };
+    return promise;
   },
 };
 
@@ -140,6 +149,9 @@ export const iptvAPI = {
   },
 
   getChannels: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
     category?: string;
     region?: string;
     country?: string;
@@ -307,9 +319,44 @@ export const streamAPI = {
   },
 };
 
+const catalogCache = new Map<string, { data: Awaited<ReturnType<typeof apiRequest>>; expiresAt: number }>();
+const catalogPending = new Map<string, ReturnType<typeof apiRequest>>();
+let catalogToken: string | null = null;
+
+const catalogRequest = (endpoint: string, refresh = false) => {
+  const token = getToken();
+  if (catalogToken !== token) {
+    catalogCache.clear();
+    catalogPending.clear();
+    catalogToken = token;
+  }
+  const cached = catalogCache.get(endpoint);
+  if (!refresh && cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.data);
+  const pending = catalogPending.get(endpoint);
+  if (pending) return pending;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 25000);
+  const request = apiRequest(endpoint, { signal: controller.signal }).then((data) => {
+    if (getToken() === token) {
+      catalogCache.delete(endpoint);
+      catalogCache.set(endpoint, { data, expiresAt: Date.now() + 60000 });
+      if (catalogCache.size > 60) catalogCache.delete(catalogCache.keys().next().value);
+    }
+    return data;
+  }).catch((error) => {
+    if (controller.signal.aborted) throw new Error('Movie catalog took too long to respond. Please retry.');
+    throw error;
+  }).finally(() => {
+    window.clearTimeout(timeout);
+    if (catalogPending.get(endpoint) === request) catalogPending.delete(endpoint);
+  });
+  catalogPending.set(endpoint, request);
+  return request;
+};
+
 export const movieAPI = {
   getCategories: async () => {
-    return apiRequest('/movies/categories');
+    return catalogRequest('/movies/categories');
   },
 
   getMovies: async (params: {
@@ -319,19 +366,19 @@ export const movieAPI = {
     region?: string;
     country?: string;
     sort?: string;
-  } = {}) => {
+  } = {}, refresh = false) => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null && String(value).trim() !== '') {
         searchParams.set(key, String(value));
       }
     });
-    return apiRequest(`/movies?${searchParams.toString()}`);
+    return catalogRequest(`/movies?${searchParams.toString()}`, refresh);
   },
 
-  getMovie: async (movieId: string, region = 'PK') => {
+  getMovie: async (movieId: string, region = 'PK', refresh = false) => {
     const searchParams = new URLSearchParams({ region });
-    return apiRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`);
+    return catalogRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`, refresh);
   },
 };
 

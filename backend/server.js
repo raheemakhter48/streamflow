@@ -2,6 +2,7 @@ import 'dotenv/config'; // 🚀 MUST BE ON LINE 1: Loads variables before any ot
 import express from 'express';
 import './config/env.js';
 import cors from 'cors';
+import compression from 'compression';
 import supabase from './config/supabase.js';
 
 // Routes import
@@ -22,6 +23,10 @@ app.set('trust proxy', 1);
 // Basic Middleware
 app.use(cors());
 app.use(express.json());
+app.use(compression({
+  filter: (req, res) => /application\/json/i.test(String(res.getHeader('Content-Type') || ''))
+    && compression.filter(req, res)
+}));
 
 // Request Logger (Hugging Face logs mein nazar ayega)
 app.use((req, res, next) => {
@@ -31,7 +36,7 @@ app.use((req, res, next) => {
 
 // API metrics recorder — fire-and-forget, never blocks requests
 app.use((req, res, next) => {
-  if (!req.path.startsWith('/api/')) return next();
+  if (!req.path.startsWith('/api/') || req.path.startsWith('/api/movies/assets/')) return next();
   const startMs = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - startMs;

@@ -2,6 +2,7 @@ import express from 'express';
 import '../config/env.js';
 import axios from 'axios';
 import { protect } from '../middleware/auth.js';
+import { createCatalogCache } from '../lib/catalogCache.js';
 
 const router = express.Router();
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
@@ -9,15 +10,10 @@ const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 const ALLOWED_IMAGE_SIZES = new Set(['w92', 'w154', 'w185', 'w342', 'w500', 'w780', 'w1280', 'original']);
 const CACHE_TTL_MS = Number(process.env.TMDB_CACHE_TTL_MS || 300000);
 const CACHE_MAX_ENTRIES = Number(process.env.TMDB_CACHE_MAX_ENTRIES || 500);
-const responseCache = new Map();
-
-const cacheResponse = (key, data) => {
-  if (responseCache.size >= CACHE_MAX_ENTRIES) {
-    const oldestKey = responseCache.keys().next().value;
-    if (oldestKey) responseCache.delete(oldestKey);
-  }
-  responseCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
-};
+const responseCache = createCatalogCache({
+  ttlMs: Number.isFinite(CACHE_TTL_MS) && CACHE_TTL_MS > 0 ? CACHE_TTL_MS : 300000,
+  maxEntries: Number.isFinite(CACHE_MAX_ENTRIES) && CACHE_MAX_ENTRIES > 0 ? CACHE_MAX_ENTRIES : 500
+});
 
 const getTmdbAuth = () => {
   const token = String(process.env.TMDB_API_TOKEN || '').trim();
@@ -45,18 +41,12 @@ const isTransientTmdbError = (error) => {
   return status >= 500;
 };
 
-const tmdbGet = async (path, params = {}, retriesLeft = 2) => {
+const fetchTmdb = async (path, params, retriesLeft = 1) => {
   const { headers, apiKey } = getTmdbAuth();
-  const cacheKey = `${path}:${JSON.stringify(params)}`;
-  const cached = responseCache.get(cacheKey);
-
-  if (cached && cached.expiresAt > Date.now()) {
-    return cached.data;
-  }
 
   try {
     const response = await axios.get(`${TMDB_BASE_URL}${path}`, {
-      timeout: 10000,
+      timeout: 6000,
       headers,
       params: {
         ...params,
@@ -64,20 +54,27 @@ const tmdbGet = async (path, params = {}, retriesLeft = 2) => {
       }
     });
 
-    cacheResponse(cacheKey, response.data);
     return response.data;
   } catch (error) {
     if (retriesLeft > 0 && isTransientTmdbError(error)) {
       await sleep(300);
-      return tmdbGet(path, params, retriesLeft - 1);
+      return fetchTmdb(path, params, retriesLeft - 1);
     }
 
     const status = error.response?.status;
+    // Axios config contains credentials, so only log non-sensitive diagnostics.
+    console.warn('[TMDB]', { path, status: status || null, code: error.code || null });
     const upstreamError = new Error('Movie catalog request failed');
     upstreamError.statusCode = status && status >= 400 && status < 500 ? status : 502;
     throw upstreamError;
   }
 };
+
+const tmdbGet = (path, params = {}, retriesLeft = 1) => responseCache.get(
+  `${path}:${JSON.stringify(params)}`,
+  () => fetchTmdb(path, params, retriesLeft),
+  (error) => error.statusCode >= 500
+);
 
 const imageUrl = (path, size) => {
   if (!path) return null;
@@ -90,7 +87,7 @@ const normalizeMovieCard = (movie) => ({
   title: movie.title,
   originalTitle: movie.original_title,
   overview: movie.overview,
-  poster: imageUrl(movie.poster_path, 'w500'),
+  poster: imageUrl(movie.poster_path, 'w342'),
   backdrop: imageUrl(movie.backdrop_path, 'w1280'),
   releaseDate: movie.release_date || null,
   rating: movie.vote_average,
@@ -338,17 +335,10 @@ router.get('/movie/:id', protect, async (req, res, next) => {
       videos = details.videos?.results || [];
       watchProviderResults = details['watch/providers']?.results || {};
     } catch (combinedError) {
-      details = await tmdbGet(`/movie/${movieId}`, { language: 'en-US' });
-
-      const [externalIdsResult, videosResult, providersResult] = await Promise.allSettled([
-        tmdbGet(`/movie/${movieId}/external_ids`),
-        tmdbGet(`/movie/${movieId}/videos`, { language: 'en-US' }),
-        tmdbGet(`/movie/${movieId}/watch/providers`)
-      ]);
-
-      if (externalIdsResult.status === 'fulfilled') externalIds = externalIdsResult.value || {};
-      if (videosResult.status === 'fulfilled') videos = videosResult.value?.results || [];
-      if (providersResult.status === 'fulfilled') watchProviderResults = providersResult.value?.results || {};
+      if (combinedError.statusCode < 500) throw combinedError;
+      // Basic details contain playback IDs. Optional endpoints must not add
+      // another round of retries when the upstream service is failing.
+      details = await tmdbGet(`/movie/${movieId}`, { language: 'en-US' }, 0);
     }
 
     const imdbId = details.imdb_id || details.external_ids?.imdb_id;
@@ -369,7 +359,7 @@ router.get('/movie/:id', protect, async (req, res, next) => {
         tagline: details.tagline,
         overview: details.overview,
         poster: imageUrl(details.poster_path, 'w780'),
-        backdrop: imageUrl(details.backdrop_path, 'original'),
+        backdrop: imageUrl(details.backdrop_path, 'w1280'),
         releaseDate: details.release_date || null,
         runtime: details.runtime,
         rating: details.vote_average,
