@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Play, Maximize2, RefreshCw, Mic, Globe } from "lucide-react";
 import { lockLandscape } from "@/lib/orientation";
 
@@ -93,6 +93,9 @@ const MoviePlayer = ({
   const [audioMode, setAudioMode]       = useState<"original" | "hindi">("original");
   const [isLoaded, setIsLoaded]         = useState(false);
   const [iframeKey, setIframeKey]       = useState(0);
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [slowFrame, setSlowFrame] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const currentSource = SOURCES.find((s) => s.id === activeSource)!;
   const isHindi = audioMode === "hindi";
@@ -100,6 +103,22 @@ const MoviePlayer = ({
   const embedUrl = (() => {
     return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
   })();
+
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'preconnect';
+    link.href = new URL(embedUrl).origin;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, [embedUrl]);
+
+  useEffect(() => {
+    setFrameLoaded(false);
+    setSlowFrame(false);
+    if (!isLoaded) return;
+    const timer = window.setTimeout(() => setSlowFrame(true), 12000);
+    return () => window.clearTimeout(timer);
+  }, [embedUrl, iframeKey, isLoaded]);
 
   const handleSourceChange = (id: SourceId) => {
     if (id === activeSource) return;
@@ -162,9 +181,16 @@ const MoviePlayer = ({
         </button>
       </div>
 
+      {!frameLoaded && (
+        <p role="status" className="px-4 py-2 text-xs text-white/70">
+          {slowFrame ? 'Player is taking longer than usual. Try another source above or reload.' : 'Connecting to player...'}
+        </p>
+      )}
       <div className="relative aspect-video w-full">
         <iframe
-          key={iframeKey}
+          key={`${embedUrl}:${iframeKey}`}
+          ref={iframeRef}
+          onLoad={() => setFrameLoaded(true)}
           src={embedUrl}
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
@@ -177,8 +203,7 @@ const MoviePlayer = ({
         <button
           type="button"
           onClick={async () => {
-            const el = document.querySelector(`iframe[title="${title} — ${currentSource.label}"]`) as HTMLIFrameElement | null;
-            await el?.requestFullscreen?.();
+            await iframeRef.current?.requestFullscreen?.();
             await lockLandscape();
           }}
           className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white opacity-0 transition hover:opacity-100 focus:opacity-100 backdrop-blur-md"

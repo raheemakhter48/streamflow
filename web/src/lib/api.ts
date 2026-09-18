@@ -79,6 +79,8 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 // Auth API
+let currentUserRequest: { token: string; promise: ReturnType<typeof apiRequest> } | null = null;
+
 export const authAPI = {
   register: async (email: string, password: string) => {
     const data = await apiRequest('/auth/register', {
@@ -125,7 +127,14 @@ export const authAPI = {
   },
 
   getCurrentUser: async () => {
-    return apiRequest('/auth/me');
+    const token = getToken();
+    if (!token) return { success: false, user: null };
+    if (currentUserRequest?.token === token) return currentUserRequest.promise;
+    const promise = apiRequest('/auth/me').finally(() => {
+      if (currentUserRequest?.promise === promise) currentUserRequest = null;
+    });
+    currentUserRequest = { token, promise };
+    return promise;
   },
 };
 
@@ -140,6 +149,9 @@ export const iptvAPI = {
   },
 
   getChannels: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
     category?: string;
     region?: string;
     country?: string;
