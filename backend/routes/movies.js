@@ -10,7 +10,6 @@ const ALLOWED_IMAGE_SIZES = new Set(['w92', 'w154', 'w185', 'w342', 'w500', 'w78
 const CACHE_TTL_MS = Number(process.env.TMDB_CACHE_TTL_MS || 300000);
 const CACHE_MAX_ENTRIES = Number(process.env.TMDB_CACHE_MAX_ENTRIES || 500);
 const responseCache = new Map();
-const pendingRequests = new Map();
 
 const cacheResponse = (key, data) => {
   if (responseCache.size >= CACHE_MAX_ENTRIES) {
@@ -46,7 +45,7 @@ const isTransientTmdbError = (error) => {
   return status >= 500;
 };
 
-const fetchTmdb = async (path, params, retriesLeft) => {
+const tmdbGet = async (path, params = {}, retriesLeft = 2) => {
   const { headers, apiKey } = getTmdbAuth();
   const cacheKey = `${path}:${JSON.stringify(params)}`;
   const cached = responseCache.get(cacheKey);
@@ -57,7 +56,7 @@ const fetchTmdb = async (path, params, retriesLeft) => {
 
   try {
     const response = await axios.get(`${TMDB_BASE_URL}${path}`, {
-      timeout: 6000,
+      timeout: 10000,
       headers,
       params: {
         ...params,
@@ -70,7 +69,7 @@ const fetchTmdb = async (path, params, retriesLeft) => {
   } catch (error) {
     if (retriesLeft > 0 && isTransientTmdbError(error)) {
       await sleep(300);
-      return fetchTmdb(path, params, retriesLeft - 1);
+      return tmdbGet(path, params, retriesLeft - 1);
     }
 
     const status = error.response?.status;
@@ -78,17 +77,6 @@ const fetchTmdb = async (path, params, retriesLeft) => {
     upstreamError.statusCode = status && status >= 400 && status < 500 ? status : 502;
     throw upstreamError;
   }
-};
-
-// Share simultaneous cache misses instead of issuing duplicate upstream requests.
-const tmdbGet = (path, params = {}, retriesLeft = 1) => {
-  const key = `${path}:${JSON.stringify(params)}`;
-  const cached = responseCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.data);
-  if (pendingRequests.has(key)) return pendingRequests.get(key);
-  const request = fetchTmdb(path, params, retriesLeft).finally(() => pendingRequests.delete(key));
-  pendingRequests.set(key, request);
-  return request;
 };
 
 const imageUrl = (path, size) => {
@@ -102,7 +90,7 @@ const normalizeMovieCard = (movie) => ({
   title: movie.title,
   originalTitle: movie.original_title,
   overview: movie.overview,
-  poster: imageUrl(movie.poster_path, 'w342'),
+  poster: imageUrl(movie.poster_path, 'w500'),
   backdrop: imageUrl(movie.backdrop_path, 'w1280'),
   releaseDate: movie.release_date || null,
   rating: movie.vote_average,
@@ -350,10 +338,17 @@ router.get('/movie/:id', protect, async (req, res, next) => {
       videos = details.videos?.results || [];
       watchProviderResults = details['watch/providers']?.results || {};
     } catch (combinedError) {
-      // Basic details contain the IDs needed for playback. Optional metadata must
-      // not add another round of retries when the combined request has failed.
-      if (combinedError.statusCode < 500) throw combinedError;
-      details = await tmdbGet(`/movie/${movieId}`, { language: 'en-US' }, 0);
+      details = await tmdbGet(`/movie/${movieId}`, { language: 'en-US' });
+
+      const [externalIdsResult, videosResult, providersResult] = await Promise.allSettled([
+        tmdbGet(`/movie/${movieId}/external_ids`),
+        tmdbGet(`/movie/${movieId}/videos`, { language: 'en-US' }),
+        tmdbGet(`/movie/${movieId}/watch/providers`)
+      ]);
+
+      if (externalIdsResult.status === 'fulfilled') externalIds = externalIdsResult.value || {};
+      if (videosResult.status === 'fulfilled') videos = videosResult.value?.results || [];
+      if (providersResult.status === 'fulfilled') watchProviderResults = providersResult.value?.results || {};
     }
 
     const imdbId = details.imdb_id || details.external_ids?.imdb_id;
@@ -374,7 +369,7 @@ router.get('/movie/:id', protect, async (req, res, next) => {
         tagline: details.tagline,
         overview: details.overview,
         poster: imageUrl(details.poster_path, 'w780'),
-        backdrop: imageUrl(details.backdrop_path, 'w1280'),
+        backdrop: imageUrl(details.backdrop_path, 'original'),
         releaseDate: details.release_date || null,
         runtime: details.runtime,
         rating: details.vote_average,

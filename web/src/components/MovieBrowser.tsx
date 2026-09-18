@@ -152,8 +152,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
     const params = new URLSearchParams();
     params.set("region", selectedRegion);
     params.set("from", `${location.pathname}${location.search}`);
-    const movie = [...movies, ...heroMovies, ...recentlyWatchedMovies].find((item) => item.id === movieId);
-    navigate(`/movie/${movieId}?${params.toString()}`, { state: { movie } });
+    navigate(`/movie/${movieId}?${params.toString()}`);
   };
 
   const currentHeroList = heroMovies.length > 0 ? heroMovies : movies;
@@ -323,8 +322,6 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
                     <img
                       src={movie.poster}
                       alt={movie.title}
-                      loading="lazy"
-                      decoding="async"
                       className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                     />
                   ) : (
