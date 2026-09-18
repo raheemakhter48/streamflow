@@ -206,7 +206,7 @@ const MovieDetails = () => {
           </div>
         </div>
 
-        <MoviePlayer key={movie.id} imdbId={movie.imdbId || undefined} tmdbId={movie.id} title={movie.title} />
+        <MoviePlayer imdbId={movie.imdbId || undefined} tmdbId={movie.id} title={movie.title} />
         {error && <p role="status" className="mt-3 text-sm text-white/60">Extra movie details could not load. <button className="underline" onClick={() => setReloadKey((current) => current + 1)}>Retry details</button></p>}
 
         {movie.watchProviders && (
