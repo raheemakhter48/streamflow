@@ -19,6 +19,33 @@ test('movie loading performance and fallback behavior', async (t) => {
   const originalGet = axios.get;
   t.after(() => { axios.get = originalGet; });
 
+  await t.test('movie and series pagination keep distinct pages and retry a failed page without resetting', async () => {
+    const calls = [];
+    axios.get = async (url, options) => {
+      calls.push({ url, page: options.params.page });
+      return { data: { page: options.params.page, total_pages: 10, results: [
+        { id: options.params.page * 100, title: 'Page item', name: 'Page item' }
+      ] } };
+    };
+    for (const route of ['/movies', '/series']) {
+      for (const page of [2, 3, 4]) {
+        const result = await request(route, {}, { page: String(page) });
+        assert.equal(result.page, page);
+        assert.equal(result.data[0].id, page * 100);
+      }
+    }
+    assert.deepEqual(calls.map((call) => call.page), [2, 3, 4, 2, 3, 4]);
+    const failedPages = [];
+    axios.get = async (_url, options) => {
+      failedPages.push(options.params.page);
+      throw Object.assign(new Error('Unavailable'), { response: { status: 503 } });
+    };
+    await assert.rejects(request('/movies', {}, { page: '5' }), { statusCode: 502 });
+    assert.deepEqual(failedPages, [5, 5]);
+    axios.get = async (_url, options) => ({ data: { page: options.params.page, results: [{ id: 500, title: 'Recovered' }] } });
+    assert.equal((await request('/movies', {}, { page: '5' })).page, 5);
+  });
+
   await t.test('poster route reuses a complete image and rejects non-image responses', async () => {
     let calls = 0;
     axios.get = async (_url, options) => {

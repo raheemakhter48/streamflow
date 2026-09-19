@@ -272,28 +272,14 @@ router.get('/movies', protect, async (req, res, next) => {
       ? countryParam
       : (/^[A-Z]{2}$/.test(region) && region !== 'US' ? region : '');
     const request = getCategoryRequest(category, query, originCountry, sort);
-    let data;
-
-    try {
-      data = await tmdbGet(request.path, {
-        ...request.params,
-        page,
-        language: 'en-US',
-        region
-      });
-    } catch (categoryError) {
-      if (query || (category === 'popular' && page === 1)) {
-        throw categoryError;
-      }
-
-      const fallbackRequest = getCategoryRequest('popular', '', '', sort);
-      data = await tmdbGet(fallbackRequest.path, {
-        ...fallbackRequest.params,
-        page: 1,
-        language: 'en-US',
-        region
-      });
-    }
+    // Never substitute page 1 (or another category) when a page fails.
+    // The client must be able to retry the actual requested page.
+    const data = await tmdbGet(request.path, {
+      ...request.params,
+      page,
+      language: 'en-US',
+      region
+    });
 
     let moviesList = (data.results || []).filter((movie) => movie?.id && movie?.title).map(normalizeMovieCard);
 

@@ -162,7 +162,7 @@ const buildDashboardPath = ({
   currentPage: number;
 }) => {
   const params = new URLSearchParams();
-  const includeChannelFilters = isChannelView(viewMode) || viewMode === 'series';
+  const includeChannelFilters = isChannelView(viewMode);
 
   if (viewMode !== DEFAULT_DASHBOARD_VIEW) params.set("view", viewMode);
   if (includeChannelFilters && selectedRegion !== "All") params.set("region", selectedRegion);
@@ -318,12 +318,6 @@ const Dashboard = () => {
   }, [availableCategories, selectedCategory, viewMode]);
 
   useEffect(() => {
-    if (user && viewMode === 'series' && channels.length === 0) {
-      loadCredentialsAndChannels();
-    }
-  }, [user, viewMode]);
-
-  useEffect(() => {
     if (!user) return;
 
     const nextPath = buildDashboardPath({
@@ -404,23 +398,6 @@ const Dashboard = () => {
       setUser(data.user);
     } catch (error) {
       navigate("/auth");
-    }
-  };
-
-  const loadCredentialsAndChannels = async () => {
-    try {
-      const credentialsData = await iptvAPI.getCredentials();
-      if (credentialsData.success && credentialsData.data) {
-        setHasCredentials(true);
-        await parseM3UPlaylist();
-      } else {
-        setHasCredentials(false);
-      }
-    } catch (error: any) {
-      console.error("Error loading credentials:", error);
-      setHasCredentials(false);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -803,7 +780,7 @@ const Dashboard = () => {
       />
       <AppHeader />
 
-      {!hasCredentials && !isLoading ? (
+      {viewMode !== 'movie' && viewMode !== 'series' && !hasCredentials && !isLoading ? (
         /* No credentials setup screen */
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-5 text-center">
           <div className="w-20 h-20 rounded-2xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center mb-6">
@@ -870,7 +847,7 @@ const Dashboard = () => {
           />
 
           {/* Continue Watching */}
-          {viewMode !== 'movie' && recentlyWatched.length > 0 && (
+          {isChannelView(viewMode) && recentlyWatched.length > 0 && (
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base font-black text-white">Continue Watching</h2>
@@ -900,7 +877,7 @@ const Dashboard = () => {
           {/* Channels header */}
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-black text-white">
-              {viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : viewMode === 'movie' ? 'Movies' : 'Series'}
+              {viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : 'Program Guide'}
             </h2>
             <div className="flex items-center gap-2">
               {validatedChannels && (

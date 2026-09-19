@@ -20,16 +20,35 @@ const SeriesBrowser = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [heroIndex, setHeroIndex] = useState(0);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadError, setLoadError] = useState('');
+  const [retryKey, setRetryKey] = useState(0);
+
+  const changePage = (nextPage: number) => {
+    if (isLoading || nextPage < 1 || nextPage > totalPages) return;
+    setIsLoading(true);
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
 
   useEffect(() => {
+    let cancelled = false;
     setIsLoading(true);
-    seriesAPI.getSeries({ query: searchQuery })
+    setLoadError('');
+    seriesAPI.getSeries({ query: searchQuery, page })
       .then((res) => {
+        if (cancelled) return;
         setSeriesList(res.data || []);
+        setTotalPages(res.totalPages || 1);
+        setHeroIndex(0);
       })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, [searchQuery]);
+      .catch((error) => {
+        if (!cancelled) setLoadError(error.message || 'Could not load series');
+      })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
+    return () => { cancelled = true; };
+  }, [searchQuery, page, retryKey]);
 
   useEffect(() => {
     if (seriesList.length <= 1) return;
@@ -55,13 +74,13 @@ const SeriesBrowser = () => {
             placeholder="Search TV Series, Anime & Shows (e.g. Loki, Breaking Bad, Wednesday)..."
             className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
           />
         </div>
       </div>
 
       {/* Hero Showcase for TV Series */}
-      {!searchQuery && featuredHero && (
+      {!searchQuery && !isLoading && !loadError && featuredHero && (
         <div className="relative mb-10 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0C0D12] shadow-2xl transition-all duration-700">
           <div className="relative aspect-[16/9] min-h-[360px] max-h-[520px] w-full overflow-hidden">
             <img
@@ -135,7 +154,7 @@ const SeriesBrowser = () => {
           <Tv className="h-5 w-5 text-white/80" />
           {searchQuery ? `Search Results for "${searchQuery}"` : "🔥 Trending TV Series"}
         </h2>
-        <span className="text-xs text-white/50 font-semibold">{seriesList.length} Shows</span>
+        <span className="text-xs text-white/50 font-semibold">Page {page} of {totalPages}</span>
       </div>
 
       {isLoading ? (
@@ -143,6 +162,11 @@ const SeriesBrowser = () => {
           {Array.from({ length: 12 }).map((_, i) => (
             <div key={i} className="aspect-[2/3] animate-pulse rounded-2xl bg-white/5 border border-white/10" />
           ))}
+        </div>
+      ) : loadError ? (
+        <div className="p-12 text-center text-white/70" role="alert">
+          <p>{loadError}</p>
+          <button type="button" className="apple-pill-btn mt-4 px-5 py-2" onClick={() => setRetryKey((value) => value + 1)}>Retry page {page}</button>
         </div>
       ) : seriesList.length === 0 ? (
         <div className="rounded-3xl border border-white/10 bg-[#1C1C1E] p-12 text-center text-white/50">
@@ -191,6 +215,12 @@ const SeriesBrowser = () => {
               </div>
             </button>
           ))}
+        </div>
+      )}
+      {!isLoading && !loadError && seriesList.length > 0 && (
+        <div className="mt-10 flex items-center justify-center gap-3">
+          <button type="button" disabled={page <= 1} onClick={() => changePage(page - 1)} className="apple-pill-btn-secondary px-5 py-2.5 text-sm font-bold disabled:opacity-30">Previous</button>
+          <button type="button" disabled={page >= totalPages} onClick={() => changePage(page + 1)} className="apple-pill-btn px-6 py-2.5 text-sm font-extrabold disabled:opacity-30">Next</button>
         </div>
       )}
     </section>

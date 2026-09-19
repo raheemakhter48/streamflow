@@ -60,6 +60,13 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const [loadError, setLoadError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
+  const changePage = (nextPage: number) => {
+    if (loading || nextPage < 1 || nextPage > totalPages) return;
+    setLoading(true);
+    setPage(nextPage);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  };
+
   // Fetch top-rated blockbuster movies for Hero Showcase
   useEffect(() => {
     movieAPI.getMovies({ category: "popular", sort: "top_rated", region: selectedRegion })
@@ -490,12 +497,12 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         </div>
       )}
 
-      {!loading && movies.length > 0 && (
+      {!loading && !loadError && movies.length > 0 && (
         <div className="mt-10 flex items-center justify-center gap-3">
           <button
             type="button"
             disabled={page <= 1}
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() => changePage(page - 1)}
             className="apple-pill-btn-secondary flex items-center gap-1 px-5 py-2.5 text-sm font-bold disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -504,7 +511,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
           <button
             type="button"
             disabled={page >= totalPages}
-            onClick={() => setPage((current) => current + 1)}
+            onClick={() => changePage(page + 1)}
             className="apple-pill-btn flex items-center gap-1 px-6 py-2.5 text-sm font-extrabold disabled:opacity-30"
           >
             Next
