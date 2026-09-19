@@ -3,8 +3,10 @@ import '../config/env.js';
 import axios from 'axios';
 import { protect } from '../middleware/auth.js';
 import { createCatalogCache } from '../lib/catalogCache.js';
+import { createImageCache } from '../lib/imageCache.js';
 
 const router = express.Router();
+const imageCache = createImageCache();
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p';
 const ALLOWED_IMAGE_SIZES = new Set(['w92', 'w154', 'w185', 'w342', 'w500', 'w780', 'w1280', 'original']);
@@ -234,18 +236,24 @@ router.get('/movies/assets/:size/*', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Invalid movie asset request' });
     }
 
-    const response = await axios.get(`${TMDB_IMAGE_BASE_URL}/${size}${assetPath}`, {
-      responseType: 'stream',
-      timeout: 10000
+    const image = await imageCache.get(`${size}${assetPath}`, async () => {
+      const response = await axios.get(`${TMDB_IMAGE_BASE_URL}/${size}${assetPath}`, {
+        responseType: 'arraybuffer',
+        maxContentLength: 8 * 1024 * 1024,
+        timeout: 10000
+      });
+      const contentType = response.headers['content-type'] || '';
+      if (!contentType.startsWith('image/')) throw new Error('Invalid movie image response');
+      return { data: Buffer.from(response.data), contentType };
     });
 
     res.set({
-      'Content-Type': response.headers['content-type'] || 'image/jpeg',
+      'Content-Type': image.contentType,
       'Cache-Control': 'public, max-age=86400, s-maxage=604800',
       'X-Content-Type-Options': 'nosniff'
     });
 
-    response.data.pipe(res);
+    res.send(image.data);
   } catch (error) {
     next(error);
   }
@@ -395,7 +403,7 @@ const normalizeSeriesCard = (show) => ({
   title: show.name || show.title,
   originalTitle: show.original_name || show.original_title,
   overview: show.overview,
-  poster: imageUrl(show.poster_path, 'w500'),
+  poster: imageUrl(show.poster_path, 'w342'),
   backdrop: imageUrl(show.backdrop_path, 'w1280'),
   firstAirDate: show.first_air_date || null,
   rating: show.vote_average,

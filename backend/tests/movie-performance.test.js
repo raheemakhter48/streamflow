@@ -9,7 +9,7 @@ const request = async (path, params = {}, query = {}) => {
   const route = router.stack.find((layer) => layer.route?.path === path).route;
   let body;
   let failure;
-  const res = { set() { return this; }, json(value) { body = value; return this; }, status() { return this; } };
+  const res = { set() { return this; }, send(value) { body = value; return this; }, json(value) { body = value; return this; }, status() { return this; } };
   await route.stack.at(-1).handle({ params, query }, res, (error) => { failure = error; });
   if (failure) throw failure;
   return body;
@@ -18,6 +18,26 @@ const request = async (path, params = {}, query = {}) => {
 test('movie loading performance and fallback behavior', async (t) => {
   const originalGet = axios.get;
   t.after(() => { axios.get = originalGet; });
+
+  await t.test('poster route reuses a complete image and rejects non-image responses', async () => {
+    let calls = 0;
+    axios.get = async (_url, options) => {
+      calls++;
+      assert.equal(options.responseType, 'arraybuffer');
+      assert.equal(options.maxContentLength, 8 * 1024 * 1024);
+      return { data: Buffer.from('poster'), headers: { 'content-type': 'image/jpeg' } };
+    };
+    const params = { size: 'w342', 0: 'cache-test.jpg' };
+    const [a, b] = await Promise.all([
+      request('/movies/assets/:size/*', params),
+      request('/movies/assets/:size/*', params)
+    ]);
+    assert.equal(a.toString(), 'poster');
+    assert.deepEqual(a, b);
+    assert.equal(calls, 1);
+    axios.get = async () => ({ data: Buffer.from('error'), headers: { 'content-type': 'text/html' } });
+    await assert.rejects(request('/movies/assets/:size/*', { size: 'w342', 0: 'bad.jpg' }), /Invalid movie image/);
+  });
 
   await t.test('simultaneous catalog misses share one upstream request and cache the result', async () => {
     let calls = 0;
