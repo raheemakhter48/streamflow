@@ -1,10 +1,10 @@
 export const lockLandscape = async () => {
   const orientation = screen.orientation as ScreenOrientation & {
-    lock?: (orientation: OrientationLockType) => Promise<void>;
+    lock?: (orientation: "landscape") => Promise<void>;
   };
 
   try {
-    await orientation.lock?.("landscape");
+    await orientation?.lock?.("landscape");
   } catch {
     // Orientation lock support varies by browser and requires fullscreen/PWA.
   }

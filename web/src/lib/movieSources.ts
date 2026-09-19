@@ -1,14 +1,12 @@
 export const SOURCES = [
   {
-    id: "vidsrc",
-    label: "VidSrc",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, isHindi = false) => {
+    id: "vidlink",
+    label: "VidLink",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
       if (type === "tv") {
-        const path = `${tmdbId || imdbId}/${season}/${episode}`;
-        return isHindi ? `https://vidsrc.pro/embed/tv/${path}` : `https://vidsrc.cc/v2/embed/tv/${path}`;
+        return `https://vidlink.pro/tv/${tmdbId || imdbId}/${season}/${episode}`;
       }
-      const path = tmdbId ? `${tmdbId}` : `${imdbId}`;
-      return isHindi ? `https://vidsrc.pro/embed/movie/${path}` : `https://vidsrc.xyz/embed/movie/${path}`;
+      return `https://vidlink.pro/movie/${tmdbId || imdbId}`;
     },
   },
   {
@@ -65,4 +63,4 @@ export const SOURCES = [
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "2embed";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "vidlink";

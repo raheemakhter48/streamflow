@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Play, Maximize2, RefreshCw, Mic, Globe } from "lucide-react";
-import { lockLandscape } from "@/lib/orientation";
+import { useEffect, useRef, useState } from "react";
+import { Play, Maximize2, Minimize2, RefreshCw, Mic, Globe } from "lucide-react";
+import { lockLandscape, unlockOrientation } from "@/lib/orientation";
+import { enterPlayerFullscreen, exitPlayerFullscreen, ownsPlayerFullscreen } from "@/lib/playerFullscreen";
 
 // ---------------------------------------------------------------------------
 // Stream source definitions — supports Movie & TV Series (Seasons + Episodes) + Hindi Dubbed Auto-Shift
@@ -28,6 +29,49 @@ const MoviePlayer = ({
   const [audioMode, setAudioMode]       = useState<"original" | "hindi">("original");
   const [isLoaded, setIsLoaded]         = useState(false);
   const [iframeKey, setIframeKey]       = useState(0);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const isExpanded = nativeFullscreen || expanded;
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      const active = !!playerRef.current && ownsPlayerFullscreen(playerRef.current);
+      setNativeFullscreen(active);
+      if (!active) unlockOrientation();
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  useEffect(() => {
+    if (!expanded) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+      unlockOrientation();
+    };
+  }, [expanded]);
+
+  const toggleFullscreen = async () => {
+    const player = playerRef.current;
+    if (!player) return;
+    if (isExpanded) {
+      try { await exitPlayerFullscreen(player); } catch { /* Browser may already be exiting. */ }
+      setExpanded(false);
+      return;
+    }
+    const entered = await enterPlayerFullscreen(player);
+    if (playerRef.current !== player) return;
+    if (!entered) setExpanded(true);
+    else await lockLandscape();
+  };
 
   const currentSource = SOURCES.find((s) => s.id === activeSource)!;
   const isHindi = audioMode === "hindi";
@@ -79,14 +123,18 @@ const MoviePlayer = ({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl">
+    <div
+      ref={playerRef}
+      className={`overflow-hidden border border-white/10 bg-black shadow-2xl ${isExpanded ? 'fixed inset-0 z-[2147483647] flex h-[100dvh] w-screen flex-col' : 'rounded-2xl'}`}
+    >
       {/* Header bar with Source Tabs & 1-Click Hindi Dubbed Switcher */}
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-x-auto">
           <SourceTabs active={activeSource} onChange={handleSourceChange} />
           <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
         </div>
 
+        <div className="ml-2 flex shrink-0 items-center gap-1">
         <button
           type="button"
           onClick={handleReload}
@@ -95,9 +143,20 @@ const MoviePlayer = ({
         >
           <RefreshCw className="h-4 w-4" />
         </button>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          title={isExpanded ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-label={isExpanded ? 'Exit fullscreen' : 'Fullscreen'}
+          aria-pressed={isExpanded}
+          className="rounded-full p-2 text-white transition hover:bg-white/10"
+        >
+          {isExpanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+        </button>
+        </div>
       </div>
 
-      <div className="relative aspect-video w-full">
+      <div className={`relative w-full ${isExpanded ? 'min-h-0 flex-1' : 'aspect-video'}`}>
         <iframe
           key={iframeKey}
           src={embedUrl}
@@ -109,21 +168,9 @@ const MoviePlayer = ({
           referrerPolicy="origin"
         />
 
-        <button
-          type="button"
-          onClick={async () => {
-            const el = document.querySelector(`iframe[title="${title} — ${currentSource.label}"]`) as HTMLIFrameElement | null;
-            await el?.requestFullscreen?.();
-            await lockLandscape();
-          }}
-          className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white opacity-0 transition hover:opacity-100 focus:opacity-100 backdrop-blur-md"
-          title="Fullscreen"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </button>
       </div>
 
-      <p className="px-4 py-2 text-[10px] text-white/40 flex items-center justify-between">
+      <p className="shrink-0 px-4 py-2 text-[10px] text-white/40 flex items-center justify-between">
         <span>
           Stream provided by <span className="text-white/70 font-bold">{currentSource.label}</span>. If playback fails, switch sources above.
         </span>

@@ -21,6 +21,12 @@ test('2Embed receives TV ID, season and episode using its embedtv route', () => 
 });
 
 test('default source points to the corrected provider and all tabs remain available', () => {
-  assert.equal(DEFAULT_MOVIE_SOURCE, '2embed');
-  assert.deepEqual(SOURCES.map((item) => item.id), ['vidsrc', 'smashy', 'moviesapi', 'autoembed', '2embed', 'videasy']);
+  assert.equal(DEFAULT_MOVIE_SOURCE, 'vidlink');
+  assert.deepEqual(SOURCES.map((item) => item.id), ['vidlink', 'smashy', 'moviesapi', 'autoembed', '2embed', 'videasy']);
+});
+
+test('VidLink builds proper movie and tv urls', () => {
+  const vl = SOURCES.find((item) => item.id === 'vidlink');
+  assert.equal(vl.buildUrl('tt0172495', 98), 'https://vidlink.pro/movie/98');
+  assert.equal(vl.buildUrl('tt0944947', 1399, 'tv', 1, 2), 'https://vidlink.pro/tv/1399/1/2');
 });
