@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Maximize2, Minimize2, RefreshCw, Mic, Globe } from "lucide-react";
+import { Play, Maximize2, Minimize2, RefreshCw, Mic } from "lucide-react";
 import { lockLandscape, unlockOrientation } from "@/lib/orientation";
 import { enterPlayerFullscreen, exitPlayerFullscreen, ownsPlayerFullscreen } from "@/lib/playerFullscreen";
 
 // ---------------------------------------------------------------------------
-// Stream source definitions — supports Movie & TV Series (Seasons + Episodes) + Hindi Dubbed Auto-Shift
+// Stream source definitions — supports Movie & TV Series (Seasons + Episodes)
 // ---------------------------------------------------------------------------
 import { SOURCES, DEFAULT_MOVIE_SOURCE, type SourceId } from "@/lib/movieSources";
 
@@ -28,7 +28,6 @@ const MoviePlayer = ({
   title = "Media Player"
 }: MoviePlayerProps) => {
   const [activeSource, setActiveSource] = useState<SourceId>(DEFAULT_MOVIE_SOURCE);
-  const [audioMode, setAudioMode]       = useState<"original" | "hindi">("original");
   const [isLoaded, setIsLoaded]         = useState(false);
   const [iframeKey, setIframeKey]       = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -78,24 +77,21 @@ const MoviePlayer = ({
   const currentSource = verifiedHindiUrl
     ? { label: 'Hindi Dubbed', buildUrl: () => verifiedHindiUrl }
     : SOURCES.find((s) => s.id === activeSource)!;
-  const isHindi = !!verifiedHindiUrl || audioMode === "hindi";
+  const isHindi = !!verifiedHindiUrl;
 
   const embedUrl = (() => {
     return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
+  })();
+  const restrictPopups = (() => {
+    try {
+      const url = new URL(embedUrl);
+      return url.protocol === 'https:' && ['screenscape.me', 'flix.screenscape.me', 'embed.screenscape.me'].includes(url.hostname);
+    } catch { return false; }
   })();
 
   const handleSourceChange = (id: SourceId) => {
     if (id === activeSource) return;
     setActiveSource(id);
-    setIframeKey((k) => k + 1);
-  };
-
-  const handleAudioModeChange = (mode: "original" | "hindi") => {
-    if (mode === audioMode) return;
-    setAudioMode(mode);
-    if (mode === "hindi") {
-      setActiveSource("screenscape");
-    }
     setIframeKey((k) => k + 1);
   };
 
@@ -106,8 +102,7 @@ const MoviePlayer = ({
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#1C1C1E] shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2 bg-black/40">
           {verifiedHindiUrl ? <span className="text-sm font-bold">Hindi Dubbed</span> : <>
-            <SourceTabs active={activeSource} onChange={handleSourceChange} />
-            <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+            <ServerSelect active={activeSource} onChange={handleSourceChange} />
           </>}
         </div>
 
@@ -133,12 +128,11 @@ const MoviePlayer = ({
       ref={playerRef}
       className={`overflow-hidden border border-white/10 bg-black shadow-2xl ${isExpanded ? 'fixed inset-0 z-[2147483647] flex h-[100dvh] w-screen flex-col' : 'rounded-2xl'}`}
     >
-      {/* Header bar with Source Tabs & 1-Click Hindi Dubbed Switcher */}
+      {/* Server selection and playback controls */}
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-x-auto">
           {verifiedHindiUrl ? <span className="text-sm font-bold">Hindi Dubbed</span> : <>
-            <SourceTabs active={activeSource} onChange={handleSourceChange} />
-            <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+            <ServerSelect active={activeSource} onChange={handleSourceChange} />
           </>}
         </div>
 
@@ -166,8 +160,11 @@ const MoviePlayer = ({
 
       <div className={`relative w-full ${isExpanded ? 'min-h-0 flex-1' : 'aspect-video'}`}>
         <iframe
-          key={iframeKey}
+          key={`${iframeKey}-${restrictPopups}`}
           src={embedUrl}
+          // Keep scripts/media functional, but do not grant popup, download,
+          // or top-navigation permissions to ScreenScape or its nested frames.
+          sandbox={restrictPopups ? 'allow-scripts allow-same-origin allow-forms allow-presentation' : undefined}
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -192,65 +189,26 @@ const MoviePlayer = ({
   );
 };
 
-const SourceTabs = ({
+const ServerSelect = ({
   active,
   onChange,
 }: {
   active: SourceId;
   onChange: (id: SourceId) => void;
 }) => (
-  <div className="flex gap-1.5 p-1">
-    {SOURCES.map((source) => (
-      <button
-        key={source.id}
-        type="button"
-        onClick={() => onChange(source.id)}
-        className={`rounded-full px-3.5 py-1 text-xs font-extrabold transition ${
-          active === source.id
-            ? "bg-white text-black shadow-md"
-            : "text-white/60 hover:bg-white/10 hover:text-white"
-        }`}
-      >
-        {source.label}
-      </button>
-    ))}
-  </div>
-);
-
-const AudioModeTabs = ({
-  active,
-  onChange,
-}: {
-  active: "original" | "hindi";
-  onChange: (mode: "original" | "hindi") => void;
-}) => (
-  <div className="flex gap-1 rounded-full border border-white/15 bg-white/10 p-1">
-    <button
-      type="button"
-      onClick={() => onChange("original")}
-      className={`rounded-full px-3 py-1 text-xs font-extrabold flex items-center gap-1.5 transition ${
-        active === "original"
-          ? "bg-white text-black shadow-md"
-          : "text-white/70 hover:text-white"
-      }`}
+  <label className="flex min-w-0 items-center gap-2 text-xs font-bold text-white/80">
+    <span>Server</span>
+    <select
+      aria-label="Server"
+      value={active}
+      onChange={(event) => onChange(event.target.value as SourceId)}
+      className="min-w-0 max-w-[220px] rounded-full border border-white/15 bg-[#1C1C1E] px-3 py-2 text-xs font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60"
     >
-      <Globe className="h-3.5 w-3.5" />
-      Original
-    </button>
-
-    <button
-      type="button"
-      onClick={() => onChange("hindi")}
-      className={`rounded-full px-3 py-1 text-xs font-extrabold flex items-center gap-1.5 transition ${
-        active === "hindi"
-          ? "bg-amber-400 text-black font-black shadow-lg shadow-amber-400/20 scale-105"
-          : "text-amber-300 hover:text-amber-200 hover:bg-white/10"
-      }`}
-    >
-      <Mic className="h-3.5 w-3.5" />
-      Hindi Dubbed
-    </button>
-  </div>
+      {SOURCES.map((source) => (
+        <option key={source.id} value={source.id}>{source.label}</option>
+      ))}
+    </select>
+  </label>
 );
 
 export default MoviePlayer;
