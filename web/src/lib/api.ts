@@ -14,6 +14,17 @@ const getToken = () => {
   return localStorage.getItem('auth_token');
 };
 
+// A second tab can change accounts while this tab still renders private data.
+window.addEventListener('storage', (event) => {
+  if (event.key === 'auth_token' || event.key === null) window.location.reload();
+});
+
+const setAuthToken = (token: string) => {
+  localStorage.removeItem('streamflow_recently_watched_movies');
+  localStorage.removeItem('guest_name');
+  localStorage.setItem('auth_token', token);
+};
+
 export const ADMIN_SESSION_STORAGE_KEY = 'streamflow_admin_session';
 
 const getAdminSessionToken = () => {
@@ -50,6 +61,7 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -71,6 +83,10 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
 
   const data = await response.json();
 
+  if (token !== getToken() && !['/auth/login', '/auth/register', '/auth/guest'].includes(endpoint)) {
+    throw new Error('Account changed. Please retry.');
+  }
+
   if (!response.ok) {
     throw new Error(data.message || 'Request failed');
   }
@@ -89,7 +105,7 @@ export const authAPI = {
     });
     const token = data.token || data.data?.token;
     if (token) {
-      localStorage.setItem('auth_token', token);
+      setAuthToken(token);
     }
     return data;
   },
@@ -101,7 +117,7 @@ export const authAPI = {
     });
     const token = data.token || data.data?.token;
     if (token) {
-      localStorage.setItem('auth_token', token);
+      setAuthToken(token);
     }
     return data;
   },
@@ -113,7 +129,7 @@ export const authAPI = {
     });
     const token = data.token || data.data?.token;
     if (token) {
-      localStorage.setItem('auth_token', token);
+      setAuthToken(token);
     }
     if (data.user?.name) {
       localStorage.setItem('guest_name', data.user.name);
@@ -122,6 +138,7 @@ export const authAPI = {
   },
 
   logout: () => {
+    localStorage.removeItem('streamflow_recently_watched_movies');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('guest_name');
   },
@@ -366,6 +383,7 @@ export const movieAPI = {
     region?: string;
     country?: string;
     sort?: string;
+    audio?: 'hindi_dubbed';
   } = {}, refresh = false) => {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -376,9 +394,10 @@ export const movieAPI = {
     return catalogRequest(`/movies?${searchParams.toString()}`, refresh);
   },
 
-  getMovie: async (movieId: string, region = 'PK', refresh = false) => {
+  getMovie: async (movieId: string, region = 'PK', refresh = false, audio?: 'hindi_dubbed') => {
     const searchParams = new URLSearchParams({ region });
-    return catalogRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`, refresh);
+    if (audio) searchParams.set('audio', audio);
+    return catalogRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`, refresh || !!audio);
   },
 };
 

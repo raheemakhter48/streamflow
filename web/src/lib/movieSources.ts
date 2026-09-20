@@ -1,5 +1,22 @@
 export const SOURCES = [
   {
+    id: "screenscape",
+    label: "ScreenScape",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
+      const params = new URLSearchParams();
+      if (tmdbId) params.set("tmdb", String(tmdbId));
+      else if (imdbId) params.set("imdb", imdbId);
+      params.set("type", type);
+      if (type === "tv") {
+        params.set("s", String(season));
+        params.set("e", String(episode));
+      }
+      // This is a language preference, not proof of an available audio track.
+      params.set("lan", hindi ? "hindi" : "eng");
+      return `https://screenscape.me/embed?${params.toString()}`;
+    },
+  },
+  {
     id: "vidlink",
     label: "VidLink",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {

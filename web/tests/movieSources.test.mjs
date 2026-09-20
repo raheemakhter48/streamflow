@@ -22,11 +22,19 @@ test('2Embed receives TV ID, season and episode using its embedtv route', () => 
 
 test('default source points to the corrected provider and all tabs remain available', () => {
   assert.equal(DEFAULT_MOVIE_SOURCE, 'vidlink');
-  assert.deepEqual(SOURCES.map((item) => item.id), ['vidlink', 'smashy', 'moviesapi', 'autoembed', '2embed', 'videasy']);
+  assert.deepEqual(SOURCES.map((item) => item.id), ['screenscape', 'vidlink', 'smashy', 'moviesapi', 'autoembed', '2embed', 'videasy']);
 });
 
 test('VidLink builds proper movie and tv urls', () => {
   const vl = SOURCES.find((item) => item.id === 'vidlink');
   assert.equal(vl.buildUrl('tt0172495', 98), 'https://vidlink.pro/movie/98');
   assert.equal(vl.buildUrl('tt0944947', 1399, 'tv', 1, 2), 'https://vidlink.pro/tv/1399/1/2');
+});
+
+test('ScreenScape preserves movie identity and requests Hindi audio', () => {
+  const source = SOURCES.find((item) => item.id === 'screenscape');
+  assert.equal(source.buildUrl(undefined, 98, 'movie', 1, 1, true), 'https://screenscape.me/embed?tmdb=98&type=movie&lan=hindi');
+  assert.equal(source.buildUrl('tt0172495', undefined, 'movie', 1, 1, true), 'https://screenscape.me/embed?imdb=tt0172495&type=movie&lan=hindi');
+  assert.equal(source.buildUrl(undefined, 1399, 'tv', 2, 3, true), 'https://screenscape.me/embed?tmdb=1399&type=tv&s=2&e=3&lan=hindi');
+  assert.equal(new URL(source.buildUrl(undefined, 98)).searchParams.get('lan'), 'eng');
 });

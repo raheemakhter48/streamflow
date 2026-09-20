@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock, Film, Loader2, Play, Info, Sparkles, Star } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { movieAPI } from "@/lib/api";
+import { readMovieHistory, clearMovieHistory } from "@/lib/movieHistory";
 import { toast } from "sonner";
 
 interface MovieCategory {
@@ -47,7 +48,8 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const [selectedRegion, setSelectedRegion] = useState(() => {
     return localStorage.getItem(MOVIE_REGION_STORAGE_KEY) || "US";
   });
-  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "popular" | "top_rated">("popular");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "popular" | "top_rated" | "hindi_dubbed">("popular");
+  const isHindiDubbed = sortOrder === "hindi_dubbed";
   const [movies, setMovies] = useState<MovieCard[]>([]);
   const [heroMovies, setHeroMovies] = useState<MovieCard[]>([]);
   const [recentlyWatchedMovies, setRecentlyWatchedMovies] = useState<any[]>([]);
@@ -90,13 +92,13 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
 
   useEffect(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem("streamflow_recently_watched_movies") || "[]");
+      const stored = readMovieHistory();
       setRecentlyWatchedMovies(stored);
     } catch { /* ignore */ }
   }, [location.search, reloadKey]);
 
   const clearRecentlyWatchedMovies = () => {
-    localStorage.removeItem("streamflow_recently_watched_movies");
+    clearMovieHistory();
     setRecentlyWatchedMovies([]);
     toast.success("Watch history cleared");
   };
@@ -126,8 +128,9 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
       query: searchQuery.trim() || undefined,
       region: selectedRegion,
       country: selectedRegion !== "US" ? selectedRegion : undefined,
-      sort: sortOrder,
-    }, reloadKey > 0)
+      sort: isHindiDubbed ? undefined : sortOrder,
+      audio: isHindiDubbed ? 'hindi_dubbed' : undefined,
+    }, reloadKey > 0 || isHindiDubbed)
       .then((response) => {
         if (cancelled) return;
         setMovies(response.data || []);
@@ -149,7 +152,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, selectedCategory, selectedRegion, sortOrder, reloadKey]);
+  }, [page, searchQuery, selectedCategory, selectedRegion, sortOrder, reloadKey, isHindiDubbed]);
 
   useEffect(() => {
     localStorage.setItem(MOVIE_REGION_STORAGE_KEY, selectedRegion);
@@ -158,6 +161,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   const openMovie = (movieId: number) => {
     const params = new URLSearchParams();
     params.set("region", selectedRegion);
+    if (isHindiDubbed) params.set('audio', 'hindi_dubbed');
     params.set("from", `${location.pathname}${location.search}`);
     const movie = [...movies, ...heroMovies, ...recentlyWatchedMovies].find((item) => item.id === movieId);
     navigate(`/movie/${movieId}?${params.toString()}`, { state: { movie } });
@@ -169,7 +173,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
   return (
     <section className="pb-12">
       {/* Category Pills (Apple TV style) */}
-      <div className="mb-6 overflow-x-auto pb-1 scrollbar-hide">
+      <div hidden={isHindiDubbed} className="mb-6 overflow-x-auto pb-1 scrollbar-hide">
         <div className="flex gap-2.5">
           {categories.map((category) => (
             <button
@@ -189,7 +193,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
       </div>
 
       {/* Apple TV+ Widescreen Hero Showcase Banner */}
-      {!searchQuery && featuredHero && (
+      {!isHindiDubbed && !searchQuery && featuredHero && (
         <div className="relative mb-10 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0C0D12] shadow-2xl transition-all duration-700">
           <div className="relative aspect-[16/9] min-h-[360px] max-h-[520px] w-full overflow-hidden">
             {/* Backdrop Image */}
@@ -301,7 +305,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
       )}
 
       {/* Recently Watched Movies Row */}
-      {recentlyWatchedMovies.length > 0 && !searchQuery && (
+      {!isHindiDubbed && recentlyWatchedMovies.length > 0 && !searchQuery && (
         <div className="mb-8 rounded-3xl border border-white/10 bg-[#1C1C1E]/60 backdrop-blur-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -364,7 +368,7 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         <div>
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Movie Catalog</p>
           <h2 className="text-2xl font-black text-white sm:text-3xl tracking-tight">
-            {searchQuery ? `Results for “${searchQuery}”` : "Movies & Specials"}
+            {isHindiDubbed ? "Hindi Dubbed Movies" : searchQuery ? `Results for “${searchQuery}”` : "Movies & Specials"}
           </h2>
           <p className="mt-0.5 text-xs text-white/40">
             {MOVIE_REGIONS.find((region) => region.code === selectedRegion)?.name || selectedRegion}
@@ -375,19 +379,20 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
           <div className="relative">
             <select
               value={sortOrder}
-              onChange={(event) => setSortOrder(event.target.value as any)}
+              onChange={(event) => { setMovies([]); setLoading(true); setSortOrder(event.target.value as typeof sortOrder); setPage(1); }}
               className="h-10 rounded-full border border-white/15 bg-[#1C1C1E] px-4 text-xs font-bold text-white outline-none transition-all hover:bg-[#2C2C2E] cursor-pointer"
-              aria-label="Sort movies by release date"
+              aria-label="Movie sort or language collection"
             >
               <option value="newest" className="bg-[#1C1C1E] text-white py-1">🆕 Newest First (Latest)</option>
               <option value="oldest" className="bg-[#1C1C1E] text-white py-1">📜 Oldest First (Classic)</option>
               <option value="popular" className="bg-[#1C1C1E] text-white py-1">🔥 Most Popular</option>
               <option value="top_rated" className="bg-[#1C1C1E] text-white py-1">⭐ Top Rated</option>
+              <option value="hindi_dubbed" className="bg-[#1C1C1E] text-white py-1">Hindi Dubbed</option>
             </select>
           </div>
 
           {/* Region / Country Dropdown */}
-          <div className="relative">
+          <div hidden={isHindiDubbed} className="relative">
             <select
               value={selectedRegion}
               onChange={(event) => setSelectedRegion(event.target.value)}
@@ -405,7 +410,13 @@ const MovieBrowser = ({ searchQuery = "" }: MovieBrowserProps) => {
         </div>
       </div>
 
-      {loading && !hasLoadedOnce ? (
+      {isHindiDubbed && !loading && !loadError && movies.length === 0 ? (
+        <div role="status" className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+          <Film className="h-12 w-12 text-white/30" />
+          <p className="text-sm font-bold text-white">Hindi-dubbed movies are not available yet</p>
+          <p className="max-w-md text-xs text-white/50">Movies will appear here once their Hindi audio and playback have been verified.</p>
+        </div>
+      ) : loading && !hasLoadedOnce ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 2xl:grid-cols-6">
           {Array.from({ length: 12 }).map((_, index) => (
             <div key={index} className="enterprise-card animate-pulse overflow-hidden rounded-2xl border border-white/10 bg-[#1C1C1E]">

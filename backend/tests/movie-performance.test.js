@@ -19,6 +19,15 @@ test('movie loading performance and fallback behavior', async (t) => {
   const originalGet = axios.get;
   t.after(() => { axios.get = originalGet; });
 
+  await t.test('missing Hindi entries never fall back to popular movies or an unverified player', async () => {
+    axios.get = async () => { throw new Error('Should not call TMDB for an empty Hindi catalog'); };
+    const list = await request('/movies', {}, { audio: 'hindi_dubbed', query: '__missing_test_movie_63a1297__' });
+    assert.deepEqual(list.data, []);
+    const missing = await request('/movie/:id', { id: '9007199254740991' }, { audio: 'hindi_dubbed' });
+    assert.equal(missing.success, false);
+    assert.match(missing.message, /Verified Hindi playback is not available/);
+  });
+
   await t.test('movie and series pagination keep distinct pages and retry a failed page without resetting', async () => {
     const calls = [];
     axios.get = async (url, options) => {

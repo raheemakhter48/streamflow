@@ -4,6 +4,7 @@ import axios from 'axios';
 import { protect } from '../middleware/auth.js';
 import { createCatalogCache } from '../lib/catalogCache.js';
 import { createImageCache } from '../lib/imageCache.js';
+import { readHindiMovies } from '../lib/hindiCatalog.js';
 
 const router = express.Router();
 const imageCache = createImageCache();
@@ -268,6 +269,21 @@ router.get('/movies', protect, async (req, res, next) => {
     const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
     const countryParam = String(req.query.country || '').trim().toUpperCase().slice(0, 2);
     const sort = String(req.query.sort || '').trim().toLowerCase();
+    if (req.query.audio === 'hindi_dubbed') {
+      const entries = (await readHindiMovies()).filter((entry) => entry.title.toLowerCase().includes(query.toLowerCase()));
+      const selected = entries.slice((page - 1) * 20, page * 20);
+      const cards = [];
+      // Limit simultaneous upstream requests on a cold curated catalog.
+      for (let offset = 0; offset < selected.length; offset += 4) {
+        const batch = await Promise.all(selected.slice(offset, offset + 4).map(async (entry) => {
+          const details = await tmdbGet(`/movie/${entry.tmdbId}`, { language: 'en-US' });
+          return { ...normalizeMovieCard(details), audioLanguage: 'hi' };
+        }));
+        cards.push(...batch);
+      }
+      res.set('Cache-Control', 'no-store');
+      return res.json({ success: true, data: cards, page, totalPages: Math.max(1, Math.ceil(entries.length / 20)), totalResults: entries.length });
+    }
     const originCountry = /^[A-Z]{2}$/.test(countryParam)
       ? countryParam
       : (/^[A-Z]{2}$/.test(region) && region !== 'US' ? region : '');
@@ -316,6 +332,11 @@ router.get('/movie/:id', protect, async (req, res, next) => {
 
     const region = String(req.query.region || 'US').trim().toUpperCase().slice(0, 2);
     let details;
+    const hindiEntry = req.query.audio === 'hindi_dubbed'
+      ? (await readHindiMovies()).find((entry) => entry.tmdbId === movieId) : null;
+    if (req.query.audio === 'hindi_dubbed' && !hindiEntry) {
+      return res.status(404).json({ success: false, message: 'Verified Hindi playback is not available for this movie' });
+    }
     let externalIds = {};
     let videos = [];
     let watchProviderResults = {};
@@ -342,11 +363,12 @@ router.get('/movie/:id', protect, async (req, res, next) => {
     ) || videos.find((video) => video.site === 'YouTube' && video.type === 'Trailer');
     const regionProviders = watchProviderResults?.[region] || {};
 
-    res.set('Cache-Control', 'private, max-age=300');
+    res.set('Cache-Control', hindiEntry ? 'no-store' : 'private, max-age=300');
     return res.json({
       success: true,
       data: {
         id: details.id,
+        hindiPlayback: hindiEntry ? { playerUrl: hindiEntry.playerUrl, verifiedAt: hindiEntry.verifiedAt } : null,
         imdbId: imdbId || externalIds?.imdb_id || null,
         title: details.title,
         originalTitle: details.original_title,

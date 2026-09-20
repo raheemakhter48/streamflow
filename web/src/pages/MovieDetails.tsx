@@ -6,6 +6,7 @@ import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
 import SEO from "@/components/SEO";
 import { movieAPI, recentlyWatchedAPI } from "@/lib/api";
+import { saveMovieHistory } from "@/lib/movieHistory";
 import { useSidebar } from "@/context/SidebarContext";
 
 interface WatchProvider {
@@ -26,6 +27,7 @@ interface WatchProviders {
 }
 
 interface MovieDetailsData {
+  hindiPlayback?: { playerUrl: string; verifiedAt: string } | null;
   id: number;
   imdbId?: string | null;
   title: string;
@@ -37,12 +39,9 @@ interface MovieDetailsData {
   watchProviders?: WatchProviders;
 }
 
-const saveRecentlyWatchedMovie = (m: MovieDetailsData) => {
+const saveRecentlyWatchedMovie = (m: MovieDetailsData, token: string | null) => {
   try {
-    const key = "streamflow_recently_watched_movies";
-    const existing = JSON.parse(localStorage.getItem(key) || "[]");
-    const filtered = existing.filter((item: any) => item.id !== m.id);
-    const updated = [
+    saveMovieHistory(
       {
         id: m.id,
         title: m.title,
@@ -51,10 +50,7 @@ const saveRecentlyWatchedMovie = (m: MovieDetailsData) => {
         rating: m.rating,
         releaseDate: m.releaseDate,
         watchedAt: new Date().toISOString(),
-      },
-      ...filtered,
-    ].slice(0, 15);
-    localStorage.setItem(key, JSON.stringify(updated));
+      }, token);
   } catch { /* ignore */ }
 };
 
@@ -89,9 +85,10 @@ const MovieDetails = () => {
   const preview = location.state?.movie as MovieDetailsData | undefined;
   const { collapsed } = useSidebar();
   const [searchParams] = useSearchParams();
+  const hindiMode = searchParams.get('audio') === 'hindi_dubbed';
   const region = searchParams.get("region") || localStorage.getItem("streamflow_movie_region") || "US";
   const from = searchParams.get("from") || "/dashboard?view=movie";
-  const [movie, setMovie] = useState<MovieDetailsData | null>(() => preview?.id === Number(id) ? preview : null);
+  const [movie, setMovie] = useState<MovieDetailsData | null>(() => !hindiMode && preview?.id === Number(id) ? preview : null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
@@ -107,15 +104,16 @@ const MovieDetails = () => {
 
   useEffect(() => {
     let cancelled = false;
-    setMovie(preview?.id === Number(id) ? preview : null);
+    const requestToken = localStorage.getItem('auth_token');
+    setMovie(!hindiMode && preview?.id === Number(id) ? preview : null);
     setLoading(true);
     setError("");
 
-    movieAPI.getMovie(id, region, reloadKey > 0)
+    movieAPI.getMovie(id, region, reloadKey > 0, hindiMode ? 'hindi_dubbed' : undefined)
       .then((response) => {
-        if (!cancelled && response.data) {
+        if (!cancelled && requestToken === localStorage.getItem('auth_token') && response.data) {
           setMovie(response.data);
-          saveRecentlyWatchedMovie(response.data);
+          saveRecentlyWatchedMovie(response.data, requestToken);
           recentlyWatchedAPI.addRecentlyWatched({
             channelName: response.data.title,
             channelUrl: `/movie/${response.data.id}`,
@@ -134,7 +132,7 @@ const MovieDetails = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, region, reloadKey, preview]);
+  }, [id, region, reloadKey, preview, hindiMode]);
 
   if (loading && !movie) {
     return (
@@ -206,7 +204,12 @@ const MovieDetails = () => {
           </div>
         </div>
 
-        <MoviePlayer imdbId={movie.imdbId || undefined} tmdbId={movie.id} title={movie.title} />
+        {hindiMode && !movie.hindiPlayback ? (
+          <p role="alert" className="p-8 text-center">Verified Hindi playback is not available for this movie.</p>
+        ) : (
+          <MoviePlayer key={`${movie.id}-${hindiMode}`} imdbId={movie.imdbId || undefined} tmdbId={movie.id} title={movie.title}
+            verifiedHindiUrl={hindiMode ? movie.hindiPlayback?.playerUrl : undefined} />
+        )}
         {error && <p role="status" className="mt-3 text-sm text-white/60">Extra movie details could not load. <button className="underline" onClick={() => setReloadKey((current) => current + 1)}>Retry details</button></p>}
 
         {movie.watchProviders && (

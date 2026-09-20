@@ -3,6 +3,10 @@ import { protect } from '../middleware/auth.js';
 import supabase from '../config/supabase.js';
 
 const router = express.Router();
+router.use((_req, res, next) => {
+  res.set('Cache-Control', 'private, no-store');
+  next();
+});
 
 const getCurrentIptvChannelsByName = async (names = []) => {
   const uniqueNames = [...new Set(names.filter(Boolean))];

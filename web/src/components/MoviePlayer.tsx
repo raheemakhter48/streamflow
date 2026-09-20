@@ -9,6 +9,7 @@ import { enterPlayerFullscreen, exitPlayerFullscreen, ownsPlayerFullscreen } fro
 import { SOURCES, DEFAULT_MOVIE_SOURCE, type SourceId } from "@/lib/movieSources";
 
 interface MoviePlayerProps {
+  verifiedHindiUrl?: string;
   imdbId?: string;
   tmdbId?: number;
   type?: "movie" | "tv";
@@ -18,6 +19,7 @@ interface MoviePlayerProps {
 }
 
 const MoviePlayer = ({
+  verifiedHindiUrl,
   imdbId,
   tmdbId,
   type = "movie",
@@ -73,8 +75,10 @@ const MoviePlayer = ({
     else await lockLandscape();
   };
 
-  const currentSource = SOURCES.find((s) => s.id === activeSource)!;
-  const isHindi = audioMode === "hindi";
+  const currentSource = verifiedHindiUrl
+    ? { label: 'Hindi Dubbed', buildUrl: () => verifiedHindiUrl }
+    : SOURCES.find((s) => s.id === activeSource)!;
+  const isHindi = !!verifiedHindiUrl || audioMode === "hindi";
 
   const embedUrl = (() => {
     return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
@@ -90,7 +94,7 @@ const MoviePlayer = ({
     if (mode === audioMode) return;
     setAudioMode(mode);
     if (mode === "hindi") {
-      setActiveSource("smashy");
+      setActiveSource("screenscape");
     }
     setIframeKey((k) => k + 1);
   };
@@ -101,8 +105,10 @@ const MoviePlayer = ({
     return (
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#1C1C1E] shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-4 py-2 bg-black/40">
-          <SourceTabs active={activeSource} onChange={handleSourceChange} />
-          <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+          {verifiedHindiUrl ? <span className="text-sm font-bold">Hindi Dubbed</span> : <>
+            <SourceTabs active={activeSource} onChange={handleSourceChange} />
+            <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+          </>}
         </div>
 
         <button
@@ -130,8 +136,10 @@ const MoviePlayer = ({
       {/* Header bar with Source Tabs & 1-Click Hindi Dubbed Switcher */}
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-x-auto">
-          <SourceTabs active={activeSource} onChange={handleSourceChange} />
-          <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+          {verifiedHindiUrl ? <span className="text-sm font-bold">Hindi Dubbed</span> : <>
+            <SourceTabs active={activeSource} onChange={handleSourceChange} />
+            <AudioModeTabs active={audioMode} onChange={handleAudioModeChange} />
+          </>}
         </div>
 
         <div className="ml-2 flex shrink-0 items-center gap-1">
@@ -172,7 +180,7 @@ const MoviePlayer = ({
 
       <p className="shrink-0 px-4 py-2 text-[10px] text-white/40 flex items-center justify-between">
         <span>
-          Stream provided by <span className="text-white/70 font-bold">{currentSource.label}</span>. If playback fails, switch sources above.
+          {verifiedHindiUrl ? 'Hindi audio source. If playback fails, retry using Reload.' : <>Stream provided by <span className="text-white/70 font-bold">{currentSource.label}</span>. If playback fails, switch sources above.</>}
         </span>
         {isHindi && (
           <span className="text-amber-300 font-extrabold flex items-center gap-1">
