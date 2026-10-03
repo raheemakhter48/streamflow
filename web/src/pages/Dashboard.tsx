@@ -78,6 +78,16 @@ const getStoredDashboardFilters = () => {
   }
 };
 
+const RECENTLY_WATCHED_STORAGE_KEY = 'streamflow_cached_recently_watched';
+const getStoredRecentlyWatched = (): RecentlyWatched[] => {
+  try {
+    const raw = localStorage.getItem(RECENTLY_WATCHED_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
 const regionNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
 
 const getCountryDisplayName = (countryCode: string) => {
@@ -214,7 +224,7 @@ const Dashboard = () => {
     getDashboardView(searchParams.get("view"))
   );
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [recentlyWatched, setRecentlyWatched] = useState<RecentlyWatched[]>([]);
+  const [recentlyWatched, setRecentlyWatched] = useState<RecentlyWatched[]>(getStoredRecentlyWatched);
   const [regions, setRegions] = useState<IptvRegion[]>([]);
   const [availableCategories, setAvailableCategories] = useState<string[]>(["All"]);
   const [selectedRegion, setSelectedRegion] = useState(searchParams.get("region") || storedFilters.selectedRegion || "All");
@@ -464,21 +474,27 @@ const Dashboard = () => {
           .map(mapIptvOrgChannel)
           .filter(Boolean) as Channel[];
 
-      if (currentPage === 1) {
-        const playlistMatches = await loadPersonalPlaylistMatches();
-        mappedChannels = mergeUniqueChannels(mappedChannels, playlistMatches);
-      }
-
       if (requestId !== iptvOrgRequestId.current) {
         return;
       }
 
+      // Render database channels immediately so LCP is instant (<1s)
       setChannels(mappedChannels);
       setTotalChannels(isM3uFilter
         ? mappedChannels.length
         : (response.totalChannels || 0) + Math.max(0, mappedChannels.length - ((response.data || []).length)));
       setTotalPages(isM3uFilter ? 1 : response.totalPages || 0);
       setHasCredentials(true);
+      setIsLoading(false);
+
+      // Merge personal custom playlist in background only when on page 1 for M3U / All
+      if (currentPage === 1 && (isM3uFilter || selectedCategory === "All" || selectedCategory === M3U_CATEGORY_FILTER)) {
+        loadPersonalPlaylistMatches().then((playlistMatches) => {
+          if (playlistMatches.length > 0 && requestId === iptvOrgRequestId.current) {
+            setChannels((prev) => mergeUniqueChannels(prev, playlistMatches));
+          }
+        }).catch(() => {});
+      }
     } catch (error: any) {
       console.error("Error loading IPTV-org channels:", error);
       toast.error(error.message || "Failed to load region channels");
@@ -639,7 +655,9 @@ const Dashboard = () => {
           logo: logoMatch ? logoMatch[1] : undefined,
           group,
           type,
-          country: inferChannelCountry(channelName, group, countriesForInference),
+          country: countriesForInference.length > 0
+            ? inferChannelCountry(channelName, group, countriesForInference)
+            : undefined,
         };
       } else if (line && !line.startsWith("#") && currentChannel.name) {
         channels.push({
@@ -660,6 +678,7 @@ const Dashboard = () => {
     try {
       const list = await recentlyWatchedAPI.getRecentlyWatched();
       setRecentlyWatched(list);
+      localStorage.setItem(RECENTLY_WATCHED_STORAGE_KEY, JSON.stringify(list));
     } catch (error) { console.error(error); }
   };
 
@@ -730,9 +749,21 @@ const Dashboard = () => {
   const renderChannelGrid = () => {
     if (isLoading && channels.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
-          <Zap className="w-10 h-10 text-[#00D7E5] animate-pulse" />
-          <p className="text-gray-500 text-sm">Loading channels...</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 lg:gap-4">
+          {Array.from({ length: 18 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl border border-white/5 bg-[#1C1C1E]/60 overflow-hidden animate-pulse"
+            >
+              <div className="aspect-[4/3] sm:aspect-square bg-white/5 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-full bg-white/10" />
+              </div>
+              <div className="p-3 space-y-2">
+                <div className="h-4 bg-white/10 rounded w-3/4" />
+                <div className="h-3 bg-white/5 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
@@ -752,6 +783,7 @@ const Dashboard = () => {
           <ChannelCard
             key={`${channel.url}-${index}`}
             channel={channel}
+            priority={index < 6}
             isFavorite={favoriteUrls.has(channel.url)}
             onToggleFavorite={loadFavorites}
             returnTo={dashboardReturnUrl}

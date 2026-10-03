@@ -28,6 +28,7 @@ interface ChannelCardProps {
   selectable?: boolean;
   selected?: boolean;
   onSelect?: () => void;
+  priority?: boolean;
 }
 
 const ChannelCard = ({
@@ -38,6 +39,7 @@ const ChannelCard = ({
   selectable = false,
   selected = false,
   onSelect,
+  priority = false,
 }: ChannelCardProps) => {
   const navigate = useNavigate();
   const [localIsFavorite, setLocalIsFavorite] = useState(isFavorite);
@@ -117,9 +119,10 @@ const ChannelCard = ({
           <img
             src={channel.logo}
             alt={channel.name}
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : "auto"}
             decoding="async"
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
             onError={() => setImageError(true)}
           />
         ) : (
