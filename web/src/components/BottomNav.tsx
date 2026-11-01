@@ -34,7 +34,15 @@ const BottomNav = () => {
               active ? 'text-[#00D7E5]' : 'text-[#555] hover:text-[#888]'
             }`}
           >
-            <tab.icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.8} />
+            <div className="relative">
+              <tab.icon className="w-5 h-5" strokeWidth={active ? 2.5 : 1.8} />
+              {tab.label === 'Streams' && (
+                <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
+                </span>
+              )}
+            </div>
             <span className="text-[9px] font-bold uppercase tracking-wide">{tab.label}</span>
           </button>
         );

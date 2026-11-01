@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import https from 'https';
 import { ProxyAgent } from 'proxy-agent';
+import { fetchRealtimeMatches, scrapeMatchStreams } from '../services/liveMatchesService.js';
 
 const router = express.Router();
 
@@ -306,6 +307,39 @@ router.post('/resolve-multiple', async (req, res) => {
       ...results.filter((item) => !item.alive).map((item) => item.url)
     ]
   });
+});
+
+// @route GET /api/stream/live-matches
+// @desc  Get real-time live sports fixtures and streams (daily updated)
+router.get('/live-matches', async (req, res) => {
+  try {
+    const forceRefresh = req.query.refresh === 'true';
+    const matches = await fetchRealtimeMatches(forceRefresh);
+    res.json({
+      success: true,
+      count: matches.length,
+      data: matches,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route GET /api/stream/match-sources
+// @desc  Scrape real-time stream servers for a specific match
+router.get('/match-sources', async (req, res) => {
+  try {
+    const { url } = req.query;
+    if (!url) return res.status(400).json({ success: false, message: 'url query required' });
+    const sources = await scrapeMatchStreams(url);
+    res.json({
+      success: true,
+      count: sources.length,
+      data: sources,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 export default router;

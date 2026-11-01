@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Play, Radio, Calendar, Clock, Tv, ExternalLink, RefreshCw, Search, ShieldCheck, Plus } from "lucide-react";
+import { Play, Radio, Calendar, Clock, Tv, ExternalLink, RefreshCw, Search, ShieldCheck, Plus, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { StreamSourceEditor } from "@/components/admin/StreamSourceEditor";
 import { toast } from "sonner";
+import { liveStreamsAPI } from "@/lib/api";
 
 export interface MatchStreamSource {
   name: string;
@@ -28,15 +29,14 @@ export interface MatchFixture {
     flag: string;
     score?: string;
   };
-  startTime: string; // e.g. ISO string or readable
+  startTime: string; // e.g. "LIVE NOW" or "Today • 2:30 PM"
   liveDurationSeconds?: number;
   sources: MatchStreamSource[];
+  watchUrl?: string;
   iptvChannelQuery?: string; // e.g. "PTV Sports" or "Sky Sports"
 }
 
-import { memo } from "react";
-
-// Isolated live ticking badge so the parent page doesn't re-render every second
+// Isolated live ticking badge so parent page doesn't re-render every second
 const LiveDurationBadge = memo(({ baseSeconds = 0 }: { baseSeconds?: number }) => {
   const [ticks, setTicks] = useState(0);
   useEffect(() => {
@@ -50,274 +50,23 @@ const LiveDurationBadge = memo(({ baseSeconds = 0 }: { baseSeconds?: number }) =
   return <span>Live For : {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m {seconds.toString().padStart(2, "0")}s</span>;
 });
 
-// Curated live matches data replicating TFlix & MHDTV
-const INITIAL_MATCHES: MatchFixture[] = [
-  {
-    id: "match-1",
-    sport: "Cricket",
-    tournament: "ICC International Test",
-    status: "live",
-    team1: {
-      name: "South Africa",
-      flag: "🇿🇦",
-      score: "328/6 (94.2 ov)",
-    },
-    team2: {
-      name: "Australia",
-      flag: "🇦🇺",
-      score: "284 & 142/3",
-    },
-    startTime: "Today • 2:30 PM",
-    liveDurationSeconds: 14280,
-    iptvChannelQuery: "Sky Sports Cricket",
-    sources: [
-      { name: "Server 1 (Cricket Gold HD)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Willow Fast)", url: "https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8" },
-      { name: "Server 3 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p" },
-    ],
-  },
-  {
-    id: "match-2",
-    sport: "Cricket",
-    tournament: "WCL Cricket League T20 2026",
-    status: "live",
-    team1: {
-      name: "India Champions",
-      flag: "🇮🇳",
-      score: "192/4 (20.0)",
-    },
-    team2: {
-      name: "Pakistan Champions",
-      flag: "🇵🇰",
-      score: "148/3 (15.4)",
-    },
-    startTime: "Today • 4:00 PM",
-    liveDurationSeconds: 7850,
-    iptvChannelQuery: "PTV Sports",
-    sources: [
-      { name: "Server 1 (Cricket Gold HD)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Willow Fast)", url: "https://d36r8jifhgsk5j.cloudfront.net/Willow_TV.m3u8", quality: "720p 60fps" },
-      { name: "Server 3 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p" },
-    ],
-  },
-  {
-    id: "match-3",
-    sport: "Cricket",
-    tournament: "Women's Big Bash 2026",
-    status: "live",
-    team1: {
-      name: "Sydney Sixers",
-      flag: "🏏",
-      score: "156/5 (20.0)",
-    },
-    team2: {
-      name: "Melbourne Stars",
-      flag: "⭐",
-      score: "98/2 (11.1)",
-    },
-    startTime: "Today • 1:30 PM",
-    liveDurationSeconds: 11200,
-    iptvChannelQuery: "Sky Sports",
-    sources: [
-      { name: "Server 1 (Cricket Gold HD)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Willow Fast)", url: "https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8" },
-      { name: "Server 3 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p" },
-    ],
-  },
-  {
-    id: "match-4",
-    sport: "Cricket",
-    tournament: "ODI Tri-series in Pakistan",
-    status: "live",
-    team1: {
-      name: "England",
-      flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
-      score: "275/8 (50.0)",
-    },
-    team2: {
-      name: "Sri Lanka",
-      flag: "🇱🇰",
-      score: "189/5 (37.2)",
-    },
-    startTime: "Today • 2:00 PM",
-    liveDurationSeconds: 9800,
-    iptvChannelQuery: "A Sports HD",
-    sources: [
-      { name: "Server 1 (Cricket Gold HD)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Willow Fast)", url: "https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8" },
-      { name: "Server 3 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p" },
-    ],
-  },
-  {
-    id: "match-5",
-    sport: "Cricket",
-    tournament: "ICC Women's T20",
-    status: "live",
-    team1: {
-      name: "Afghanistan",
-      flag: "🇦🇫",
-      score: "142/7 (20.0)",
-    },
-    team2: {
-      name: "Zimbabwe",
-      flag: "🇿🇼",
-      score: "85/4 (12.3)",
-    },
-    startTime: "Today • 5:30 PM",
-    liveDurationSeconds: 4500,
-    iptvChannelQuery: "Willow",
-    sources: [
-      { name: "Server 1 (Cricket Gold HD)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Willow Fast)", url: "https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8" },
-    ],
-  },
-  {
-    id: "match-6",
-    sport: "Football",
-    tournament: "English Premier League",
-    status: "live",
-    team1: {
-      name: "Manchester City",
-      flag: "🔵",
-      score: "2",
-    },
-    team2: {
-      name: "Arsenal",
-      flag: "🔴",
-      score: "1",
-    },
-    startTime: "Today • 8:30 PM",
-    liveDurationSeconds: 3820,
-    iptvChannelQuery: "TNT Sports 1",
-    sources: [
-      { name: "Server 1 (TyC Sports HD)", url: "https://amg26268-amg26268c14-freelivesports-emea-10267.playouts.now.amagi.tv/ts-us-e2-n2/playlist/amg26268-sportsstudio-tycsports-freelivesportsemea/playlist.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (talkSPORT Live)", url: "https://af7a8b4e.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfdGFsa1NQT1JUX0hMUw/playlist.m3u8", quality: "720p" },
-    ],
-  },
-  {
-    id: "match-7",
-    sport: "Football",
-    tournament: "UEFA Champions League",
-    status: "live",
-    team1: {
-      name: "Real Madrid",
-      flag: "⚪",
-      score: "3",
-    },
-    team2: {
-      name: "Bayern Munich",
-      flag: "🔴",
-      score: "2",
-    },
-    startTime: "Today • 9:00 PM",
-    liveDurationSeconds: 4100,
-    iptvChannelQuery: "beIN Sports",
-    sources: [
-      { name: "Server 1 (TyC Sports HD)", url: "https://amg26268-amg26268c14-freelivesports-emea-10267.playouts.now.amagi.tv/ts-us-e2-n2/playlist/amg26268-sportsstudio-tycsports-freelivesportsemea/playlist.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (talkSPORT Live)", url: "https://af7a8b4e.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfdGFsa1NQT1JUX0hMUw/playlist.m3u8", quality: "720p" },
-    ],
-  },
-  {
-    id: "match-8",
-    sport: "Cricket",
-    tournament: "Hong Kong Sixes 2026",
-    status: "upcoming",
-    team1: {
-      name: "Pakistan Sixes",
-      flag: "🇵🇰",
-    },
-    team2: {
-      name: "South Africa Sixes",
-      flag: "🇿🇦",
-    },
-    startTime: "Tomorrow • 11:30 AM",
-    iptvChannelQuery: "Ten Sports",
-    sources: [
-      { name: "Server 1 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Cricket Gold)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-    ],
-  },
-  {
-    id: "match-9",
-    sport: "Cricket",
-    tournament: "ICC International ODI",
-    status: "upcoming",
-    team1: {
-      name: "India",
-      flag: "🇮🇳",
-    },
-    team2: {
-      name: "New Zealand",
-      flag: "🇳🇿",
-    },
-    startTime: "Tomorrow • 1:30 PM",
-    iptvChannelQuery: "Star Sports",
-    sources: [
-      { name: "Server 1 (Willow HD)", url: "https://tvsen5.aynaott.com/willowhd/index.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (Cricket Gold)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-    ],
-  },
-  {
-    id: "match-10",
-    sport: "Football",
-    tournament: "La Liga Santander",
-    status: "upcoming",
-    team1: {
-      name: "Barcelona",
-      flag: "🔵🔴",
-    },
-    team2: {
-      name: "Atletico Madrid",
-      flag: "⚪🔴",
-    },
-    startTime: "Tomorrow • 8:00 PM",
-    iptvChannelQuery: "beIN Sports",
-    sources: [
-      { name: "Server 1 (TyC Sports HD)", url: "https://amg26268-amg26268c14-freelivesports-emea-10267.playouts.now.amagi.tv/ts-us-e2-n2/playlist/amg26268-sportsstudio-tycsports-freelivesportsemea/playlist.m3u8", quality: "1080p HD" },
-      { name: "Server 2 (talkSPORT Live)", url: "https://af7a8b4e.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfdGFsa1NQT1JUX0hMUw/playlist.m3u8", quality: "720p" },
-    ],
-  },
-  {
-    id: "match-11",
-    sport: "Cricket",
-    tournament: "ICC International Test",
-    status: "recent",
-    team1: {
-      name: "Bangladesh",
-      flag: "🇧🇩",
-      score: "245 & 180",
-    },
-    team2: {
-      name: "West Indies",
-      flag: "🌴",
-      score: "350 & 76/2",
-    },
-    startTime: "Finished • Yesterday",
-    sources: [
-      { name: "Replay (Cricket Gold)", url: "https://streams2.sofast.tv/ptnr-yupptv/title-cricketgold/v1/master/611d79b11b77e2f571934fd80ca1413453772ac7/b2048bb8-1686-4432-aa50-647245383e0c/manifest.m3u8", quality: "1080p HD" },
-    ],
-  },
-  {
-    id: "match-12",
-    sport: "Tennis",
-    tournament: "ATP World Tour Masters",
-    status: "recent",
-    team1: {
-      name: "Carlos Alcaraz",
-      flag: "🇪🇸",
-      score: "6 7 6",
-    },
-    team2: {
-      name: "Novak Djokovic",
-      flag: "🇷🇸",
-      score: "4 5 4",
-    },
-    startTime: "Finished • Oct 30",
-    sources: [
-      { name: "Replay Server (talkSPORT)", url: "https://af7a8b4e.wurl.com/master/f36d25e7e52f1ba8d7e56eb859c636563214f541/TEctZ2JfdGFsa1NQT1JUX0hMUw/playlist.m3u8", quality: "1080p" },
-    ],
-  },
-];
+// Team Logo Badge component that handles WebP/PNG logos and fallback sport icons
+const renderTeamBadge = (name: string, flag: string, sport: string) => {
+  if (flag && (flag.startsWith("http://") || flag.startsWith("https://") || flag.startsWith("/"))) {
+    return (
+      <img
+        src={flag}
+        alt={name}
+        className="w-full h-full object-contain p-1"
+        loading="lazy"
+        onError={(e) => {
+          (e.currentTarget as HTMLElement).style.display = "none";
+        }}
+      />
+    );
+  }
+  return <span className="text-xl sm:text-2xl">{flag || (sport === "Cricket" ? "🏏" : "⚽")}</span>;
+};
 
 interface LiveStreamsBrowserProps {
   channels?: any[];
@@ -325,11 +74,15 @@ interface LiveStreamsBrowserProps {
 
 const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
   const navigate = useNavigate();
-  const [matches, setMatches] = useState<MatchFixture[]>(INITIAL_MATCHES);
+  const [matches, setMatches] = useState<MatchFixture[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("live");
   const [selectedSport, setSelectedSport] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMatchForStream, setSelectedMatchForStream] = useState<MatchFixture | null>(null);
+  const [isResolvingSources, setIsResolvingSources] = useState(false);
 
   // Custom Stream Add Modal State
   const [isAddCustomOpen, setIsAddCustomOpen] = useState(false);
@@ -338,17 +91,67 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
   const [customSport, setCustomSport] = useState<"Cricket" | "Football" | "Basketball" | "Tennis">("Cricket");
   const [customStreamUrl, setCustomStreamUrl] = useState("");
 
-  useEffect(() => {
+  const fetchLiveMatches = async (forceRefresh = false) => {
+    if (forceRefresh) setIsRefreshing(true);
     try {
-      const saved = localStorage.getItem("custom_live_matches");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setMatches([...parsed, ...INITIAL_MATCHES]);
+      const res = await liveStreamsAPI.getLiveMatches(forceRefresh);
+      const fetched: MatchFixture[] = res.data || [];
+
+      // Load user custom streams
+      let customMatches: MatchFixture[] = [];
+      try {
+        const saved = localStorage.getItem("custom_live_matches");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) customMatches = parsed;
         }
-      }
-    } catch {}
+      } catch {}
+
+      setMatches([...customMatches, ...fetched]);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      if (forceRefresh) toast.success("Real-time live matches refreshed!");
+    } catch (err: any) {
+      console.error("Live match fetch failed:", err);
+      if (forceRefresh) toast.error("Could not refresh live streams");
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveMatches(false);
+
+    // Auto-refresh every 2 minutes so fixtures stay updated continuously throughout the day
+    const interval = setInterval(() => {
+      fetchLiveMatches(false);
+    }, 120000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const handleOpenSourceModal = async (match: MatchFixture) => {
+    setSelectedMatchForStream(match);
+    if (match.watchUrl && (!match.sources || match.sources.length <= 1)) {
+      setIsResolvingSources(true);
+      try {
+        const res = await liveStreamsAPI.getMatchSources(match.watchUrl);
+        if (res.data && res.data.length > 0) {
+          setSelectedMatchForStream((prev) => {
+            if (!prev || prev.id !== match.id) return prev;
+            return {
+              ...prev,
+              sources: [...res.data, ...prev.sources],
+            };
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to scrape additional stream sources:", err);
+      } finally {
+        setIsResolvingSources(false);
+      }
+    }
+  };
 
   const handleSaveCustomMatch = (playImmediately = false) => {
     if (!customTitle.trim()) {
@@ -426,9 +229,29 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
     });
   }, [matches, selectedStatus, selectedSport, searchQuery]);
 
-  const handleWatchStream = (match: MatchFixture, sourceIndex = 0) => {
-    let selectedSource = match.sources[sourceIndex] || match.sources[0];
-    let allUrls = match.sources.map((s) => s.url);
+  const handleWatchStream = async (match: MatchFixture, sourceIndex = 0) => {
+    let matchSources = match.sources || [];
+
+    // If sources not pre-resolved and match has watchUrl, resolve them dynamically on click
+    if (matchSources.length === 0 && match.watchUrl) {
+      try {
+        const res = await liveStreamsAPI.getMatchSources(match.watchUrl);
+        if (res.data && res.data.length > 0) {
+          matchSources = res.data;
+          match.sources = matchSources;
+        }
+      } catch (err) {
+        console.warn("Could not fetch match streams:", err);
+      }
+    }
+
+    if (matchSources.length === 0) {
+      toast.info("This match stream is not live yet. Stream will start at scheduled match time.");
+      return;
+    }
+
+    let selectedSource = matchSources[sourceIndex] || matchSources[0];
+    let allUrls = matchSources.map((s) => s.url);
 
     // Check if there is a matching user IPTV channel (e.g. PTV Sports, Willow, etc.)
     if (match.iptvChannelQuery && channels.length > 0) {
@@ -438,13 +261,6 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
       );
       if (matchedChannel && matchedChannel.url) {
         allUrls = [matchedChannel.url, ...allUrls];
-        if (sourceIndex === 0) {
-          selectedSource = {
-            name: matchedChannel.name,
-            url: matchedChannel.url,
-            quality: "IPTV Live Channel",
-          };
-        }
       }
     }
 
@@ -454,6 +270,7 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
       url: selectedSource.url,
       category: "Live Sports",
       urls: JSON.stringify(allUrls),
+      ...(selectedSource.type ? { type: selectedSource.type } : {}),
     });
 
     navigate(`/player?${params.toString()}`);
@@ -471,12 +288,20 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
               LIVE
             </span>
           </div>
-          <p className="text-xs text-white/50 mt-1">
-            Real-time cricket, football and sports matches with multi-server playback
-          </p>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            <p className="text-xs text-white/50">
+              Real-time daily sports fixtures with multi-server playback
+            </p>
+            {lastUpdated && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live Sync {lastUpdated}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Search & Add Stream Actions */}
+        {/* Search & Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -488,6 +313,18 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
               className="w-full pl-9 pr-4 py-2 rounded-full bg-white/5 border border-white/10 text-xs text-white placeholder-white/40 focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
+
+          <Button
+            onClick={() => fetchLiveMatches(true)}
+            disabled={isRefreshing}
+            variant="outline"
+            size="sm"
+            className="rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white font-bold text-xs h-9 px-3 gap-1.5 shrink-0"
+            title="Force refresh live fixtures from sports web feeds"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-cyan-400" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
 
           <Button
             onClick={() => setIsAddCustomOpen(true)}
@@ -589,8 +426,36 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
         )}
       </div>
 
-      {/* Matches Grid (TFlix 3-column / responsive design) */}
-      {filteredMatches.length === 0 ? (
+      {/* Matches Grid (Loading Skeleton or Dynamic Matches) */}
+      {isLoading && matches.length === 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border border-white/5 bg-[#0B0F19]/60 p-4 animate-pulse space-y-4"
+            >
+              <div className="flex justify-between items-center">
+                <div className="h-4 w-20 bg-white/10 rounded-md" />
+                <div className="h-4 w-12 bg-white/10 rounded-full" />
+              </div>
+              <div className="grid grid-cols-7 items-center gap-2 py-4">
+                <div className="col-span-3 flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-white/10" />
+                  <div className="h-3 w-16 bg-white/10 rounded" />
+                </div>
+                <div className="col-span-1 flex justify-center">
+                  <div className="h-4 w-4 bg-white/5 rounded" />
+                </div>
+                <div className="col-span-3 flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-white/10" />
+                  <div className="h-3 w-16 bg-white/10 rounded" />
+                </div>
+              </div>
+              <div className="h-9 w-full bg-white/10 rounded-xl" />
+            </div>
+          ))}
+        </div>
+      ) : filteredMatches.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 bg-[#0E121E]/60 rounded-3xl border border-white/5 text-center">
           <Radio className="w-12 h-12 text-white/20 mb-3" />
           <h3 className="text-base font-bold text-white">No matches found</h3>
@@ -644,8 +509,8 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
                 <div className="grid grid-cols-7 items-center gap-2 py-2 mb-3">
                   {/* Team 1 */}
                   <div className="col-span-3 flex flex-col items-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-[#182033] border border-white/10 flex items-center justify-center text-2xl shadow-inner mb-2 group-hover:scale-105 transition-transform">
-                      {match.team1.flag}
+                    <div className="w-12 h-12 rounded-full bg-[#182033] border border-white/10 flex items-center justify-center shadow-inner mb-2 group-hover:scale-105 transition-transform overflow-hidden">
+                      {renderTeamBadge(match.team1.name, match.team1.flag, match.sport)}
                     </div>
                     <span className="text-xs font-black text-white line-clamp-1 leading-tight">
                       {match.team1.name}
@@ -666,8 +531,8 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
 
                   {/* Team 2 */}
                   <div className="col-span-3 flex flex-col items-center text-center">
-                    <div className="w-12 h-12 rounded-full bg-[#182033] border border-white/10 flex items-center justify-center text-2xl shadow-inner mb-2 group-hover:scale-105 transition-transform">
-                      {match.team2.flag}
+                    <div className="w-12 h-12 rounded-full bg-[#182033] border border-white/10 flex items-center justify-center shadow-inner mb-2 group-hover:scale-105 transition-transform overflow-hidden">
+                      {renderTeamBadge(match.team2.name, match.team2.flag, match.sport)}
                     </div>
                     <span className="text-xs font-black text-white line-clamp-1 leading-tight">
                       {match.team2.name}
@@ -717,13 +582,13 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
                   </button>
 
                   {/* Multi-source Switcher Modal trigger */}
-                  {match.sources.length > 1 && (
+                  {(match.sources.length > 1 || match.watchUrl) && (
                     <button
-                      onClick={() => setSelectedMatchForStream(match)}
+                      onClick={() => handleOpenSourceModal(match)}
                       className="px-3 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/10 font-bold text-xs"
                       title="Select stream server"
                     >
-                      {match.sources.length} Servers
+                      {match.sources.length > 1 ? `${match.sources.length} Servers` : "Servers"}
                     </button>
                   )}
                 </div>
@@ -740,9 +605,17 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
       >
         <DialogContent className="bg-[#0E131F] border border-white/15 text-white max-w-md p-6 rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black text-white flex items-center gap-2">
-              <Radio className="w-5 h-5 text-red-500" />
-              <span>Select Stream Source</span>
+            <DialogTitle className="text-lg font-black text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Radio className="w-5 h-5 text-red-500" />
+                <span>Select Stream Source</span>
+              </div>
+              {isResolvingSources && (
+                <span className="text-[10px] text-cyan-400 font-semibold flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Scanning web...
+                </span>
+              )}
             </DialogTitle>
             <DialogDescription className="text-xs text-white/60">
               {selectedMatchForStream?.team1.name} vs {selectedMatchForStream?.team2.name} (

@@ -108,13 +108,19 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
                 <button
                   key={item.label}
                   onClick={() => handleNav(item.path)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
+                  className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${
                     active
                       ? 'bg-white text-black shadow-lg scale-105'
                       : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  {item.label}
+                  {item.label === 'Live Streams' && (
+                    <span className="relative flex h-2 w-2 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-600" />
+                    </span>
+                  )}
+                  <span>{item.label}</span>
                 </button>
               );
             })}
@@ -193,18 +199,26 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
           {navItems.map((item) => {
             const active = isActive(item.path);
             return (
-              <button
-                key={item.label}
-                onClick={() => handleNav(item.path)}
-                className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-full transition-all text-left text-sm font-bold ${
-                  active
-                    ? 'bg-white text-black shadow-lg'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
-                <span>{item.label}</span>
-              </button>
+                <button
+                  key={item.label}
+                  onClick={() => handleNav(item.path)}
+                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-full transition-all text-left text-sm font-bold ${
+                    active
+                      ? 'bg-white text-black shadow-lg'
+                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <item.icon className="w-5 h-5 shrink-0" strokeWidth={active ? 2.5 : 2} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.label === 'Live Streams' && (
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600" />
+                    </span>
+                  )}
+                </button>
             );
           })}
         </div>

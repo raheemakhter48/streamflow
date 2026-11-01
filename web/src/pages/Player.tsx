@@ -43,6 +43,19 @@ const Player = () => {
   const playbackSupport = searchParams.get("playback") || "browser";
   const needsExternalPlayer = playbackSupport === "external";
 
+  const isEmbedStream = useMemo(() => {
+    const qType = searchParams.get("type");
+    if (qType === "embed") return true;
+    if (!activeUrl) return false;
+    return (
+      activeUrl.includes("/drm/player.php") ||
+      activeUrl.includes("touchcric") ||
+      activeUrl.includes("sportzf") ||
+      activeUrl.includes("/embed/") ||
+      activeUrl.includes("kpores.ru")
+    );
+  }, [activeUrl, searchParams]);
+
   useEffect(() => {
     setLatestUrls(null);
     if (!channelId) return;
@@ -297,10 +310,20 @@ ${activeUrl}`;
 
       {/* Video Player */}
       <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        <div className="enterprise-panel relative aspect-video min-h-[220px] overflow-visible rounded-3xl bg-black sm:min-h-0">
+        <div className="enterprise-panel relative aspect-video min-h-[220px] overflow-hidden rounded-3xl bg-black sm:min-h-0">
           {activeUrl ? (
             <>
-              <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
+              {isEmbedStream ? (
+                <iframe
+                  src={activeUrl}
+                  title={channelName}
+                  className="w-full h-full min-h-[280px] sm:min-h-[460px] rounded-3xl border-0 bg-black"
+                  allow="encrypted-media; autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
+              )}
               {/* Quick Action Button - Overlay on player */}
               <div className="absolute top-4 right-4 z-30">
                 <DropdownMenu>

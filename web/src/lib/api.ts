@@ -522,3 +522,13 @@ export const seriesAPI = {
     return apiRequest(`/series/${id}/season/${seasonNumber}`);
   },
 };
+
+// Live Sports Matches & Real-Time Streams API
+export const liveStreamsAPI = {
+  getLiveMatches: async (forceRefresh = false) => {
+    return apiRequest(`/stream/live-matches${forceRefresh ? '?refresh=true' : ''}`);
+  },
+  getMatchSources: async (watchUrl: string) => {
+    return apiRequest(`/stream/match-sources?url=${encodeURIComponent(watchUrl)}`);
+  },
+};
