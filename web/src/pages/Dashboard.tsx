@@ -1,217 +1,52 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo, lazy, Suspense } from "react";
 import { authAPI, iptvAPI, favoritesAPI, recentlyWatchedAPI } from "@/lib/api";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Heart, RefreshCw, Zap, ChevronLeft, ChevronRight, ScanSearch, X } from "lucide-react";
+import { Search, Heart, RefreshCw, Zap, ChevronLeft, ChevronRight, ScanSearch, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ChannelCard from "@/components/ChannelCard";
+import ContinueWatchingCard from "@/components/ContinueWatchingCard";
 import CategoryFilter from "@/components/CategoryFilter";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
-import MovieBrowser from "@/components/MovieBrowser";
-import SeriesBrowser from "@/components/SeriesBrowser";
 import { useSidebar } from "@/context/SidebarContext";
 import AdSlot from "@/components/AdSlot";
 import SEO from "@/components/SEO";
 
-export type ContentType = 'live' | 'movie' | 'series';
-type DashboardView = ContentType | 'home' | 'epg';
+const LiveStreamsBrowser = lazy(() => import("@/components/LiveStreamsBrowser"));
+const MovieBrowser = lazy(() => import("@/components/MovieBrowser"));
+const SeriesBrowser = lazy(() => import("@/components/SeriesBrowser"));
 
-const CHANNELS_PER_PAGE = 36;
-const DEFAULT_DASHBOARD_VIEW: DashboardView = 'home';
-const DASHBOARD_FILTERS_STORAGE_KEY = 'streamvault_dashboard_filters';
-const M3U_CATEGORY_FILTER = 'M3U';
-const DASHBOARD_VIEWS = new Set<DashboardView>(['home', 'live', 'movie', 'series', 'epg']);
-const CHANNEL_VIEWS = new Set<DashboardView>(['home', 'live']);
-
-interface Channel {
-  id?: string;
-  name: string;
-  url: string;
-  logo?: string;
-  group?: string;
-  quality?: "HD" | "SD";
-  type?: ContentType;
-  isWorking?: boolean;
-  playbackSupport?: "browser" | "external";
-  country?: string;
-  source?: "iptv-org" | "m3u";
-  alternateUrls?: string[];
-}
-
-interface IptvRegion {
-  code: string;
-  name: string;
-  countries: string[];
-}
-
-interface RecentlyWatched {
-  channelId?: string;
-  channelName: string;
-  channelUrl: string;
-  channelLogo?: string;
-  category?: string;
-  watchedAt: string;
-}
-
-interface ChannelCheckResult {
-  inputUrl: string;
-  workingUrl: string;
-}
-
-const getInitialPage = (value: string | null) => {
-  return Math.max(1, Number.parseInt(value || "1", 10) || 1);
-};
-
-const getDashboardView = (value: string | null, fallback: DashboardView = DEFAULT_DASHBOARD_VIEW) => {
-  return DASHBOARD_VIEWS.has(value as DashboardView) ? (value as DashboardView) : fallback;
-};
-
-const isChannelView = (viewMode: DashboardView) => CHANNEL_VIEWS.has(viewMode);
-
-const getStoredDashboardFilters = () => {
-  try {
-    return JSON.parse(localStorage.getItem(DASHBOARD_FILTERS_STORAGE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-};
-
-const RECENTLY_WATCHED_STORAGE_KEY = 'streamflow_cached_recently_watched';
-const getStoredRecentlyWatched = (): RecentlyWatched[] => {
-  try {
-    const raw = localStorage.getItem(RECENTLY_WATCHED_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const regionNameFormatter = new Intl.DisplayNames(["en"], { type: "region" });
-
-const getCountryDisplayName = (countryCode: string) => {
-  try {
-    return regionNameFormatter.of(countryCode) || countryCode;
-  } catch {
-    return countryCode;
-  }
-};
-
-const getPlaybackSupport = (url: string): "browser" | "external" => {
-  const streamUrl = String(url).toLowerCase();
-  const isBrowserPlayable =
-    streamUrl.includes(".m3u8") ||
-    streamUrl.includes(".mp4") ||
-    streamUrl.includes(".webm") ||
-    streamUrl.includes(".ts") ||
-    streamUrl.includes("/live/") ||
-    streamUrl.includes("/play/") ||
-    streamUrl.includes("/stream/");
-
-  return isBrowserPlayable ? "browser" : "external";
-};
-
-const normalizeFilterText = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-
-const inferChannelCountry = (name: string, group: string | undefined, countries: string[]) => {
-  const haystack = ` ${normalizeFilterText(`${name} ${group || ""}`)} `;
-
-  for (const country of countries) {
-    const countryName = normalizeFilterText(getCountryDisplayName(country));
-    const code = country.toLowerCase();
-
-    if (
-      haystack.includes(` ${code} `) ||
-      haystack.includes(` ${countryName} `) ||
-      (country === "PK" && /\b(pak|pakistan|urdu)\b/.test(haystack)) ||
-      (country === "IN" && /\b(india|indian|hindi|tamil|telugu|malayalam|kannada|punjabi|bengali)\b/.test(haystack))
-    ) {
-      return country;
-    }
-  }
-
-  return undefined;
-};
-
-const mergeUniqueChannels = (primary: Channel[], secondary: Channel[]) => {
-  const seen = new Set(primary.map((channel) => channel.url));
-  const merged = [...primary];
-
-  secondary.forEach((channel) => {
-    if (!seen.has(channel.url)) {
-      seen.add(channel.url);
-      merged.push(channel);
-    }
-  });
-
-  return merged;
-};
-
-const withM3uCategory = (categories: string[]) => {
-  const uniqueCategories = new Set(categories);
-  uniqueCategories.add(M3U_CATEGORY_FILTER);
-  return ['All', M3U_CATEGORY_FILTER, ...Array.from(uniqueCategories)
-    .filter((category) => category !== 'All' && category !== M3U_CATEGORY_FILTER)
-    .sort((a, b) => a.localeCompare(b))];
-};
-
-const buildDashboardPath = ({
-  viewMode,
-  selectedRegion,
-  selectedCountry,
-  selectedCategory,
-  searchQuery,
-  currentPage,
-}: {
-  viewMode: DashboardView;
-  selectedRegion: string;
-  selectedCountry: string;
-  selectedCategory: string;
-  searchQuery: string;
-  currentPage: number;
-}) => {
-  const params = new URLSearchParams();
-  const includeChannelFilters = isChannelView(viewMode);
-
-  if (viewMode !== DEFAULT_DASHBOARD_VIEW) params.set("view", viewMode);
-  if (includeChannelFilters && selectedRegion !== "All") params.set("region", selectedRegion);
-  if (includeChannelFilters && selectedCountry !== "All") params.set("country", selectedCountry);
-  if (includeChannelFilters && selectedCategory !== "All") params.set("category", selectedCategory);
-  if (searchQuery.trim()) params.set("search", searchQuery.trim());
-  if (includeChannelFilters && currentPage > 1) params.set("page", String(currentPage));
-
-  const query = params.toString();
-  return `/dashboard${query ? `?${query}` : ''}`;
-};
-
-const mapIptvOrgChannel = (channel: any): Channel | null => {
-  const streams = Array.isArray(channel.iptv_streams) ? channel.iptv_streams : [];
-  const stream = streams.find((item: any) => item?.url && item?.is_working === true)
-    || streams.find((item: any) => item?.url);
-  const alternateUrls = [...new Set(streams
-    .map((item: any) => item?.url)
-    .filter(Boolean))] as string[];
-
-  if (!stream?.url) {
-    return null;
-  }
-
-  return {
-    id: channel.id,
-    name: channel.name,
-    url: stream.url,
-    logo: channel.logo_url,
-    group: channel.category || channel.country || "General",
-    quality: stream.resolution?.toUpperCase?.().includes("HD") ? "HD" : undefined,
-    type: 'live',
-    isWorking: stream.is_working === true || channel.has_working_stream === true,
-    playbackSupport: getPlaybackSupport(stream.url),
-    country: channel.country,
-    source: "iptv-org",
-    alternateUrls,
-  };
-};
+export type { ContentType } from "@/lib/dashboardUtils";
+import {
+  type ContentType,
+  type DashboardView,
+  type Channel,
+  type IptvRegion,
+  type RecentlyWatched,
+  type ChannelCheckResult,
+  CHANNELS_PER_PAGE,
+  DEFAULT_DASHBOARD_VIEW,
+  DASHBOARD_FILTERS_STORAGE_KEY,
+  M3U_CATEGORY_FILTER,
+  DASHBOARD_VIEWS,
+  CHANNEL_VIEWS,
+  getInitialPage,
+  getDashboardView,
+  isChannelView,
+  getStoredDashboardFilters,
+  RECENTLY_WATCHED_STORAGE_KEY,
+  getStoredRecentlyWatched,
+  getCountryDisplayName,
+  getPlaybackSupport,
+  normalizeFilterText,
+  inferChannelCountry,
+  mergeUniqueChannels,
+  withM3uCategory,
+  buildDashboardPath,
+  mapIptvOrgChannel,
+} from "@/lib/dashboardUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -740,10 +575,11 @@ const Dashboard = () => {
   }, [viewMode, selectedRegion, selectedCountry, selectedCategory, searchQuery, currentPage]);
 
   const viewTabs = [
-    { id: 'home'   as DashboardView, label: 'All' },
-    { id: 'live'   as DashboardView, label: 'Live TV' },
-    { id: 'movie'  as DashboardView, label: 'Movies' },
-    { id: 'series' as DashboardView, label: 'Series' },
+    { id: 'home'    as DashboardView, label: 'All' },
+    { id: 'live'    as DashboardView, label: 'Live TV' },
+    { id: 'streams' as DashboardView, label: 'Live Streams' },
+    { id: 'movie'   as DashboardView, label: 'Movies' },
+    { id: 'series'  as DashboardView, label: 'Series' },
   ];
 
   const renderChannelGrid = () => {
@@ -799,8 +635,8 @@ const Dashboard = () => {
   return (
     <div className="enterprise-bg min-h-screen pb-20 text-white">
       <SEO
-        title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : "Streaming Dashboard"} - StreamFlow`}
-        description="Browse live TV channels, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
+        title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : viewMode === "streams" ? "Live Streams" : "Streaming Dashboard"} - StreamFlow`}
+        description="Browse live TV channels, sports streams, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
         path={buildDashboardPath({
           viewMode,
           selectedRegion,
@@ -812,7 +648,7 @@ const Dashboard = () => {
       />
       <AppHeader />
 
-      {viewMode !== 'movie' && viewMode !== 'series' && !hasCredentials && !isLoading ? (
+      {viewMode !== 'movie' && viewMode !== 'series' && viewMode !== 'streams' && !hasCredentials && !isLoading ? (
         /* No credentials setup screen */
         <div className="flex flex-col items-center justify-center min-h-[70vh] px-5 text-center">
           <div className="w-20 h-20 rounded-2xl bg-[#0f2020] border border-[#1a3030] flex items-center justify-center mb-6">
@@ -831,46 +667,48 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="mx-auto max-w-[1520px] px-4 sm:px-5 lg:px-8">
-          {/* Search + filters row */}
-          <div className="mb-6 flex flex-col gap-3 rounded-full border border-white/10 bg-[#1C1C1E]/80 p-2 backdrop-blur-xl lg:mt-5 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
-              <Input
-                placeholder="Search channels, movies, series..."
-                className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-                value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-              />
-            </div>
+          {/* Search + filters row (Hide in streams view as LiveStreamsBrowser has its own search and filters) */}
+          {viewMode !== 'streams' && (
+            <div className="mb-6 flex flex-col gap-3 rounded-full border border-white/10 bg-[#1C1C1E]/80 p-2 backdrop-blur-xl lg:mt-5 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+                <Input
+                  placeholder="Search channels, movies, series..."
+                  className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                />
+              </div>
 
-          {/* Region + Country (live view only) */}
-          {(viewMode === 'live' || viewMode === 'home') && (
-            <div className="flex gap-2 lg:shrink-0 pr-2">
-              <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15">
-                  <SelectValue placeholder="Region" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
-                  <SelectItem value="All">Region: Global 🌐</SelectItem>
-                  {regions.map((r) => (
-                    <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
-                <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40 hover:bg-white/15">
-                  <SelectValue placeholder="Country" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
-                  <SelectItem value="All">Country: All</SelectItem>
-                  {selectedRegionCountries.map((c) => (
-                    <SelectItem key={c} value={c}>{getCountryDisplayName(c)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Region + Country (live view only) */}
+            {(viewMode === 'live' || viewMode === 'home') && (
+              <div className="flex gap-2 lg:shrink-0 pr-2">
+                <Select value={selectedRegion} onValueChange={handleRegionChange}>
+                  <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
+                    <SelectItem value="All">Region: Global 🌐</SelectItem>
+                    {regions.map((r) => (
+                      <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
+                  <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40 hover:bg-white/15">
+                    <SelectValue placeholder="Country" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
+                    <SelectItem value="All">Country: All</SelectItem>
+                    {selectedRegionCountries.map((c) => (
+                      <SelectItem key={c} value={c}>{getCountryDisplayName(c)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             </div>
           )}
-          </div>
 
           <AdSlot
             slot={import.meta.env.VITE_ADSENSE_DASHBOARD_SLOT || ""}
@@ -878,33 +716,47 @@ const Dashboard = () => {
             format="horizontal"
           />
 
-          {/* Continue Watching */}
+          {/* Continue Watching - Fixed uniform sleek row */}
           {isChannelView(viewMode) && recentlyWatched.length > 0 && (
-            <div className="mb-5">
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-black text-white">Continue Watching</h2>
-                <button className="text-xs text-[#00D7E5] font-bold">View All</button>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-black text-white">Continue Watching</h2>
+                  <span className="px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold text-white/70">
+                    {recentlyWatched.length}
+                  </span>
+                </div>
+                <button
+                  onClick={() => openViewMode('home')}
+                  className="text-xs text-[#00D7E5] hover:underline font-bold"
+                >
+                  View All
+                </button>
               </div>
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1">
-                {recentlyWatched.slice(0, 8).map((item, idx) => (
-                  <div key={idx} className="min-w-[160px]">
-                    <ChannelCard
-                      channel={{ id: item.channelId, name: item.channelName, url: item.channelUrl, logo: item.channelLogo, group: item.category }}
-                      isFavorite={favoriteUrls.has(item.channelUrl)}
-                      onToggleFavorite={loadFavorites}
-                      returnTo={dashboardReturnUrl}
-                    />
-                  </div>
+              <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2 pt-0.5">
+                {recentlyWatched.slice(0, 10).map((item, idx) => (
+                  <ContinueWatchingCard
+                    key={`${item.channelUrl}-${idx}`}
+                    item={item}
+                    isFavorite={favoriteUrls.has(item.channelUrl)}
+                    onToggleFavorite={loadFavorites}
+                    returnTo={dashboardReturnUrl}
+                  />
                 ))}
               </div>
             </div>
           )}
 
-          {viewMode === 'movie' ? (
-            <MovieBrowser searchQuery={debouncedSearchQuery} />
-          ) : viewMode === 'series' ? (
-            <SeriesBrowser />
-          ) : (
+          <Suspense fallback={<div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#00D7E5]" /></div>}>
+            {viewMode === 'streams' ? (
+              <div className="mt-4">
+                <LiveStreamsBrowser channels={channels} />
+              </div>
+            ) : viewMode === 'movie' ? (
+              <MovieBrowser searchQuery={debouncedSearchQuery} />
+            ) : viewMode === 'series' ? (
+              <SeriesBrowser />
+            ) : (
           <>
           {/* Channels header */}
           <div className="mb-3 flex items-center justify-between">
@@ -1017,6 +869,7 @@ const Dashboard = () => {
           )}
           </>
           )}
+          </Suspense>
         </div>
       )}
 

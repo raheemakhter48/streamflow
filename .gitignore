@@ -1,5 +1,6 @@
-﻿# Zip deployments
+# Zip deployments
 *.zip
+*.log
 
 # Electron builds
 web/release/

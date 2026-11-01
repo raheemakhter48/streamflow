@@ -215,6 +215,54 @@ router.get('/proxy', async (req, res) => {
   }
 });
 
+// @route GET /api/stream/mux.m3u8
+// @desc  Generates an HLS Master Playlist combining a video stream with a separate audio stream
+router.get('/mux.m3u8', (req, res) => {
+  const { video, audio, quality = '1080p', audioName = 'Main Audio' } = req.query;
+  if (!video) {
+    return res.status(400).send('video parameter is required');
+  }
+
+  const cleanVideo = String(video).trim();
+  const cleanAudio = audio ? String(audio).trim() : null;
+  const cleanAudioName = String(audioName).replace(/["\n\r]/g, '') || 'Main Audio';
+
+  const bandwidthMap = {
+    '4k': 12000000,
+    '1080p': 5000000,
+    '720p': 2500000,
+    '480p': 1200000,
+    '360p': 700000,
+  };
+  const qKey = String(quality).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const bw = bandwidthMap[qKey] || 4500000;
+
+  const resolutionMap = {
+    '4k': '3840x2160',
+    '1080p': '1920x1080',
+    '720p': '1280x720',
+    '480p': '854x480',
+    '360p': '640x360',
+  };
+  const resAttr = resolutionMap[qKey] ? `,RESOLUTION=${resolutionMap[qKey]}` : '';
+
+  let manifest = '#EXTM3U\n#EXT-X-VERSION:3\n';
+  if (cleanAudio) {
+    manifest += `#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio-main",NAME="${cleanAudioName}",DEFAULT=YES,AUTOSELECT=YES,URI="${cleanAudio}"\n`;
+    manifest += `#EXT-X-STREAM-INF:BANDWIDTH=${bw}${resAttr},AUDIO="audio-main"\n`;
+  } else {
+    manifest += `#EXT-X-STREAM-INF:BANDWIDTH=${bw}${resAttr}\n`;
+  }
+  manifest += `${cleanVideo}\n`;
+
+  res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  return res.send(manifest);
+});
+
 router.get('/routes', (_req, res) => {
   const regions = Array.from(getConfiguredExits().keys());
   res.json({

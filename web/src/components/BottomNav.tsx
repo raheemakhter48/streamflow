@@ -1,12 +1,13 @@
-import { Home, Tv, Film, Monitor, Settings } from 'lucide-react';
+import { Home, Tv, Film, Monitor, Settings, Radio } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const tabs = [
-  { label: 'Home',     icon: Home,     path: '/dashboard',             view: 'home'   },
-  { label: 'Live TV',  icon: Tv,       path: '/dashboard?view=live',   view: 'live'   },
-  { label: 'Movies',   icon: Film,     path: '/dashboard?view=movie',  view: 'movie'  },
-  { label: 'Series',   icon: Monitor,  path: '/dashboard?view=series', view: 'series' },
-  { label: 'Settings', icon: Settings, path: '/settings',              view: null     },
+  { label: 'Home',     icon: Home,     path: '/dashboard',              view: 'home'    },
+  { label: 'Live TV',  icon: Tv,       path: '/dashboard?view=live',    view: 'live'    },
+  { label: 'Streams',  icon: Radio,    path: '/dashboard?view=streams', view: 'streams' },
+  { label: 'Movies',   icon: Film,     path: '/dashboard?view=movie',   view: 'movie'   },
+  { label: 'Series',   icon: Monitor,  path: '/dashboard?view=series',  view: 'series'  },
+  { label: 'Settings', icon: Settings, path: '/settings',               view: null      },
 ];
 
 const BottomNav = () => {

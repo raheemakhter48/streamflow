@@ -30,12 +30,13 @@ const Player = () => {
     }
   }, [searchParams]);
   const [latestUrls, setLatestUrls] = useState<string[] | null>(null);
+  const [selectedServerIndex, setSelectedServerIndex] = useState(0);
   const fallbackUrls = useMemo(() => {
     const candidates = latestUrls || [channelUrl, ...queryAlternateUrls];
     return [...new Set(candidates.filter(Boolean))];
   }, [channelUrl, latestUrls, queryAlternateUrls]);
-  const activeUrl = fallbackUrls[0] || channelUrl;
-  const alternateUrls = fallbackUrls.slice(1);
+  const activeUrl = fallbackUrls[selectedServerIndex] || fallbackUrls[0] || channelUrl;
+  const alternateUrls = fallbackUrls.filter((_, idx) => idx !== selectedServerIndex);
   const channelLogo = searchParams.get("logo") || "";
   const channelCategory = searchParams.get("category") || "";
   const returnTo = searchParams.get("returnTo") || "/dashboard";
@@ -351,6 +352,35 @@ ${activeUrl}`;
           )}
         </div>
         
+        {/* Multi-Source Stream Switcher (MHDTV Style) */}
+        {fallbackUrls.length > 1 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-[#16171B]/90 backdrop-blur-md p-3 shadow-lg">
+            <div className="flex items-center gap-2 pr-3 border-r border-white/10 text-xs font-bold text-white/80">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span>Stream Sources:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {fallbackUrls.map((_, idx) => {
+                const isSelected = selectedServerIndex === idx;
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedServerIndex(idx)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                      isSelected
+                        ? "bg-red-600 text-white shadow-md shadow-red-600/30 ring-2 ring-red-400/50 scale-105"
+                        : "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+                    }`}
+                  >
+                    {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    <span>Server {idx + 1} {idx === 0 ? "(HD)" : idx === 1 ? "(Fast)" : "(Mirror)"}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Channel Info */}
         <div className="enterprise-card mt-6 rounded-3xl p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row items-start gap-4">

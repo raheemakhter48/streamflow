@@ -1,1175 +1,29 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ADMIN_SESSION_KEY } from "@/pages/AdminLogin";
-import {
-  Activity, ArrowLeft, BarChart3, Download, Filter, Loader2, Plus,
-  RefreshCw, Save, Terminal, Trash2, Tv, Zap, LockKeyhole, LogOut,
-  User, UserCheck, Users, Star, Clock,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-} from "recharts";
 import { adminAPI } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-
-// ─── Palette used across all charts ───────────────────────────────────────────
-const C = {
-  cyan:   "#22d3ee",
-  purple: "#a855f7",
-  green:  "#4ade80",
-  red:    "#f87171",
-  amber:  "#fbbf24",
-};
-
-const EMPTY_CHANNEL = {
-  name: "", slug: "", logoUrl: "", country: "", category: "",
-  streamUrl: "", iframeEmbed: "", status: "working",
-  isManualOverride: true,
-  scrapeSourceUrl: "", scraperType: "generic",
-};
-
-const fmtDate = (d: string) => {
-  const parts = d.split("-");
-  return `${parts[1]}/${parts[2]}`;
-};
-
-const shortRoute = (r: string) =>
-  r.replace("/api/", "").replace("/:id", "").slice(0, 22);
-
-const LOG_COLORS: Record<string, string> = {
-  info:  "text-cyan-400",
-  warn:  "text-amber-400",
-  error: "text-red-400",
-};
-
-// ─── Channels Tab ─────────────────────────────────────────────────────────────
-
-function ChannelsTab() {
-  const [channels, setChannels]     = useState<any[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [page, setPage]             = useState(1);
-  const [search, setSearch]         = useState("");
-  const [statusFilter, setStatus]   = useState("all");
-  const [countries, setCountries]   = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [form, setForm]             = useState<any>(EMPTY_CHANNEL);
-  const [editingId, setEditingId]   = useState<string | undefined>();
-  const [showForm, setShowForm]     = useState(false);
-  const [busy, setBusy]             = useState(false);
-
-  const load = async () => {
-    setBusy(true);
-    try {
-      const [ch, fi] = await Promise.all([
-        adminAPI.getChannels({
-          page,
-          limit: 50,
-          search: search || undefined,
-          status: statusFilter === "all" ? undefined : statusFilter,
-        }),
-        adminAPI.getFilters(),
-      ]);
-      setChannels(ch.data || []);
-      setTotal(ch.total || 0);
-      const f = fi.data || [];
-      setCountries(f.filter((x: any) => x.type === "country"));
-      setCategories(f.filter((x: any) => x.type === "category"));
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load channels");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [page, statusFilter]);
-
-  const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
-
-  const save = async () => {
-    if (!form.name.trim()) return toast.error("Channel name is required");
-    if (form.isManualOverride && !form.streamUrl && !form.iframeEmbed)
-      return toast.error("Manual override requires a stream URL or iframe embed");
-    try {
-      await adminAPI.saveChannel(form, editingId);
-      toast.success(editingId ? "Channel updated" : "Channel created");
-      setForm(EMPTY_CHANNEL);
-      setEditingId(undefined);
-      setShowForm(false);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to save");
-    }
-  };
-
-  const edit = (ch: any) => {
-    setEditingId(ch.id);
-    setForm({
-      name: ch.name || "", slug: ch.slug || "", logoUrl: ch.logo_url || "",
-      country: ch.country || "", category: ch.category || "",
-      streamUrl: ch.stream_url || "", iframeEmbed: ch.iframe_embed || "",
-      status: ch.status || "working",
-      isManualOverride: ch.source_type === "iptv" ? false : (ch.is_manual_override ?? true),
-      scrapeSourceUrl: ch.scrape_source_url || "",
-      scraperType: ch.scraper_type || "generic",
-    });
-    setShowForm(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const scrapeNow = async (id: string, name: string) => {
-    setBusy(true);
-    try {
-      const r = await adminAPI.scrapeChannel(id);
-      if (r.data?.url) {
-        toast.success(`${name}: stream found → ${r.data.url.slice(0, 60)}…`);
-      } else {
-        toast.warning(`${name}: no stream found (${r.data?.status})`);
-      }
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Scrape failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const scrapeBulk = async () => {
-    try {
-      const r = await adminAPI.scrapeBulk();
-      toast.success(r.message || "Bulk scrape started in background");
-    } catch (e: any) {
-      toast.error(e.message || "Bulk scrape failed");
-    }
-  };
-
-  const del = async (id: string) => {
-    try {
-      await adminAPI.deleteChannel(id);
-      toast.success("Channel deleted");
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to delete");
-    }
-  };
-
-  const healthCheck = async () => {
-    setBusy(true);
-    try {
-      const r = await adminAPI.runHealthCheck();
-      toast.success(`Health-checked ${r.data?.length || 0} channels`);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Health check failed");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const cancel = () => { setShowForm(false); setEditingId(undefined); setForm(EMPTY_CHANNEL); };
-
-  return (
-    <div className="space-y-4">
-      {/* Toolbar */}
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder="Search channels…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && load()}
-          className="max-w-56"
-        />
-        <Select value={statusFilter} onValueChange={setStatus}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="working">Working</SelectItem>
-            <SelectItem value="broken">Broken</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button variant="outline" onClick={load} disabled={busy}>
-          <RefreshCw className={`mr-2 h-4 w-4 ${busy ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-        <Button variant="outline" onClick={healthCheck} disabled={busy}>
-          <Activity className="mr-2 h-4 w-4" />
-          Health Check
-        </Button>
-        <Button onClick={() => { setForm(EMPTY_CHANNEL); setEditingId(undefined); setShowForm(true); }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Channel
-        </Button>
-        <Button variant="secondary" onClick={scrapeBulk} disabled={busy}>
-          <Zap className="mr-2 h-4 w-4" />
-          Bulk Scrape
-        </Button>
-      </div>
-
-      <div className={`grid gap-4 ${showForm ? "xl:grid-cols-[1fr_400px]" : ""}`}>
-        {/* Table */}
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Country</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Checked</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {channels.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
-                      {busy ? "Loading…" : "No channels found"}
-                    </TableCell>
-                  </TableRow>
-                ) : channels.map(ch => (
-                  <TableRow key={ch.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {ch.logo_url && (
-                          <img
-                            src={ch.logo_url}
-                            alt=""
-                            className="h-6 w-6 rounded object-cover"
-                            onError={e => (e.currentTarget.style.display = "none")}
-                          />
-                        )}
-                        <span className="font-medium">{ch.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{ch.country || "—"}</TableCell>
-                    <TableCell>{ch.category || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={ch.source_type === "iptv" ? "outline" : "secondary"}>
-                        {ch.source_label || (ch.source_type === "iptv" ? "IPTV-org" : "Manual")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={ch.status === "working" ? "default" : "destructive"}>
-                        {ch.status === "working" ? "Working" : "Non Working"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {ch.last_checked_at ? new Date(ch.last_checked_at).toLocaleString() : "Never"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {!ch.is_manual_override && ch.source_type !== "iptv" && ch.scrape_source_url && (
-                        <Button variant="ghost" size="sm" onClick={() => scrapeNow(ch.id, ch.name)} disabled={busy} title="Scrape now">
-                          <Zap className="h-4 w-4 text-amber-400" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => edit(ch)}>Edit</Button>
-                      {ch.source_type !== "iptv" && (
-                        <Button variant="ghost" size="icon" onClick={() => del(ch.id)}>
-                          <Trash2 className="h-4 w-4 text-red-400" />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        {/* Create / Edit form */}
-        {showForm && (
-          <Card className="self-start">
-            <CardHeader>
-              <CardTitle className="text-base">{editingId ? "Edit Channel" : "New Channel"}</CardTitle>
-              <CardDescription>
-                {editingId ? "Update channel metadata and stream source" : "Add a new managed channel"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Input placeholder="Channel name *" value={form.name} onChange={e => set("name", e.target.value)} />
-              <Input placeholder="Slug (auto if empty)" value={form.slug} onChange={e => set("slug", e.target.value)} />
-              <Input placeholder="Logo / thumbnail URL" value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)} />
-
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={form.country || "none"} onValueChange={v => set("country", v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Country" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {countries.map(c => <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={form.category || "none"} onValueChange={v => set("category", v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {categories.map(c => <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Input
-                placeholder="Stream URL (.m3u8 / direct link)"
-                value={form.streamUrl}
-                onChange={e => set("streamUrl", e.target.value)}
-              />
-              <Textarea
-                placeholder="Iframe embed code (overrides stream URL when set)"
-                value={form.iframeEmbed}
-                onChange={e => set("iframeEmbed", e.target.value)}
-                rows={3}
-              />
-
-              {/* Source toggle */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant={form.isManualOverride ? "default" : "outline"}
-                  onClick={() => set("isManualOverride", true)}
-                >
-                  Manual Override
-                </Button>
-                <Button
-                  size="sm"
-                  variant={!form.isManualOverride ? "default" : "outline"}
-                  onClick={() => set("isManualOverride", false)}
-                >
-                  Auto Scrape
-                </Button>
-              </div>
-
-              {/* Auto-scrape fields — only shown when scraping is enabled */}
-              {!form.isManualOverride && (
-                <div className="space-y-2 rounded-md border border-amber-400/20 bg-amber-400/5 p-3">
-                  <p className="text-xs font-medium text-amber-400">Auto-Scrape Settings</p>
-                  <Input
-                    placeholder="Scrape Source URL (e.g. https://crictime.com/match/123) *"
-                    value={form.scrapeSourceUrl}
-                    onChange={e => set("scrapeSourceUrl", e.target.value)}
-                  />
-                  <Select value={form.scraperType} onValueChange={v => set("scraperType", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Scraper type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="generic">Generic (most sites)</SelectItem>
-                      <SelectItem value="crictime">Crictime</SelectItem>
-                      <SelectItem value="streameast">Streameast</SelectItem>
-                      <SelectItem value="sportsurge">Sportsurge</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* Status toggle */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  size="sm"
-                  variant={form.status === "working" ? "default" : "outline"}
-                  onClick={() => set("status", "working")}
-                >
-                  Working
-                </Button>
-                <Button
-                  size="sm"
-                  variant={form.status === "broken" ? "destructive" : "outline"}
-                  onClick={() => set("status", "broken")}
-                >
-                  Non Working
-                </Button>
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <Button className="flex-1" onClick={save}>
-                  {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-                  {editingId ? "Save Changes" : "Create Channel"}
-                </Button>
-                <Button variant="outline" onClick={cancel}>Cancel</Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Pagination */}
-      {total > 50 && (
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
-            Prev
-          </Button>
-          <span className="text-sm text-muted-foreground">Page {page}</span>
-          <Button variant="outline" size="sm" disabled={page * 50 >= total} onClick={() => setPage(p => p + 1)}>
-            Next
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Analytics Tab ────────────────────────────────────────────────────────────
-
-function AnalyticsTab() {
-  const [summary,    setSummary]    = useState<any>(null);
-  const [system,     setSystem]     = useState<any>(null);
-  const [dau,        setDau]        = useState<any[]>([]);
-  const [apiMetrics, setApiMetrics] = useState<{ routeStats: any[]; trend: any[] }>({ routeStats: [], trend: [] });
-  const [dauDays,    setDauDays]    = useState("7");
-  const [busy,       setBusy]       = useState(false);
-
-  const load = async () => {
-    setBusy(true);
-    try {
-      const [s, sys, d, m] = await Promise.all([
-        adminAPI.getSummary(),
-        adminAPI.getSystemMetrics(),
-        adminAPI.getDauMetrics(Number(dauDays)),
-        adminAPI.getApiMetrics(),
-      ]);
-      setSummary(s.data);
-      setSystem(sys.data);
-      setDau(d.data || []);
-      setApiMetrics(m.data || { routeStats: [], trend: [] });
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load analytics");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [dauDays]);
-
-  const scrapeSlices = summary ? [
-    { name: "Success", value: summary.scrapeStats?.success || 0, color: C.green },
-    { name: "Failed",  value: summary.scrapeStats?.failed  || 0, color: C.red  },
-    { name: "Timeout", value: summary.scrapeStats?.timeout || 0, color: C.amber },
-  ] : [];
-  const totalScrape = scrapeSlices.reduce((a, b) => a + b.value, 0);
-
-  const uptime = system
-    ? `${Math.floor(system.uptimeSeconds / 3600)}h ${Math.floor((system.uptimeSeconds % 3600) / 60)}m`
-    : "—";
-
-  return (
-    <div className="space-y-6">
-      {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Total Channels",   value: summary?.channelCount        ?? "—", color: "text-cyan-400"   },
-          { label: "Broken Streams",   value: summary?.brokenCount         ?? "—", color: "text-red-400"    },
-          { label: "System Memory",    value: system  ? `${system.systemMemoryUsedPercent}%` : "—", color: "text-foreground", progress: system?.systemMemoryUsedPercent },
-          { label: "Server Uptime",    value: uptime,                               color: "text-green-400"  },
-        ].map(card => (
-          <Card key={card.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{card.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-black ${card.color}`}>{card.value}</div>
-              {card.progress !== undefined && (
-                <Progress value={card.progress} className="mt-2 h-1.5" />
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* DAU line chart + Scrape doughnut */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Daily Views &amp; Active Users</CardTitle>
-              <CardDescription>Watch events aggregated per day</CardDescription>
-            </div>
-            <Select value={dauDays} onValueChange={setDauDays}>
-              <SelectTrigger className="h-8 w-24 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">7 days</SelectItem>
-                <SelectItem value="14">14 days</SelectItem>
-                <SelectItem value="30">30 days</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            {dau.every(d => d.views === 0) ? (
-              <div className="flex h-64 items-center justify-center text-center text-sm text-muted-foreground">
-                No watch events recorded yet.
-                <br />Views will appear here as users stream channels.
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={dau}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                  <XAxis dataKey="date" tickFormatter={fmtDate} tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 6 }}
-                    labelFormatter={l => `Date: ${l}`}
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="views"       name="Views"        stroke={C.cyan}   strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="uniqueUsers" name="Unique Users"  stroke={C.purple} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Scrape Success Rate</CardTitle>
-            <CardDescription>{totalScrape} total scrape runs</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {totalScrape === 0 ? (
-              <div className="flex h-48 items-center justify-center text-center text-sm text-muted-foreground">
-                No scrape runs recorded yet
-              </div>
-            ) : (
-              <>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={scrapeSlices}
-                      cx="50%" cy="50%"
-                      innerRadius={50} outerRadius={75}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {scrapeSlices.map((s, i) => <Cell key={i} fill={s.color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 6 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="mt-3 space-y-1.5">
-                  {scrapeSlices.map(s => (
-                    <div key={s.name} className="flex items-center justify-between text-xs">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
-                        {s.name}
-                      </span>
-                      <span className="font-medium">
-                        {s.value} ({totalScrape > 0 ? Math.round(s.value / totalScrape * 100) : 0}%)
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* API latency + Top channels */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>API Endpoint Latency</CardTitle>
-            <CardDescription>Average response time — top 10 slowest routes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {apiMetrics.routeStats.length === 0 ? (
-              <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">
-                {busy ? "Loading…" : "No API metrics yet — they populate automatically with requests"}
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={apiMetrics.routeStats} layout="vertical" margin={{ left: 8, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} unit="ms" />
-                  <YAxis type="category" dataKey="route" tickFormatter={shortRoute} tick={{ fontSize: 10 }} width={110} />
-                  <Tooltip
-                    contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 6 }}
-                    formatter={(v: any) => [`${v} ms`, "Avg latency"]}
-                    labelFormatter={l => l}
-                  />
-                  <Bar dataKey="avgMs" fill={C.cyan} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Top Watched Channels</CardTitle>
-            <CardDescription>By total view count (last 500 events)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {(!summary?.topChannels || summary.topChannels.length === 0) ? (
-              <div className="flex h-52 items-center justify-center text-sm text-muted-foreground">
-                No watch data yet
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={summary.topChannels.slice(0, 7)} layout="vertical" margin={{ left: 8, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
-                  <Tooltip contentStyle={{ background: "#111827", border: "1px solid #374151", borderRadius: 6 }} />
-                  <Bar dataKey="count" fill={C.purple} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System info strip */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>Server Resources</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-6 sm:grid-cols-3">
-          <div>
-            <p className="mb-1 text-xs text-muted-foreground">CPU Load Average (1 min)</p>
-            <p className="text-2xl font-bold">{system?.cpuLoad?.toFixed(2) ?? "—"}</p>
-            <Progress value={Math.min((system?.cpuLoad || 0) * 25, 100)} className="mt-2 h-1.5" />
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-muted-foreground">Process Memory (RSS)</p>
-            <p className="text-2xl font-bold">{system?.memoryUsedMb ?? "—"} MB</p>
-          </div>
-          <div>
-            <p className="mb-1 text-xs text-muted-foreground">Last Sampled</p>
-            <p className="text-2xl font-bold">
-              {system?.timestamp ? new Date(system.timestamp).toLocaleTimeString() : "—"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── Filters Tab ──────────────────────────────────────────────────────────────
-
-type FilterItem = { id: string; type: "country" | "category"; label: string; value: string };
-type NewFilter  = { label: string; value: string };
-
-function FilterSection({
-  type, items, onAdd, onDelete,
-}: {
-  type: "country" | "category";
-  items: FilterItem[];
-  onAdd: (f: NewFilter) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [draft, setDraft] = useState<NewFilter>({ label: "", value: "" });
-
-  const submit = () => {
-    if (!draft.label.trim()) return toast.error("Label is required");
-    onAdd(draft);
-    setDraft({ label: "", value: "" });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {type === "country" ? "Countries" : "Categories"}
-        </CardTitle>
-        <CardDescription>
-          {items.length} {type === "country" ? "countries" : "categories"} · these populate channel dropdowns
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Add row */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Display label"
-            value={draft.label}
-            onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
-            onKeyDown={e => e.key === "Enter" && submit()}
-            className="flex-1"
-          />
-          <Input
-            placeholder="Value (optional)"
-            value={draft.value}
-            onChange={e => setDraft(d => ({ ...d, value: e.target.value }))}
-            className="w-32"
-          />
-          <Button onClick={submit} size="icon">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <ScrollArea className="h-64 rounded-md border border-white/5 px-1">
-          {items.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              No {type === "country" ? "countries" : "categories"} defined yet
-            </p>
-          ) : items.map(item => (
-            <div
-              key={item.id}
-              className="flex items-center justify-between border-b border-white/5 py-2 last:border-0"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className="text-xs text-muted-foreground">{item.value}</span>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => onDelete(item.id)}>
-                <Trash2 className="h-4 w-4 text-red-400" />
-              </Button>
-            </div>
-          ))}
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FiltersTab() {
-  const [filters, setFilters] = useState<FilterItem[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-
-  const load = async () => {
-    try {
-      const data = await adminAPI.getFilters();
-      setFilters(data.data || []);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load filters");
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const seedFromIptv = async () => {
-    setSeeding(true);
-    try {
-      const res = await adminAPI.seedFiltersFromIptv();
-      toast.success(`Imported ${res.data?.countries ?? 0} countries + ${res.data?.categories ?? 0} categories from IPTV-org!`);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Seed failed");
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  const add = async (type: "country" | "category", form: NewFilter) => {
-    setBusy(true);
-    try {
-      await adminAPI.saveFilter({ type, label: form.label, value: form.value || form.label.toUpperCase().replace(/\s+/g, "_") });
-      toast.success(`${type === "country" ? "Country" : "Category"} added`);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const del = async (id: string) => {
-    try {
-      await adminAPI.deleteFilter(id);
-      toast.success("Removed");
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "Failed to remove");
-    }
-  };
-
-  const countries  = filters.filter(f => f.type === "country");
-  const categories = filters.filter(f => f.type === "category");
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">
-          Manage the country and category options available when creating or editing channels.
-          Changes here instantly update the dropdowns throughout the app.
-        </p>
-        <Button
-          onClick={seedFromIptv}
-          disabled={seeding}
-          variant="outline"
-          className="shrink-0 border-cyan-500 text-cyan-400 hover:bg-cyan-500/10"
-        >
-          {seeding ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-          {seeding ? "Importing…" : "Import from IPTV-org"}
-        </Button>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <FilterSection type="country"  items={countries}  onAdd={f => add("country",  f)} onDelete={del} />
-        <FilterSection type="category" items={categories} onAdd={f => add("category", f)} onDelete={del} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Logs Tab ─────────────────────────────────────────────────────────────────
-
-function LogsTab() {
-  const [logs,        setLogs]       = useState<any[]>([]);
-  const [level,       setLevel]      = useState("all");
-  const [scope,       setScope]      = useState("all");
-  const [autoRefresh, setAuto]       = useState(false);
-  const [busy,        setBusy]       = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const load = async () => {
-    try {
-      const data = await adminAPI.getLogs(200);
-      setLogs(data.data || []);
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load logs");
-    }
-  };
-
-  useEffect(() => {
-    setBusy(true);
-    load().finally(() => setBusy(false));
-  }, []);
-
-  useEffect(() => {
-    if (autoRefresh) {
-      intervalRef.current = setInterval(load, 10_000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [autoRefresh]);
-
-  const scopes   = [...new Set(logs.map(l => l.scope))].sort();
-  const filtered = logs.filter(l =>
-    (level === "all" || l.level === level) &&
-    (scope === "all" || l.scope === scope)
-  );
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2">
-            <Terminal className="h-5 w-5" />
-            System Logs
-          </CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="h-8 w-28 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All levels</SelectItem>
-                <SelectItem value="info">Info</SelectItem>
-                <SelectItem value="warn">Warn</SelectItem>
-                <SelectItem value="error">Error</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={scope} onValueChange={setScope}>
-              <SelectTrigger className="h-8 w-32 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All scopes</SelectItem>
-                {scopes.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Button
-              variant={autoRefresh ? "default" : "outline"}
-              size="sm"
-              className="h-8"
-              onClick={() => setAuto(v => !v)}
-            >
-              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${autoRefresh ? "animate-spin" : ""}`} />
-              {autoRefresh ? "Live" : "Auto-refresh"}
-            </Button>
-            <Button variant="outline" size="sm" className="h-8" onClick={load} disabled={busy}>
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[520px] rounded-md bg-black/30 p-3 font-mono text-xs">
-          {filtered.length === 0 ? (
-            <p className="py-8 text-center text-muted-foreground">
-              {busy ? "Loading logs…" : "No entries match the current filter"}
-            </p>
-          ) : filtered.map(log => (
-            <div key={log.id} className="border-b border-white/5 py-1.5 last:border-0">
-              <span className="text-muted-foreground">
-                {new Date(log.created_at).toLocaleString()}
-              </span>
-              {" "}
-              <span className={`font-bold uppercase ${LOG_COLORS[log.level] ?? "text-foreground"}`}>
-                [{log.level}]
-              </span>
-              {" "}
-              <span className="text-purple-300">{log.scope}:</span>
-              {" "}
-              <span>{log.message}</span>
-              {log.details && (
-                <pre className="ml-4 mt-0.5 overflow-x-auto text-[10px] text-muted-foreground">
-                  {JSON.stringify(log.details, null, 2)}
-                </pre>
-              )}
-            </div>
-          ))}
-        </ScrollArea>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Showing {filtered.length} of {logs.length} entries
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Users Tab ─────────────────────────────────────────────────────────────
-
-function UsersTab() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-
-  const load = async () => {
-    setBusy(true);
-    try {
-      const res = await adminAPI.getUsers();
-      if (res.success) {
-        setUsers(res.data || []);
-      }
-    } catch (e: any) {
-      toast.error(e.message || "Failed to load users");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const filteredUsers = users.filter((u) =>
-    (u.displayName || "").toLowerCase().includes(search.toLowerCase()) ||
-    (u.email || "").toLowerCase().includes(search.toLowerCase())
-  );
-
-  const registeredCount = users.filter((u) => !u.isGuest).length;
-  const guestCount = users.filter((u) => u.isGuest).length;
-
-  return (
-    <div className="space-y-4">
-      {/* Overview Cards */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="enterprise-card rounded-2xl p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Total Users</p>
-          <p className="text-2xl font-black text-white">{users.length}</p>
-        </div>
-        <div className="enterprise-card rounded-2xl p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Registered Accounts</p>
-          <p className="text-2xl font-black text-[#00CFE8]">{registeredCount}</p>
-        </div>
-        <div className="enterprise-card rounded-2xl p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">Guest Logins</p>
-          <p className="text-2xl font-black text-amber-400">{guestCount}</p>
-        </div>
-      </div>
-
-      {/* Header + Search */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Input
-            placeholder="Search by email or name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-10 border-[#1F2937] bg-[#07090B] text-xs text-white placeholder-gray-600 focus:border-[#00CFE8]"
-          />
-        </div>
-        <Button
-          onClick={load}
-          variant="outline"
-          size="sm"
-          className="h-10 gap-2 border-[#1F2937] bg-[#07090B] text-xs font-bold text-gray-300 hover:text-white"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${busy ? 'animate-spin' : ''}`} />
-          Refresh Users
-        </Button>
-      </div>
-
-      {/* Table */}
-      <Card className="border-[#1F2937] bg-[#0D1117]">
-        <CardHeader className="p-4 border-b border-[#1F2937]">
-          <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#00CFE8]" />
-            Registered &amp; Guest Users ({filteredUsers.length})
-          </CardTitle>
-          <CardDescription className="text-xs text-gray-500">
-            View user profiles, configured IPTV credentials, saved favorites, and streaming history.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-[#07090B] border-b border-[#1F2937]">
-              <TableRow className="border-none hover:bg-transparent">
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">User / Email</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Account Type</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Favorites</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Watch History</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">IPTV Provider</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Joined</TableHead>
-                <TableHead className="text-[10px] font-bold uppercase tracking-widest text-gray-500 text-right">Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {busy && users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-xs text-gray-500">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#00CFE8]" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center text-xs text-gray-500">
-                    No users found in database.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredUsers.map((u) => {
-                  const isExpanded = expandedUserId === u.id;
-                  return (
-                    <tbody key={u.id} className="border-b border-[#1F2937]/50">
-                      <TableRow className="hover:bg-[#111827]/60">
-                        <TableCell className="font-bold text-xs text-white">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs ${
-                              u.isGuest ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-[#00CFE8]/10 text-[#00CFE8] border border-[#00CFE8]/20'
-                            }`}>
-                              {u.isGuest ? <UserCheck className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-                            </div>
-                            <div>
-                              <p className="text-white text-xs font-bold">{u.displayName}</p>
-                              <p className="text-[10px] text-gray-500 font-mono">{u.email}</p>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge variant="outline" className={u.isGuest ? 'border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px]' : 'border-[#00CFE8]/30 bg-[#00CFE8]/10 text-[#00CFE8] text-[10px]'}>
-                            {u.isGuest ? 'Guest' : 'Registered'}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell className="text-xs text-gray-300">
-                          <span className="font-bold text-white">{u.favoritesCount}</span> channels
-                        </TableCell>
-
-                        <TableCell className="text-xs text-gray-300">
-                          <span className="font-bold text-white">{u.recentlyWatchedCount}</span> watched
-                        </TableCell>
-
-                        <TableCell className="text-xs text-gray-400">
-                          {u.credentialsProvider ? (
-                            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px]">
-                              {u.credentialsProvider}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-600 text-[10px]">None</span>
-                          )}
-                        </TableCell>
-
-                        <TableCell className="text-[10px] text-gray-500 font-mono">
-                          {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setExpandedUserId(isExpanded ? null : u.id)}
-                            className="h-8 px-2 text-xs text-[#00CFE8] hover:bg-[#00CFE8]/10"
-                          >
-                            {isExpanded ? 'Hide' : 'View Activity'}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-
-                      {/* Expanded Activity Row */}
-                      {isExpanded && (
-                        <TableRow className="bg-[#07090B] border-b border-[#1F2937]">
-                          <TableCell colSpan={7} className="p-4">
-                            <div className="grid sm:grid-cols-2 gap-4">
-                              {/* Favorites List */}
-                              <div className="rounded-xl border border-[#1F2937] p-3 bg-[#0D1117]">
-                                <p className="text-xs font-bold text-[#00CFE8] mb-2 flex items-center gap-1.5">
-                                  <Star className="w-3.5 h-3.5" />
-                                  Saved Favorites ({u.favorites?.length || 0})
-                                </p>
-                                {u.favorites && u.favorites.length > 0 ? (
-                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                    {u.favorites.map((fav: any, i: number) => (
-                                      <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-[#111827]">
-                                        <span className="text-white font-medium truncate">{fav.channel_name}</span>
-                                        <span className="text-[10px] text-gray-500">{fav.category || 'Live'}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-gray-600">No favorites added yet.</p>
-                                )}
-                              </div>
-
-                              {/* Watch History */}
-                              <div className="rounded-xl border border-[#1F2937] p-3 bg-[#0D1117]">
-                                <p className="text-xs font-bold text-amber-400 mb-2 flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5" />
-                                  Recent Stream History ({u.recentlyWatched?.length || 0})
-                                </p>
-                                {u.recentlyWatched && u.recentlyWatched.length > 0 ? (
-                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                    {u.recentlyWatched.map((w: any, i: number) => (
-                                      <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-[#111827]">
-                                        <span className="text-white font-medium truncate">{w.channel_name}</span>
-                                        <span className="text-[10px] text-gray-500">{w.watched_at || w.created_at ? new Date(w.watched_at || w.created_at).toLocaleTimeString() : 'Recent'}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <p className="text-xs text-gray-600">No stream history logged yet.</p>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </tbody>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ─── Page shell ───────────────────────────────────────────────────────────────
+import { BarChart3, Filter, LockKeyhole, LogOut, Menu, Terminal, Tv, Users, X } from "lucide-react";
+
+import ChannelsTab from "./admin/ChannelsTab";
+import UsersTab from "./admin/UsersTab";
+import AnalyticsTab from "./admin/AnalyticsTab";
+import FiltersTab from "./admin/FiltersTab";
+import LogsTab from "./admin/LogsTab";
+
+const NAV_ITEMS = [
+  { id: "channels",  icon: Tv,        label: "Channels"  },
+  { id: "users",     icon: Users,     label: "Users"     },
+  { id: "analytics", icon: BarChart3, label: "Analytics" },
+  { id: "filters",   icon: Filter,    label: "Filters"   },
+  { id: "logs",      icon: Terminal,  label: "Logs"      },
+];
 
 export default function Admin() {
   const navigate = useNavigate();
   const [headerStats, setHeaderStats] = useState<{ channels: number; broken: number } | null>(null);
+  const [activeTab, setActiveTab] = useState("channels");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem(ADMIN_SESSION_KEY)) {
@@ -1187,118 +41,191 @@ export default function Admin() {
       });
   }, [navigate]);
 
+  const handleLogout = () => {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    navigate("/admin-login", { replace: true });
+  };
+
   return (
-    <div className="enterprise-bg min-h-screen pb-8 text-white">
-      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col border-r border-[#1F2937]/85 bg-[#0B1115]/95 backdrop-blur-xl lg:flex">
-        <div className="flex h-16 items-center gap-3 border-b border-[#1F2937]/70 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00CFE8] text-black">
-            <LockKeyhole className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-extrabold leading-none text-white">StreamFlow Admin</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#00CFE8]/80">Isolated Console</p>
+    <div className="enterprise-bg min-h-screen text-white flex flex-col">
+      {/* Mobile Top Navigation Bar (< lg screens) */}
+      <header className="lg:hidden sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#1F2937]/80 bg-[#0B1115]/95 px-4 backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-white hover:bg-white/10 active:scale-95 transition-all"
+            aria-label="Open Admin Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00CFE8] text-black font-black text-xs">
+              <LockKeyhole className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-sm font-extrabold text-white leading-none">StreamFlow Admin</p>
+              <p className="text-[9px] font-bold text-[#00CFE8] uppercase tracking-wider mt-0.5">Control Panel</p>
+            </div>
           </div>
         </div>
-        <nav className="flex-1 space-y-1 px-3 py-5">
-          {[
-            { icon: Tv, label: "Channels" },
-            { icon: Users, label: "Users" },
-            { icon: BarChart3, label: "Analytics" },
-            { icon: Filter, label: "Filters" },
-            { icon: Terminal, label: "Logs" },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-gray-300">
-              <item.icon className="h-4 w-4 text-[#00CFE8]" />
-              {item.label}
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/25 bg-red-500/10 text-xs font-bold text-red-300 hover:bg-red-500/20 active:scale-95 transition-all"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          <span>Exit</span>
+        </button>
+      </header>
+
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm lg:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Responsive Sidebar (Slide-over on mobile, Fixed left column on lg+) */}
+      <aside
+        className={`fixed left-0 top-0 z-50 h-screen w-64 flex-col border-r border-[#1F2937]/85 bg-[#0B1115] shadow-2xl backdrop-blur-2xl transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          sidebarOpen ? "translate-x-0 flex" : "-translate-x-full lg:flex"
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className="flex h-16 items-center justify-between border-b border-[#1F2937]/70 px-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#00CFE8] text-black shadow-md">
+              <LockKeyhole className="h-5 w-5" />
             </div>
-          ))}
+            <div>
+              <p className="text-sm font-extrabold leading-none text-white">StreamFlow Admin</p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#00CFE8]/80">Isolated Console</p>
+            </div>
+          </div>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="lg:hidden p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
+            aria-label="Close Sidebar"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Sidebar Nav Items */}
+        <nav className="flex-1 space-y-1.5 px-3 py-5 overflow-y-auto">
+          {NAV_ITEMS.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  setSidebarOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all text-left ${
+                  isActive
+                    ? "bg-[#00CFE8]/15 text-[#00CFE8] border border-[#00CFE8]/30 shadow-md shadow-[#00CFE8]/10"
+                    : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                }`}
+              >
+                <item.icon className={`h-4 w-4 ${isActive ? "text-[#00CFE8]" : "text-gray-400"}`} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
+
+        {/* Sidebar Footer Logout */}
         <div className="border-t border-[#1F2937]/70 p-4">
           <button
-            onClick={() => {
-              localStorage.removeItem(ADMIN_SESSION_KEY);
-              navigate("/admin-login", { replace: true });
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/8 px-3 py-2.5 text-sm font-bold text-red-300 transition-colors hover:bg-red-500/15"
+            onClick={handleLogout}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2.5 text-xs font-bold text-red-300 transition-colors hover:bg-red-500/20 active:scale-95"
           >
             <LogOut className="h-4 w-4" />
-            Lock Console
+            <span>Lock Console</span>
           </button>
         </div>
       </aside>
 
-      <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 rounded-3xl border border-[#1F2937] bg-[#0D1117]/80 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00CFE8]">Operator Console</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Admin Management</h1>
-            <p className="mt-1 text-sm text-gray-500">Separate admin workspace for streams, users, analytics, and logs.</p>
+      {/* Main Content Area (Offset by lg:pl-64 so it NEVER overlaps with the sidebar!) */}
+      <main className="flex-1 lg:pl-64 transition-all duration-300 w-full min-w-0">
+        <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
+          {/* Header Banner */}
+          <div className="flex flex-col gap-3 rounded-3xl border border-[#1F2937] bg-[#0D1117]/80 p-5 sm:flex-row sm:items-center sm:justify-between shadow-lg backdrop-blur-xl">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#00CFE8]">Operator Console</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl text-white">Admin Management</h1>
+              <p className="mt-1 text-xs sm:text-sm text-gray-400">Separate admin workspace for streams, users, analytics, and logs.</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="self-start sm:self-auto rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2 text-xs sm:text-sm font-bold text-red-300 transition-colors hover:bg-red-500/20 active:scale-95"
+            >
+              Lock Admin
+            </button>
           </div>
-          <button
-            onClick={() => {
-              localStorage.removeItem(ADMIN_SESSION_KEY);
-              navigate("/admin-login", { replace: true });
-            }}
-            className="rounded-xl border border-red-500/25 px-4 py-2 text-sm font-bold text-red-300 transition-colors hover:bg-red-500/10"
-          >
-            Lock Admin
-          </button>
+
+          {/* Stats summary chips */}
+          {headerStats && (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <div className="enterprise-card rounded-2xl p-4 bg-[#12161F]/80 border border-white/5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Channels</p>
+                <p className="text-xl sm:text-2xl font-black text-white">{headerStats.channels.toLocaleString()}</p>
+              </div>
+              <div className="enterprise-card rounded-2xl p-4 bg-[#12161F]/80 border border-white/5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Broken</p>
+                <p className="text-xl sm:text-2xl font-black text-red-400">{headerStats.broken.toLocaleString()}</p>
+              </div>
+              <div className="enterprise-card rounded-2xl p-4 bg-[#12161F]/80 border border-white/5">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Mode</p>
+                <p className="text-xl sm:text-2xl font-black text-[#00CFE8]">Admin</p>
+              </div>
+              <div className="enterprise-card rounded-2xl p-4 bg-[#12161F]/80 border border-white/5">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Access</p>
+                <p className="text-xl sm:text-2xl font-black text-emerald-400">Locked</p>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Navigation & Content */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            {/* Scrollable Horizontal Tabs List */}
+            <div className="overflow-x-auto scrollbar-none pb-1">
+              <TabsList className="flex h-auto w-max min-w-full justify-start rounded-2xl border border-[#1F2937] bg-[#0D1117] p-1.5 sm:grid sm:grid-cols-5">
+                <TabsTrigger value="channels" className="rounded-xl px-4 py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold transition-all">
+                  <Tv className="h-3.5 w-3.5" />
+                  <span>Channels</span>
+                </TabsTrigger>
+                <TabsTrigger value="users" className="rounded-xl px-4 py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold transition-all">
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Users</span>
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="rounded-xl px-4 py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold transition-all">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  <span>Analytics</span>
+                </TabsTrigger>
+                <TabsTrigger value="filters" className="rounded-xl px-4 py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold transition-all">
+                  <Filter className="h-3.5 w-3.5" />
+                  <span>Filters</span>
+                </TabsTrigger>
+                <TabsTrigger value="logs" className="rounded-xl px-4 py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold transition-all">
+                  <Terminal className="h-3.5 w-3.5" />
+                  <span>Logs</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <TabsContent value="channels" className="focus-visible:outline-none min-w-0"><ChannelsTab /></TabsContent>
+            <TabsContent value="users" className="focus-visible:outline-none min-w-0"><UsersTab /></TabsContent>
+            <TabsContent value="analytics" className="focus-visible:outline-none min-w-0"><AnalyticsTab /></TabsContent>
+            <TabsContent value="filters" className="focus-visible:outline-none min-w-0"><FiltersTab /></TabsContent>
+            <TabsContent value="logs" className="focus-visible:outline-none min-w-0"><LogsTab /></TabsContent>
+          </Tabs>
         </div>
-
-        {/* Stats summary chips */}
-        {headerStats && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="enterprise-card rounded-2xl p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Channels</p>
-              <p className="text-2xl font-black text-white">{headerStats.channels.toLocaleString()}</p>
-            </div>
-            <div className="enterprise-card rounded-2xl p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-600 mb-1">Broken</p>
-              <p className="text-2xl font-black text-red-400">{headerStats.broken.toLocaleString()}</p>
-            </div>
-            <div className="enterprise-card rounded-2xl p-4">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">Mode</p>
-              <p className="text-2xl font-black text-[#00CFE8]">Admin</p>
-            </div>
-            <div className="enterprise-card rounded-2xl p-4">
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-600">Access</p>
-              <p className="text-2xl font-black text-emerald-400">Locked</p>
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <Tabs defaultValue="channels" className="space-y-4">
-          <TabsList className="grid h-auto grid-cols-5 rounded-2xl border border-[#1F2937] bg-[#0D1117] p-1">
-            <TabsTrigger value="channels" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
-              <Tv className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Channels</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
-              <Users className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Users</span>
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
-              <BarChart3 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Analytics</span>
-            </TabsTrigger>
-            <TabsTrigger value="filters" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
-              <Filter className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Filters</span>
-            </TabsTrigger>
-            <TabsTrigger value="logs" className="rounded-lg py-2 gap-1.5 text-xs data-[state=active]:bg-[#00D7E5] data-[state=active]:text-black font-bold">
-              <Terminal className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Logs</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="channels"><ChannelsTab /></TabsContent>
-          <TabsContent value="users"><UsersTab /></TabsContent>
-          <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
-          <TabsContent value="filters"><FiltersTab /></TabsContent>
-          <TabsContent value="logs"><LogsTab /></TabsContent>
-        </Tabs>
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User } from 'lucide-react';
+import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User, Radio } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -9,12 +9,13 @@ interface AppHeaderProps {
 }
 
 const navItems = [
-  { icon: Home,     label: 'Home',     path: '/dashboard'              },
-  { icon: Tv,       label: 'Live TV',  path: '/dashboard?view=live'   },
-  { icon: Film,     label: 'Movies',   path: '/dashboard?view=movie'  },
-  { icon: Monitor,  label: 'Series',   path: '/dashboard?view=series' },
-  { icon: Zap,      label: 'IPTV Setup', path: '/setup'               },
-  { icon: Settings, label: 'Settings', path: '/settings'              },
+  { icon: Home,     label: 'Home',         path: '/dashboard'              },
+  { icon: Tv,       label: 'Live TV',      path: '/dashboard?view=live'   },
+  { icon: Radio,    label: 'Live Streams', path: '/dashboard?view=streams'},
+  { icon: Film,     label: 'Movies',       path: '/dashboard?view=movie'  },
+  { icon: Monitor,  label: 'Series',       path: '/dashboard?view=series' },
+  { icon: Zap,      label: 'IPTV Setup',   path: '/setup'               },
+  { icon: Settings, label: 'Settings',     path: '/settings'              },
 ];
 
 const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {

@@ -174,3 +174,8 @@
 | Validation | Zod |
 | PWA | vite-plugin-pwa (Workbox) |
 | Deployment | Vercel (`streamhubflow.qzz.io`) |
+
+
+https://amg01269-amg01269c1-firetv-us-5377.playouts.now.amagi.tv/playlist.m3u8" 
+
+https://live.msnetworks.net/ptv-sports/audio.m3u8

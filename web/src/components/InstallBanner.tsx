@@ -18,6 +18,7 @@ const InstallBanner = () => {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return null;
   if (!installEvent || dismissed) return null;
 
   const handleInstall = async () => {
@@ -27,25 +28,7 @@ const InstallBanner = () => {
   };
 
   return (
-    <div style={{
-      position: "fixed",
-      bottom: 24,
-      left: "50%",
-      transform: "translateX(-50%)",
-      zIndex: 9999,
-      background: "rgba(28, 28, 30, 0.92)",
-      backdropFilter: "blur(24px)",
-      WebkitBackdropFilter: "blur(24px)",
-      border: "1px solid rgba(255, 255, 255, 0.15)",
-      borderRadius: 9999,
-      padding: "10px 20px",
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-      boxShadow: "0 20px 50px rgba(0, 0, 0, 0.7)",
-      width: "calc(100% - 40px)",
-      maxWidth: 440,
-    }}>
+    <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#1C1C1E]/95 backdrop-blur-2xl border border-white/15 rounded-full px-5 py-2.5 flex items-center gap-3 shadow-2xl w-[calc(100%-32px)] max-w-md">
       <span style={{ fontSize: 22 }}></span>
       <div style={{ flex: 1 }}>
         <div style={{ color: "#FFFFFF", fontWeight: 800, fontSize: 13 }}>Install StreamFlow tv+</div>
