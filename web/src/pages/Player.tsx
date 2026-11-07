@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Star, Tv, ExternalLink, Copy, Download } from "lucide-react";
+import { ArrowLeft, Star, Tv, ExternalLink, Copy, Download, Maximize, Minimize } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import HLSPlayer from "@/components/HLSPlayer";
 import { favoritesAPI, iptvAPI, recentlyWatchedAPI, streamAPI, toPasswordlessStreamUrl } from "@/lib/api";
+import { enterPlayerFullscreen, exitPlayerFullscreen } from "@/lib/playerFullscreen";
 import { toast } from "sonner";
 
 const Player = () => {
@@ -55,6 +56,36 @@ const Player = () => {
       activeUrl.includes("kpores.ru")
     );
   }, [activeUrl, searchParams]);
+
+  const playerContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isPageFullscreen, setIsPageFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFSChange = () => {
+      const fs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      setIsPageFullscreen(fs);
+    };
+    document.addEventListener("fullscreenchange", handleFSChange);
+    document.addEventListener("webkitfullscreenchange", handleFSChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFSChange);
+      document.removeEventListener("webkitfullscreenchange", handleFSChange);
+    };
+  }, []);
+
+  const handlePlayerFullscreen = async () => {
+    if (!playerContainerRef.current) return;
+    try {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
+      } else {
+        await enterPlayerFullscreen(playerContainerRef.current);
+      }
+    } catch (e) {
+      console.warn("Fullscreen toggle failed:", e);
+    }
+  };
 
   useEffect(() => {
     setLatestUrls(null);
@@ -310,7 +341,7 @@ ${activeUrl}`;
 
       {/* Video Player */}
       <div className="container mx-auto px-4 sm:px-6 py-5 sm:py-8">
-        <div className="enterprise-panel relative aspect-video min-h-[220px] overflow-hidden rounded-3xl bg-black sm:min-h-0">
+        <div ref={playerContainerRef} className="enterprise-panel relative aspect-video min-h-[220px] overflow-hidden rounded-3xl bg-black sm:min-h-0 shadow-2xl">
           {activeUrl ? (
             <>
               {isEmbedStream ? (
@@ -324,17 +355,28 @@ ${activeUrl}`;
               ) : (
                 <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
               )}
-              {/* Quick Action Button - Overlay on player */}
-              <div className="absolute top-4 right-4 z-30">
+              {/* Quick Action Buttons - Overlay on player */}
+              <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-30 flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handlePlayerFullscreen}
+                  className="gap-1.5 bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md shadow-xl text-xs font-bold rounded-xl h-8 px-3"
+                  title="Full Screen / Screen Bari Karein"
+                >
+                  {isPageFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+                  <span>{isPageFullscreen ? "Exit" : "Full Screen"}</span>
+                </Button>
+
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="secondary" 
                       size="sm" 
-                      className="gap-2 bg-black/70 hover:bg-black/90 backdrop-blur-sm"
+                      className="gap-1.5 bg-black/75 hover:bg-black text-white border border-white/20 backdrop-blur-md shadow-xl text-xs font-bold rounded-xl h-8 px-3"
                     >
-                      <ExternalLink className="w-4 h-4" />
-                      Open In
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Open In</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">

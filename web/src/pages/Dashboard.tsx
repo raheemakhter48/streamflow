@@ -713,44 +713,54 @@ const Dashboard = () => {
         <div className="mx-auto max-w-[1520px] px-4 sm:px-5 lg:px-8">
           {/* Search + filters row (Hide in streams view as LiveStreamsBrowser has its own search and filters) */}
           {viewMode !== 'streams' && (
-            <div className="mb-6 flex flex-col gap-3 rounded-full border border-white/10 bg-[#1C1C1E]/80 p-2 backdrop-blur-xl lg:mt-5 lg:flex-row lg:items-center">
-              <div className="relative flex-1">
+            <div className="mb-5 flex flex-col gap-2.5 lg:mt-5 lg:flex-row lg:items-center lg:gap-3 lg:rounded-full lg:border lg:border-white/10 lg:bg-[#1C1C1E]/80 lg:p-1.5 lg:backdrop-blur-xl">
+              {/* Standalone clean search pill */}
+              <div className="relative flex-1 rounded-full border border-white/10 bg-[#1C1C1E]/80 lg:border-0 lg:bg-transparent backdrop-blur-xl">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                 <Input
                   placeholder="Search channels, movies, series..."
-                  className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-11 rounded-full border-none bg-transparent pl-11 pr-10 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(""); setCurrentPage(1); }}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white transition-colors"
+                    aria-label="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
 
-            {/* Region + Country (live view only) */}
-            {(viewMode === 'live' || viewMode === 'home') && (
-              <div className="flex gap-2 lg:shrink-0 pr-2">
-                <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                  <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15">
-                    <SelectValue placeholder="Region" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
-                    <SelectItem value="All">Region: Global 🌐</SelectItem>
-                    {regions.map((r) => (
-                      <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
-                  <SelectTrigger className="h-9 flex-1 rounded-full border border-white/15 bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40 hover:bg-white/15">
-                    <SelectValue placeholder="Country" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
-                    <SelectItem value="All">Country: All</SelectItem>
-                    {selectedRegionCountries.map((c) => (
-                      <SelectItem key={c} value={c}>{getCountryDisplayName(c)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+              {/* Region + Country Filter Pills (Clean separate row on mobile, inline on desktop) */}
+              {(viewMode === 'live' || viewMode === 'home') && (
+                <div className="flex items-center gap-2 lg:shrink-0 lg:pr-2 w-full lg:w-auto">
+                  <Select value={selectedRegion} onValueChange={handleRegionChange}>
+                    <SelectTrigger className="h-10 lg:h-9 flex-1 lg:w-44 rounded-full border border-white/15 bg-[#1C1C1E]/90 lg:bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15 shadow-sm">
+                      <SelectValue placeholder="Region" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
+                      <SelectItem value="All">Region: Global 🌐</SelectItem>
+                      {regions.map((r) => (
+                        <SelectItem key={r.code} value={r.code}>{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedCountry} onValueChange={handleCountryChange} disabled={selectedRegion === "All"}>
+                    <SelectTrigger className="h-10 lg:h-9 flex-1 lg:w-40 rounded-full border border-white/15 bg-[#1C1C1E]/90 lg:bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40 hover:bg-white/15 shadow-sm">
+                      <SelectValue placeholder="Country" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#1C1C1E] border-white/10 text-white rounded-2xl">
+                      <SelectItem value="All">Country: All</SelectItem>
+                      {selectedRegionCountries.map((c) => (
+                        <SelectItem key={c} value={c}>{getCountryDisplayName(c)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           )}
 

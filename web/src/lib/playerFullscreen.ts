@@ -1,19 +1,40 @@
-// Keep fullscreen on our wrapper so provider controls and our exit button stay
-// available together. A browser without this API can still expand in-page.
+// Cross-browser Fullscreen helper including iOS WebKit / Safari
 export const enterPlayerFullscreen = async (element: HTMLElement): Promise<boolean> => {
-  if (!element.requestFullscreen) return false;
   try {
-    await element.requestFullscreen();
-    return true;
+    if (element.requestFullscreen) {
+      await element.requestFullscreen();
+      return true;
+    }
+    const el = element as any;
+    if (el.webkitRequestFullscreen) {
+      await el.webkitRequestFullscreen();
+      return true;
+    }
+    if (el.webkitEnterFullscreen) {
+      await el.webkitEnterFullscreen();
+      return true;
+    }
+    const video = element.querySelector("video") as any;
+    if (video && video.webkitEnterFullscreen) {
+      video.webkitEnterFullscreen();
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
 };
 
 export const ownsPlayerFullscreen = (element: HTMLElement, doc: Document = document) => {
-  return !!doc.fullscreenElement && element.contains(doc.fullscreenElement);
+  const d = doc as any;
+  const current = doc.fullscreenElement || d.webkitFullscreenElement || d.webkitCurrentFullScreenElement;
+  return !!current && (current === element || element.contains(current));
 };
 
 export const exitPlayerFullscreen = async (element: HTMLElement, doc: Document = document) => {
-  if (ownsPlayerFullscreen(element, doc)) await doc.exitFullscreen();
+  try {
+    const d = doc as any;
+    if (doc.exitFullscreen) await doc.exitFullscreen();
+    else if (d.webkitExitFullscreen) await d.webkitExitFullscreen();
+  } catch {}
 };

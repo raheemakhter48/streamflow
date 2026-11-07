@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
-import { AlertCircle, Loader2, Maximize, Minimize, Play, RotateCw, Volume2, VolumeX, Settings, PictureInPicture2, Check } from "lucide-react";
+import { AlertCircle, Loader2, Maximize, Minimize, Play, Volume2, VolumeX, Settings, PictureInPicture2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { streamAPI } from "@/lib/api";
 import { lockLandscape, unlockOrientation } from "@/lib/orientation";
+import { enterPlayerFullscreen, exitPlayerFullscreen } from "@/lib/playerFullscreen";
 
 interface HLSPlayerProps {
   url: string;
@@ -29,10 +30,9 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isRotated, setIsRotated] = useState(false);
 
   // Advanced Controls: PiP, Quality Selector, Volume
-  const [isPipAvailable, setIsPipAvailable] = useState(false);
+  const [isPipAvailable, setIsPipAvailable] = useState(true);
   const [qualities, setQualities] = useState<{ id: number; label: string }[]>([]);
   const [currentQuality, setCurrentQuality] = useState<number>(-1); // -1 = Auto
   const [showQualityMenu, setShowQualityMenu] = useState(false);
@@ -301,28 +301,36 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   useEffect(() => {
     const handleFullscreenChange = () => {
       const fullscreen = !!document.fullscreenElement;
-      setIsFullscreen(fullscreen);
-      if (fullscreen) lockLandscape();
+      const fs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      setIsFullscreen(fs);
+      if (fs) lockLandscape();
       else unlockOrientation();
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
   }, []);
 
   const toggleFullscreen = async () => {
     if (!containerRef.current) return;
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-    } else {
-      await containerRef.current.requestFullscreen();
-      await lockLandscape();
+    try {
+      if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+        await exitPlayerFullscreen(containerRef.current);
+        setIsFullscreen(false);
+        unlockOrientation();
+      } else {
+        const entered = await enterPlayerFullscreen(containerRef.current);
+        if (entered) {
+          setIsFullscreen(true);
+          await lockLandscape();
+        }
+      }
+    } catch (e) {
+      console.warn("Fullscreen toggle error:", e);
     }
-  };
-
-  const toggleRotate = async () => {
-    setIsRotated((current) => !current);
-    if (!isRotated) await lockLandscape();
-    else unlockOrientation();
   };
 
   if (!streamUrl) {
@@ -336,19 +344,17 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
   return (
     <div
       ref={containerRef}
-      className={`relative bg-black group overflow-hidden rounded-lg shadow-2xl ${isRotated
-          ? "fixed left-1/2 top-1/2 z-[9999] h-[100vw] w-[100vh] max-h-[100vw] max-w-[100vh] -translate-x-1/2 -translate-y-1/2 rotate-90 rounded-none"
-          : "aspect-video"
-        }`}
+      className="relative bg-black group overflow-hidden rounded-lg shadow-2xl aspect-video"
     >
       <video
         ref={videoRef}
-        className="h-full w-full"
+        className="h-full w-full cursor-pointer"
         onPlay={() => {
           setIsPlaying(true);
           setError(null);
         }}
         onPause={() => setIsPlaying(false)}
+        onDoubleClick={toggleFullscreen}
         playsInline
       />
 
@@ -397,48 +403,37 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
         </button>
       )}
 
-      {isRotated && (
-        <button
-          type="button"
-          aria-label="Exit rotated view"
-          onClick={toggleRotate}
-          className="absolute right-3 top-3 z-40 rounded-full bg-black/70 px-3 py-2 text-xs font-bold text-white"
-        >
-          Exit rotate
-        </button>
-      )}
-
-      <div className="absolute bottom-0 left-0 right-0 z-30 flex translate-y-full items-center justify-between bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-3 transition-transform duration-200 group-hover:translate-y-0">
+      <div className="absolute bottom-0 left-0 right-0 z-30 flex items-center justify-between bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2.5 sm:px-4 py-2 sm:py-3 transition-transform duration-200 group-hover:translate-y-0">
         {/* Left Controls: Play/Pause, Live Badge, Volume */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/20 h-9 w-9"
+            className="text-white hover:bg-white/20 h-8 w-8 sm:h-9 sm:w-9 shrink-0"
             onClick={() =>
               isPlaying ? videoRef.current?.pause() : videoRef.current?.play()
             }
           >
             {isPlaying ? (
-              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+              <svg className="h-4 w-4 sm:h-5 sm:w-5 fill-current" viewBox="0 0 24 24">
                 <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
               </svg>
             ) : (
-              <Play className="h-5 w-5 fill-current ml-0.5" />
+              <Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current ml-0.5" />
             )}
           </Button>
 
-          <div className="flex items-center gap-1.5 rounded-full bg-red-600/90 px-2.5 py-0.5 text-[11px] font-black text-white shadow-md">
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full bg-red-600/90 px-2 sm:px-2.5 py-0.5 text-[10px] sm:text-[11px] font-black text-white shadow-md shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             LIVE
           </div>
 
           {/* Volume Control */}
-          <div className="group/vol flex items-center gap-1.5 pl-1">
+          <div className="group/vol flex items-center gap-1 shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white/80 hover:text-white hover:bg-white/20 h-8 w-8"
+              className="text-white/80 hover:text-white hover:bg-white/20 h-7 w-7 sm:h-8 sm:w-8 shrink-0"
               onClick={toggleMute}
               title={isMuted ? "Unmute" : "Mute"}
             >
@@ -455,27 +450,27 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
               step="0.05"
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
-              className="w-16 h-1 accent-[#00D7E5] bg-white/20 rounded-lg cursor-pointer transition-all opacity-70 group-hover/vol:opacity-100"
+              className="hidden sm:block w-14 lg:w-16 h-1 accent-[#00D7E5] bg-white/20 rounded-lg cursor-pointer transition-all opacity-70 group-hover/vol:opacity-100"
             />
           </div>
         </div>
 
-        {/* Right Controls: Quality Selector, PiP, Rotate, Fullscreen */}
-        <div className="flex items-center gap-1.5 relative">
+        {/* Right Controls: Quality Selector, PiP, Fullscreen */}
+        <div className="flex items-center gap-1 sm:gap-2 relative shrink-0">
           {/* Quality Selector Dropdown */}
           {qualities.length > 0 && (
             <div className="relative">
               <Button
                 variant="ghost"
                 size="sm"
-                className={`text-xs font-bold gap-1 px-2.5 h-8 rounded-full border border-white/10 ${
+                className={`text-[11px] sm:text-xs font-bold gap-1 px-2 sm:px-2.5 h-7 sm:h-8 rounded-full border border-white/10 ${
                   showQualityMenu ? "bg-white text-black" : "text-white/90 hover:bg-white/20"
                 }`}
                 onClick={() => setShowQualityMenu(!showQualityMenu)}
                 title="Stream Quality"
               >
-                <Settings className="h-3.5 w-3.5" />
-                <span>
+                <Settings className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                <span className="hidden xs:inline">
                   {currentQuality === -1
                     ? "Auto"
                     : qualities.find((q) => q.id === currentQuality)?.label || "Auto"}
@@ -509,37 +504,30 @@ const HLSPlayer = ({ url, urls = [], onPlaybackError }: HLSPlayerProps) => {
             </div>
           )}
 
-          {/* Picture-in-Picture Button */}
+          {/* Picture-in-Picture (PiP) Button */}
           {isPipAvailable && (
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20 h-8 w-8"
+              className="text-white hover:bg-white/20 h-7 w-7 sm:h-8 sm:w-8 shrink-0 rounded-full border border-white/10"
               onClick={togglePiP}
-              title="Picture in Picture"
+              title="Picture in Picture (PiP)"
+              aria-label="Picture in Picture"
             >
-              <PictureInPicture2 className="h-4 w-4" />
+              <PictureInPicture2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </Button>
           )}
 
+          {/* Fullscreen (Bari Screen) Button */}
           <Button
             variant="ghost"
             size="icon"
-            className="text-white hover:bg-white/20 h-8 w-8"
-            onClick={toggleRotate}
-            title="Rotate player"
-          >
-            <RotateCw className="h-4 w-4" />
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:bg-white/20 h-8 w-8"
+            className="text-white bg-white/15 hover:bg-white/25 h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 border border-white/20 shadow-md"
             onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen (Bari Screen)"}
+            aria-label="Fullscreen"
           >
-            {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            {isFullscreen ? <Minimize className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Maximize className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
           </Button>
         </div>
       </div>
