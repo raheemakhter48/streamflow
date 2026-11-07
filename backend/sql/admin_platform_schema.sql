@@ -72,3 +72,23 @@ CREATE INDEX IF NOT EXISTS idx_admin_scrape_runs_status ON public.admin_scrape_r
 CREATE INDEX IF NOT EXISTS idx_admin_system_logs_time ON public.admin_system_logs(created_at DESC);
 
 NOTIFY pgrst, 'reload schema';
+
+-- Activity log table (added by Antigravity)
+CREATE TABLE IF NOT EXISTS public.activity_log (
+    id           BIGSERIAL PRIMARY KEY,
+    user_id      UUID NULL,                     -- NULL for guest
+    session_id   UUID NOT NULL,                 -- identify a guest session
+    ip_address   INET,
+    action_type  TEXT NOT NULL,                 -- e.g. "GET /channels/123"
+    method       TEXT NOT NULL,
+    url          TEXT NOT NULL,
+    referrer     TEXT,
+    user_agent   TEXT,
+    payload      JSONB,
+    created_at   TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_user    ON public.activity_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_session ON public.activity_log(session_id);
+CREATE INDEX IF NOT EXISTS idx_activity_log_time    ON public.activity_log(created_at DESC);
+

@@ -6,14 +6,14 @@ import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Generate JWT Token
-const generateToken = (id) => {
+// Generate JWT Token (with custom expiration for guests)
+const generateToken = (id, expiresIn = process.env.JWT_EXPIRE || '30d') => {
   if (!process.env.JWT_SECRET) {
     console.error('❌ JWT_SECRET is missing! Token generation will fail.');
     throw new Error('Server configuration error: JWT_SECRET is missing');
   }
   return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '30d'
+    expiresIn
   });
 };
 
@@ -205,7 +205,8 @@ router.post('/guest', async (req, res, next) => {
       };
     }
 
-    const token = generateToken(user.id);
+    // Guest token short-lived (24h) rakhein taake purane guest sessions hamesha ke liye na reh jayein
+    const token = generateToken(user.id, '24h');
 
     res.status(200).json({
       success: true,

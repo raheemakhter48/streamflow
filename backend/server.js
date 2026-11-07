@@ -1,4 +1,5 @@
 import 'dotenv/config'; // 🚀 MUST BE ON LINE 1: Loads variables before any other route or config imports
+import { ensureSessionId, activityLogger, flushBuffer } from './scrapers/activityLogger.js';
 import express from 'express';
 import './config/env.js';
 import cors from 'cors';
@@ -24,8 +25,7 @@ app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 app.use(compression({
-  filter: (req, res) => /application\/json/i.test(String(res.getHeader('Content-Type') || ''))
-    && compression.filter(req, res)
+  filter: (req, res) => /application\/json/i.test(String(res.getHeader('Content-Type') || '')) && compression.filter(req, res)
 }));
 
 // Request Logger (Hugging Face logs mein nazar ayega)
@@ -33,6 +33,10 @@ app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
 });
+
+// Session & activity logging – added once
+app.use(ensureSessionId);
+app.use(activityLogger);
 
 // API metrics recorder — fire-and-forget, never blocks requests
 app.use((req, res, next) => {
@@ -54,8 +58,8 @@ app.use((req, res, next) => {
 
 // Health check (Isse pata chalega server zinda hai)
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     port: PORT,
     env: process.env.NODE_ENV || 'not set'
@@ -105,5 +109,15 @@ app.listen(PORT, '0.0.0.0', () => {
       });
   }
 });
+
+// Graceful shutdown – flush pending activity logs before exit
+function shutdown() {
+  console.log('🔄 Flushing remaining activity logs...');
+  flushBuffer()
+    .catch(e => console.error('⚠️ Flush on shutdown failed:', e))
+    .finally(() => process.exit(0));
+}
+process.on('SIGINT',  shutdown);
+process.on('SIGTERM', shutdown);
 
 export default app;

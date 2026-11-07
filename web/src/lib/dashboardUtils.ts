@@ -1,12 +1,12 @@
 export type ContentType = 'live' | 'movie' | 'series' | 'streams';
-export type DashboardView = ContentType | 'home' | 'epg';
+export type DashboardView = ContentType | 'home' | 'epg' | 'favorites';
 
 export const CHANNELS_PER_PAGE = 36;
 export const DEFAULT_DASHBOARD_VIEW: DashboardView = 'home';
 export const DASHBOARD_FILTERS_STORAGE_KEY = 'streamvault_dashboard_filters';
 export const M3U_CATEGORY_FILTER = 'M3U';
-export const DASHBOARD_VIEWS = new Set<DashboardView>(['home', 'live', 'movie', 'series', 'epg', 'streams']);
-export const CHANNEL_VIEWS = new Set<DashboardView>(['home', 'live']);
+export const DASHBOARD_VIEWS = new Set<DashboardView>(['home', 'live', 'movie', 'series', 'epg', 'streams', 'favorites']);
+export const CHANNEL_VIEWS = new Set<DashboardView>(['home', 'live', 'favorites']);
 
 export interface Channel {
   id?: string;

@@ -70,6 +70,7 @@ const Dashboard = () => {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || storedFilters.selectedCategory || "All");
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [favoriteChannelsList, setFavoriteChannelsList] = useState<Channel[]>([]);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [hasCredentials, setHasCredentials] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +86,19 @@ const Dashboard = () => {
     try {
       const list = await favoritesAPI.getFavorites();
       setFavorites(list.map((f: any) => f.channelUrl));
+      setFavoriteChannelsList(
+        list.map((f: any) => ({
+          id: f.id,
+          name: f.channelName,
+          url: f.channelUrl,
+          logo: f.channelLogo,
+          group: f.category || "Favorites",
+          type: "live" as const,
+          isWorking: true,
+          playbackSupport: getPlaybackSupport(f.channelUrl),
+          source: "iptv-org" as const,
+        }))
+      );
     } catch (error) { console.error(error); }
   }, []);
 
@@ -192,6 +206,21 @@ const Dashboard = () => {
   }, [user, viewMode, selectedRegion, selectedCountry, selectedCategory, debouncedSearchQuery, currentPage, navigate]);
 
   const filteredChannels = useMemo(() => {
+    if (viewMode === 'favorites') {
+      let favList = favoriteChannelsList.length > 0
+        ? [...favoriteChannelsList]
+        : channels.filter((ch) => favoriteUrls.has(ch.url));
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        favList = favList.filter((ch) =>
+          ch.name.toLowerCase().includes(query) ||
+          (ch.group && ch.group.toLowerCase().includes(query))
+        );
+      }
+      return favList;
+    }
+
     let filtered = validatedChannels ? [...validatedChannels] : [...channels];
 
     if (viewMode === 'live') {
@@ -221,7 +250,7 @@ const Dashboard = () => {
     }
 
     return filtered;
-  }, [channels, validatedChannels, searchQuery, selectedCategory, showFavoritesOnly, favoriteUrls, viewMode]);
+  }, [channels, validatedChannels, searchQuery, selectedCategory, showFavoritesOnly, favoriteUrls, viewMode, favoriteChannelsList]);
 
   const paginatedChannels = useMemo(() => {
     if (isChannelView(viewMode)) {
@@ -605,6 +634,19 @@ const Dashboard = () => {
     }
 
     if (paginatedChannels.length === 0 && !isLoading) {
+      if (viewMode === 'favorites') {
+        return (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+            <Heart className="w-10 h-10 text-gray-600 mb-1" />
+            <p className="text-gray-400 text-sm font-semibold">No favorites added yet</p>
+            <p className="text-gray-600 text-xs max-w-xs">Click the star or heart icon on any channel card to add it to your favorites.</p>
+            <button onClick={() => openViewMode('home')} className="mt-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-all">
+              Browse Channels
+            </button>
+          </div>
+        );
+      }
+
       return (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <p className="text-gray-600 text-sm">No channels found</p>
@@ -761,7 +803,7 @@ const Dashboard = () => {
           {/* Channels header */}
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-base font-black text-white">
-              {viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : 'Program Guide'}
+              {viewMode === 'favorites' ? 'Favorite Channels' : viewMode === 'home' ? 'All Channels' : viewMode === 'live' ? 'Live TV' : 'Program Guide'}
             </h2>
             <div className="flex items-center gap-2">
               {validatedChannels && (
@@ -789,9 +831,14 @@ const Dashboard = () => {
                   {isSelectionMode ? "Cancel" : "Find working"}
                 </button>
               )}
-              {isChannelView(viewMode) && (
+              {viewMode === 'favorites' ? (
+                <span className="text-xs text-red-400 font-bold flex items-center gap-1">
+                  <Heart className="w-3.5 h-3.5 fill-current" />
+                  {filteredChannels.length} saved
+                </span>
+              ) : isChannelView(viewMode) ? (
                 <span className="text-xs text-gray-600">{totalChannels.toLocaleString()} ch</span>
-              )}
+              ) : null}
               <button
                 onClick={handleRefreshChannels}
                 className="text-gray-600 hover:text-white transition-colors"
@@ -799,12 +846,15 @@ const Dashboard = () => {
               >
                 <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#00D7E5]' : ''}`} />
               </button>
-              <button
-                onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                className={`transition-colors ${showFavoritesOnly ? 'text-red-500' : 'text-gray-600 hover:text-white'}`}
-              >
-                <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-              </button>
+              {viewMode !== 'favorites' && (
+                <button
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  className={`transition-colors ${showFavoritesOnly ? 'text-red-500' : 'text-gray-600 hover:text-white'}`}
+                  title="Filter favorites"
+                >
+                  <Heart className={`w-4 h-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                </button>
+              )}
             </div>
           </div>
 

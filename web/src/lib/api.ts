@@ -9,9 +9,9 @@ const API_URL = API_BASE_URL.replace(/\/$/, '').endsWith('/api')
   ? API_BASE_URL.replace(/\/$/, '')
   : `${API_BASE_URL.replace(/\/$/, '')}/api`;
 
-// Get auth token from localStorage
+// Get auth token from sessionStorage (guest) or localStorage (registered user)
 const getToken = () => {
-  return localStorage.getItem('auth_token');
+  return sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token');
 };
 
 // A second tab can change accounts while this tab still renders private data.
@@ -19,10 +19,20 @@ window.addEventListener('storage', (event) => {
   if (event.key === 'auth_token' || event.key === null) window.location.reload();
 });
 
-const setAuthToken = (token: string) => {
+const setAuthToken = (token: string, isGuest: boolean = false) => {
   localStorage.removeItem('streamflow_recently_watched_movies');
   localStorage.removeItem('guest_name');
-  localStorage.setItem('auth_token', token);
+  sessionStorage.removeItem('guest_name');
+
+  if (isGuest) {
+    // Guest sessions tab close hone par clean ho jayein taake future mein ghost login na ho
+    localStorage.removeItem('auth_token');
+    sessionStorage.setItem('auth_token', token);
+  } else {
+    // Registered users persistent rahein
+    sessionStorage.removeItem('auth_token');
+    localStorage.setItem('auth_token', token);
+  }
 };
 
 export const ADMIN_SESSION_STORAGE_KEY = 'streamflow_admin_session';
@@ -129,10 +139,10 @@ export const authAPI = {
     });
     const token = data.token || data.data?.token;
     if (token) {
-      setAuthToken(token);
+      setAuthToken(token, true);
     }
     if (data.user?.name) {
-      localStorage.setItem('guest_name', data.user.name);
+      sessionStorage.setItem('guest_name', data.user.name);
     }
     return data;
   },
@@ -141,6 +151,8 @@ export const authAPI = {
     localStorage.removeItem('streamflow_recently_watched_movies');
     localStorage.removeItem('auth_token');
     localStorage.removeItem('guest_name');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('guest_name');
   },
 
   getCurrentUser: async () => {

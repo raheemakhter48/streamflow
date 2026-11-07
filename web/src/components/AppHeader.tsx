@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User, Radio } from 'lucide-react';
+import { Menu, X, Home, Tv, Film, Monitor, Settings, Zap, LogOut, User, Radio, Heart } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authAPI } from '@/lib/api';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ interface AppHeaderProps {
 const navItems = [
   { icon: Home,     label: 'Home',         path: '/dashboard'              },
   { icon: Tv,       label: 'Live TV',      path: '/dashboard?view=live'   },
+  { icon: Heart,    label: 'Favorites',    path: '/dashboard?view=favorites'},
   { icon: Radio,    label: 'Live Streams', path: '/dashboard?view=streams'},
   { icon: Film,     label: 'Movies',       path: '/dashboard?view=movie'  },
   { icon: Monitor,  label: 'Series',       path: '/dashboard?view=series' },
@@ -23,7 +24,9 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
   const location  = useLocation();
   const [open, setOpen]   = useState(false);
   const [email, setEmail] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string | null>(localStorage.getItem('guest_name'));
+  const [userName, setUserName] = useState<string | null>(
+    sessionStorage.getItem('guest_name') || localStorage.getItem('guest_name')
+  );
 
   useEffect(() => {
     authAPI.getCurrentUser()
@@ -33,7 +36,7 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
           if (d.user.name) {
             setUserName(d.user.name);
           } else if (d.user.email?.includes('@guest.streamflow')) {
-            const stored = localStorage.getItem('guest_name');
+            const stored = sessionStorage.getItem('guest_name') || localStorage.getItem('guest_name');
             setUserName(stored || 'Guest');
           }
         }
@@ -43,7 +46,9 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
 
   const handleNav = (path: string) => {
     setOpen(false);
-    const isGuest = email?.includes('@guest.streamflow') || !!localStorage.getItem('guest_name');
+    const isGuest = email?.includes('@guest.streamflow') || 
+      !!sessionStorage.getItem('guest_name') || 
+      !!localStorage.getItem('guest_name');
     if (path === '/setup' && isGuest) {
       toast.error('Account login or registration required for IPTV Setup');
       navigate('/auth');

@@ -896,7 +896,7 @@ router.get('/users', async (req, res) => {
 
     const [favsResult, watchedResult, credsResult] = await Promise.allSettled([
       supabase.from('favorites').select('user_id, channel_name, channel_url, category, created_at'),
-      supabase.from('recently_watched').select('user_id, channel_name, channel_url, category, watched_at, created_at'),
+      supabase.from('recently_watched').select('user_id, channel_name, channel_url, category, watched_at'),
       supabase.from('iptv_credentials').select('user_id, provider_name, server_url, username, m3u_url, created_at'),
     ]);
 
