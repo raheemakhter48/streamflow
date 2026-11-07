@@ -29,8 +29,10 @@ export interface MatchFixture {
     flag: string;
     score?: string;
   };
-  startTime: string; // e.g. "LIVE NOW" or "Today • 2:30 PM"
+  startIso?: string;
+  startTime: string; // e.g. "LIVE NOW" or "Today at 3:30 PM"
   liveDurationSeconds?: number;
+  startsInSeconds?: number;
   sources: MatchStreamSource[];
   watchUrl?: string;
   iptvChannelQuery?: string; // e.g. "PTV Sports" or "Sky Sports"
@@ -48,6 +50,48 @@ const LiveDurationBadge = memo(({ baseSeconds = 0 }: { baseSeconds?: number }) =
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
   return <span>Live For : {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m {seconds.toString().padStart(2, "0")}s</span>;
+});
+
+// Isolated upcoming match countdown badge
+const UpcomingCountdownBadge = memo(({ startIso, baseStartsInSeconds }: { startIso?: string; baseStartsInSeconds?: number }) => {
+  const [secondsLeft, setSecondsLeft] = useState<number>(() => {
+    if (startIso) {
+      const diff = Math.floor((new Date(startIso).getTime() - Date.now()) / 1000);
+      return diff > 0 ? diff : 0;
+    }
+    return baseStartsInSeconds || 0;
+  });
+
+  useEffect(() => {
+    if (secondsLeft <= 0) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft]);
+
+  if (secondsLeft <= 0) {
+    return <span className="text-amber-400 font-bold animate-pulse">Starting Shortly...</span>;
+  }
+
+  const days = Math.floor(secondsLeft / 86400);
+  const hours = Math.floor((secondsLeft % 86400) / 3600);
+  const minutes = Math.floor((secondsLeft % 3600) / 60);
+  const seconds = secondsLeft % 60;
+
+  if (days > 0) {
+    return (
+      <span className="text-amber-300 font-mono font-semibold">
+        Starts in: {days}d {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m
+      </span>
+    );
+  }
+
+  return (
+    <span className="text-amber-300 font-mono font-semibold">
+      Starts in: {hours.toString().padStart(2, "0")}h {minutes.toString().padStart(2, "0")}m {seconds.toString().padStart(2, "0")}s
+    </span>
+  );
 });
 
 // Team Logo Badge component that handles WebP/PNG logos and fallback sport icons
@@ -78,7 +122,7 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("live");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedSport, setSelectedSport] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMatchForStream, setSelectedMatchForStream] = useState<MatchFixture | null>(null);
@@ -215,9 +259,9 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
     return counts;
   }, [matches]);
 
-  // Filtered matches
+  // Filtered and intelligently sorted matches
   const filteredMatches = useMemo(() => {
-    return matches.filter((match) => {
+    const list = matches.filter((match) => {
       if (selectedStatus !== "all" && match.status !== selectedStatus) return false;
       if (selectedSport !== "all" && match.sport.toLowerCase() !== selectedSport.toLowerCase()) return false;
       if (searchQuery.trim()) {
@@ -226,6 +270,18 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
         if (!matchText.includes(q)) return false;
       }
       return true;
+    });
+
+    // Smart Sorting: Live first, then Upcoming (earliest first), then Recent
+    return list.sort((a, b) => {
+      const priority: Record<string, number> = { live: 0, upcoming: 1, recent: 2 };
+      const diff = (priority[a.status] ?? 3) - (priority[b.status] ?? 3);
+      if (diff !== 0) return diff;
+
+      if (a.status === "upcoming" && b.status === "upcoming") {
+        return (a.startsInSeconds || 0) - (b.startsInSeconds || 0);
+      }
+      return 0;
     });
   }, [matches, selectedStatus, selectedSport, searchQuery]);
 
@@ -246,7 +302,11 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
     }
 
     if (matchSources.length === 0) {
-      toast.info("This match stream is not live yet. Stream will start at scheduled match time.");
+      if (match.status === "upcoming") {
+        toast.info(`Match starts ${match.startTime}. Stream feed will become active shortly before kickoff.`);
+      } else {
+        toast.info("No active broadcast server found for this event right now.");
+      }
       return;
     }
 
@@ -340,13 +400,13 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
       {/* Row 1 Filter Pills: Status Filters (TFlix Style) */}
       <div className="flex flex-wrap items-center gap-2">
         <button
-          onClick={() => setSelectedStatus("recent")}
-          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "recent"
-            ? "bg-[#00D7E5] text-black shadow-lg shadow-cyan-500/20 scale-105"
+          onClick={() => setSelectedStatus("all")}
+          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "all"
+            ? "bg-white text-black shadow-lg scale-105"
             : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10"
             }`}
         >
-          Recent ({statusCounts.recent})
+          All ({statusCounts.all})
         </button>
 
         <button
@@ -362,22 +422,23 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
 
         <button
           onClick={() => setSelectedStatus("upcoming")}
-          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "upcoming"
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "upcoming"
             ? "bg-amber-400 text-black shadow-lg shadow-amber-400/20 scale-105"
-            : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10"
+            : "bg-white/5 text-amber-300 hover:bg-amber-500/10 border border-white/10"
             }`}
         >
+          <Clock className="w-3 h-3 text-amber-400" />
           Upcoming ({statusCounts.upcoming})
         </button>
 
         <button
-          onClick={() => setSelectedStatus("all")}
-          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "all"
-            ? "bg-white text-black shadow-lg scale-105"
+          onClick={() => setSelectedStatus("recent")}
+          className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${selectedStatus === "recent"
+            ? "bg-[#00D7E5] text-black shadow-lg shadow-cyan-500/20 scale-105"
             : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10"
             }`}
         >
-          All ({statusCounts.all})
+          Recent ({statusCounts.recent})
         </button>
       </div>
 
@@ -546,13 +607,41 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
                 </div>
 
                 {/* Timing / Countdown details */}
-                <div className="text-center py-2 border-t border-white/5 mb-3">
-                  <div className="text-[11px] font-medium text-white/60">
-                    {match.startTime}
+                <div className="text-center py-2.5 px-3 rounded-xl bg-black/30 border border-white/5 my-3 space-y-1">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-white/90">
+                    {isLive ? (
+                      <span className="flex items-center gap-1 text-red-400 font-bold">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                        Match In Progress
+                      </span>
+                    ) : isUpcoming ? (
+                      <span className="flex items-center gap-1.5 text-amber-300 font-bold">
+                        <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        {match.startTime}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-white/60">
+                        <Clock className="w-3.5 h-3.5 text-white/40 shrink-0" />
+                        {match.startTime}
+                      </span>
+                    )}
                   </div>
+
                   {isLive && (
-                    <div className="text-[11px] font-mono font-bold text-rose-400 mt-0.5">
+                    <div className="text-[11px] font-mono font-bold text-rose-400">
                       <LiveDurationBadge baseSeconds={match.liveDurationSeconds} />
+                    </div>
+                  )}
+
+                  {isUpcoming && (
+                    <div className="text-[11px] font-mono font-medium text-amber-300/90">
+                      <UpcomingCountdownBadge startIso={match.startIso} baseStartsInSeconds={match.startsInSeconds} />
+                    </div>
+                  )}
+
+                  {!isLive && !isUpcoming && (
+                    <div className="text-[10px] font-medium text-white/40 uppercase tracking-wider">
+                      Event Concluded
                     </div>
                   )}
                 </div>
@@ -562,21 +651,26 @@ const LiveStreamsBrowser = ({ channels = [] }: LiveStreamsBrowserProps) => {
                   <button
                     onClick={() => handleWatchStream(match, 0)}
                     className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-black text-xs transition-all active:scale-95 ${isLive
-                      ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30"
+                      ? "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-lg shadow-red-600/30"
                       : isUpcoming
-                        ? "bg-white/10 hover:bg-white/20 text-white border border-white/15"
-                        : "bg-white/5 hover:bg-white/10 text-white/80 border border-white/10"
+                        ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30"
+                        : "bg-white/5 hover:bg-white/10 text-white/70 border border-white/10"
                       }`}
                   >
                     {isLive ? (
                       <>
                         <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-                        <span>● LIVE NOW</span>
+                        <span>● WATCH LIVE</span>
+                      </>
+                    ) : isUpcoming ? (
+                      <>
+                        <Clock className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{match.startTime.includes('at ') ? `Starts ${match.startTime.split('at ')[1]}` : 'Upcoming'}</span>
                       </>
                     ) : (
                       <>
                         <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>Watch Match</span>
+                        <span>Watch Replay</span>
                       </>
                     )}
                   </button>

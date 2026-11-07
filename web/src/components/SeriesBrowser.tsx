@@ -14,10 +14,13 @@ interface SeriesCard {
   overview: string;
 }
 
-const SeriesBrowser = () => {
+interface SeriesBrowserProps {
+  searchQuery?: string;
+}
+
+const SeriesBrowser = ({ searchQuery = "" }: SeriesBrowserProps) => {
   const navigate = useNavigate();
   const [seriesList, setSeriesList] = useState<SeriesCard[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [heroIndex, setHeroIndex] = useState(0);
   const [page, setPage] = useState(1);
@@ -31,6 +34,10 @@ const SeriesBrowser = () => {
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: 'instant' });
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,23 +73,11 @@ const SeriesBrowser = () => {
 
   return (
     <section className="pb-12">
-      {/* Header Search */}
-      <div className="mb-6 flex flex-col gap-3 rounded-full border border-white/10 bg-[#1C1C1E]/80 p-2 backdrop-blur-xl sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
-          <Input
-            placeholder="Search TV Series, Anime & Shows (e.g. Loki, Breaking Bad, Wednesday)..."
-            className="h-11 rounded-full border-none bg-transparent pl-11 text-sm text-white placeholder-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-          />
-        </div>
-      </div>
 
       {/* Hero Showcase for TV Series */}
       {!searchQuery && !isLoading && !loadError && featuredHero && (
-        <div className="relative mb-10 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0C0D12] shadow-2xl transition-all duration-700">
-          <div className="relative aspect-[16/9] min-h-[360px] max-h-[520px] w-full overflow-hidden">
+        <div className="relative mb-6 sm:mb-10 overflow-hidden rounded-2xl sm:rounded-[2rem] border border-white/10 bg-[#0C0D12] shadow-2xl transition-all duration-700">
+          <div className="relative aspect-[16/9] min-h-[260px] sm:min-h-[360px] max-h-[520px] w-full overflow-hidden">
             <img
               key={featuredHero.id}
               src={featuredHero.backdrop || featuredHero.poster || "/placeholder.svg"}
@@ -93,27 +88,27 @@ const SeriesBrowser = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-[#000000] via-[#000000]/60 to-transparent" />
             <div className="absolute inset-0 bg-gradient-to-r from-[#000000]/90 via-[#000000]/40 to-transparent" />
 
-            <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10 lg:p-12">
-              <div className="max-w-2xl space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur-md px-3.5 py-1 border border-white/20 text-[10px] font-extrabold uppercase tracking-[0.2em] text-white">
+            <div className="absolute inset-0 flex flex-col justify-end p-4 sm:p-10 lg:p-12">
+              <div className="max-w-2xl space-y-2 sm:space-y-3">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-md px-3 py-0.5 sm:px-3.5 sm:py-1 border border-white/20 text-[9px] sm:text-[10px] font-extrabold uppercase tracking-[0.2em] text-white">
                     <Sparkles className="h-3 w-3 text-amber-300" />
                      StreamFlow Series
                   </div>
                   {Number(featuredHero.rating) > 0 && (
-                    <div className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 backdrop-blur-md px-3 py-1 border border-amber-400/30 text-[11px] font-extrabold text-amber-300">
+                    <div className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 backdrop-blur-md px-2.5 py-0.5 sm:px-3 sm:py-1 border border-amber-400/30 text-[10px] sm:text-[11px] font-extrabold text-amber-300">
                       <Star className="h-3 w-3 fill-current" />
                       {Number(featuredHero.rating).toFixed(1)} / 10
                     </div>
                   )}
                   {featuredHero.firstAirDate && (
-                    <div className="inline-flex items-center rounded-full bg-white/10 backdrop-blur-md px-3 py-1 border border-white/10 text-[11px] font-bold text-white/80">
+                    <div className="inline-flex items-center rounded-full bg-white/10 backdrop-blur-md px-2.5 py-0.5 sm:px-3 sm:py-1 border border-white/10 text-[10px] sm:text-[11px] font-bold text-white/80">
                       {featuredHero.firstAirDate.slice(0, 4)}
                     </div>
                   )}
                 </div>
 
-                <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl drop-shadow-md">
+                <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white drop-shadow-md">
                   {featuredHero.title}
                 </h1>
 
@@ -123,22 +118,22 @@ const SeriesBrowser = () => {
                   </p>
                 )}
 
-                <div className="flex flex-wrap items-center gap-3 pt-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 sm:pt-3">
                   <button
                     type="button"
                     onClick={() => openSeries(featuredHero.id)}
-                    className="apple-pill-btn px-7 py-3 text-xs sm:text-sm font-extrabold flex items-center gap-2.5 shadow-2xl hover:scale-105 transition-transform"
+                    className="apple-pill-btn px-5 sm:px-7 py-2.5 sm:py-3 text-xs sm:text-sm font-extrabold flex items-center gap-2 shadow-2xl hover:scale-105 transition-transform"
                   >
-                    <Play className="h-4 w-4 fill-current" />
+                    <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
                     Watch Series
                   </button>
 
                   <button
                     type="button"
                     onClick={() => openSeries(featuredHero.id)}
-                    className="apple-pill-btn-secondary px-6 py-3 text-xs sm:text-sm font-bold flex items-center gap-2"
+                    className="apple-pill-btn-secondary px-4 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold flex items-center gap-2"
                   >
-                    <Info className="h-4 w-4" />
+                    <Info className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     Seasons & Episodes
                   </button>
                 </div>

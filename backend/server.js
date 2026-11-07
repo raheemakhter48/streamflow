@@ -108,6 +108,11 @@ app.listen(PORT, '0.0.0.0', () => {
         console.warn(`⚠️ Scraper cron disabled: ${error.message}`);
       });
   }
+
+  // Automatic Background Stream Health Bot (checks broken streams & notifies admin bell)
+  import('./services/streamHealthBot.js')
+    .then(({ startStreamHealthBot }) => startStreamHealthBot())
+    .catch((err) => console.warn(`⚠️ Stream health bot failed to start: ${err.message}`));
 });
 
 // Graceful shutdown – flush pending activity logs before exit

@@ -13,6 +13,8 @@ import BottomNav from "@/components/BottomNav";
 import { useSidebar } from "@/context/SidebarContext";
 import AdSlot from "@/components/AdSlot";
 import SEO from "@/components/SEO";
+import LiveSportsScoreWidget from "@/components/LiveSportsScoreWidget";
+import SmartSeoAssistant from "@/components/SmartSeoAssistant";
 
 const LiveStreamsBrowser = lazy(() => import("@/components/LiveStreamsBrowser"));
 const MovieBrowser = lazy(() => import("@/components/MovieBrowser"));
@@ -675,7 +677,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="enterprise-bg min-h-screen pb-20 text-white">
+    <div className="enterprise-bg min-h-screen pb-28 text-white">
       <SEO
         title={`${viewMode === "movie" ? "Movies" : viewMode === "live" ? "Live TV" : viewMode === "streams" ? "Live Streams" : "Streaming Dashboard"} - StreamFlow`}
         description="Browse live TV channels, sports streams, movies, series, favorites, and recently watched content in your StreamFlow dashboard."
@@ -758,6 +760,9 @@ const Dashboard = () => {
             format="horizontal"
           />
 
+          {/* Real-time Live Sports Scores Widget (Cricket & Football) */}
+          <LiveSportsScoreWidget />
+
           {/* Continue Watching - Fixed uniform sleek row */}
           {isChannelView(viewMode) && recentlyWatched.length > 0 && (
             <div className="mb-6">
@@ -797,7 +802,7 @@ const Dashboard = () => {
             ) : viewMode === 'movie' ? (
               <MovieBrowser searchQuery={debouncedSearchQuery} />
             ) : viewMode === 'series' ? (
-              <SeriesBrowser />
+              <SeriesBrowser searchQuery={debouncedSearchQuery} />
             ) : (
           <>
           {/* Channels header */}
@@ -924,6 +929,8 @@ const Dashboard = () => {
       )}
 
       <BottomNav />
+      {/* Smart On-Site SEO Bot Assistant */}
+      <SmartSeoAssistant />
     </div>
   );
 };

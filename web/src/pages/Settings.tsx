@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Play, Info, CheckCircle, LogOut } from "lucide-react";
@@ -20,6 +20,18 @@ const Settings = () => {
   const { collapsed } = useSidebar();
   const [playerType, setPlayerType] = useState(localStorage.getItem("preferred_player") || "auto");
   const [useProxy, setUseProxy]     = useState(localStorage.getItem("use_proxy") !== "false");
+  const [userDisplayId, setUserDisplayId] = useState<string>("SF-ACTIVE-USER");
+
+  useEffect(() => {
+    authAPI.getCurrentUser()
+      .then((d) => {
+        if (d?.user?.id) {
+          const shortId = d.user.id.slice(0, 8).toUpperCase();
+          setUserDisplayId(`SF-${shortId}`);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handlePlayerChange = (value: string) => {
     setPlayerType(value);
@@ -111,9 +123,9 @@ const Settings = () => {
           </div>
 
           {[
-            { label: 'Version',        value: '2.4.12-pro' },
-            { label: 'Build Date',     value: 'October 24, 2023' },
-            { label: 'User ID',        value: 'SF-882-9901-X' },
+            { label: 'Version',        value: '3.0.0-pro' },
+            { label: 'Build Date',     value: 'November 2026' },
+            { label: 'User ID',        value: userDisplayId },
             { label: 'Network Status', value: '● Connected', valueClass: 'text-green-400' },
           ].map((row, i, arr) => (
             <div

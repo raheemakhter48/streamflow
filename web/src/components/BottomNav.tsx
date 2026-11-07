@@ -4,9 +4,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 const tabs = [
   { label: 'Home',      icon: Home,     path: '/dashboard',                view: 'home'      },
   { label: 'Live TV',   icon: Tv,       path: '/dashboard?view=live',      view: 'live'      },
-  { label: 'Favorites', icon: Heart,    path: '/dashboard?view=favorites', view: 'favorites' },
   { label: 'Streams',   icon: Radio,    path: '/dashboard?view=streams',   view: 'streams'   },
   { label: 'Movies',    icon: Film,     path: '/dashboard?view=movie',     view: 'movie'     },
+  { label: 'Series',    icon: Monitor,  path: '/dashboard?view=series',    view: 'series'    },
   { label: 'Settings',  icon: Settings, path: '/settings',                 view: null        },
 ];
 
@@ -23,7 +23,7 @@ const BottomNav = () => {
   };
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around bg-[#0f0f0f] border-t border-[#1f1f1f] h-16 px-1">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-[999] flex items-center justify-around bg-[#0f0f0f]/95 backdrop-blur-2xl border-t border-white/10 h-16 pb-[env(safe-area-inset-bottom)] px-1 shadow-[0_-8px_30px_rgba(0,0,0,0.9)]">
       {tabs.map((tab) => {
         const active = isActive(tab);
         return (

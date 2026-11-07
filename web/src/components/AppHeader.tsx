@@ -132,14 +132,28 @@ const AppHeader = ({ title = 'StreamFlow' }: AppHeaderProps) => {
           </nav>
         </div>
 
-        {/* Right Side: Account / Profile */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right Side: Favorites shortcut + Account / Profile */}
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <button
+            onClick={() => handleNav('/dashboard?view=favorites')}
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 sm:px-3 py-1.5 text-xs font-bold transition-all shrink-0 ${
+              isActive('/dashboard?view=favorites')
+                ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/30'
+                : 'border-white/15 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+            }`}
+            title="Favorite Channels"
+          >
+            <Heart className={`h-3.5 w-3.5 ${isActive('/dashboard?view=favorites') ? 'fill-current text-white' : 'text-rose-400 fill-rose-400/40'}`} />
+            <span className="hidden sm:inline text-[11px] font-bold">Favorites</span>
+          </button>
+
           <button
             onClick={() => navigate('/settings')}
-            className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/20"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold text-white transition-all hover:bg-white/20 shrink-0"
+            title="User Account & Settings"
           >
             <User className="h-3.5 w-3.5 text-white/80" />
-            <span className="max-w-[100px] sm:max-w-[140px] truncate">{userName || (email ? email.split('@')[0] : 'Account')}</span>
+            <span className="hidden sm:inline max-w-[140px] truncate">{userName || (email ? email.split('@')[0] : 'Account')}</span>
           </button>
 
           <button

@@ -7,6 +7,18 @@ let matchesCache = {
 
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes cache for live event accuracy
 
+// Helper to decode HTML entities in scraped tournament/team names
+const decodeEntities = (str) => {
+  if (!str) return '';
+  return str
+    .replace(/&#039;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec));
+};
+
 // Scrape stream links from a specific match watch page
 export const scrapeMatchStreams = async (watchUrl) => {
   if (!watchUrl) return [];
@@ -93,14 +105,15 @@ export const fetchRealtimeMatches = async (forceRefresh = false) => {
 
       // Tournament
       const tourMatch = cardHtml.match(/<span[^>]*class="[^"]*truncate[^"]*"[^>]*>\s*([\s\S]*?)\s*<\/span>/i);
-      const tournament = tourMatch ? tourMatch[1].replace(/<[^>]+>/g, '').trim() : 'Live Tournament';
+      const rawTournament = tourMatch ? tourMatch[1].replace(/<[^>]+>/g, '').trim() : 'Live Tournament';
+      const tournament = decodeEntities(rawTournament);
 
       // Teams and logos
       const imgRegex = /<img[^>]*src="([^"]+)"[^>]*alt="([^"]*)"/gi;
       let imgMatch;
       const teams = [];
       while ((imgMatch = imgRegex.exec(cardHtml)) !== null) {
-        teams.push({ logo: imgMatch[1], name: imgMatch[2].trim() });
+        teams.push({ logo: imgMatch[1], name: decodeEntities(imgMatch[2].trim()) });
       }
 
       const team1 = {
@@ -116,33 +129,65 @@ export const fetchRealtimeMatches = async (forceRefresh = false) => {
       const dateMatch = cardHtml.match(/data-start="([^"]+)"/i);
       const startIso = dateMatch ? dateMatch[1] : null;
 
-      // Status calculation based on live indicators or current time
+      // Check explicit badges from MHDTV card HTML
+      const isCardLive = /event-live-badge(?!\s+hidden)/i.test(cardHtml) && !cardHtml.includes('event-live-badge hidden');
+
       let status = 'upcoming';
       let startTime = 'Today';
-      let liveDurationSeconds = 1800;
+      let liveDurationSeconds = 0;
+      let startsInSeconds = 0;
 
       if (startIso) {
         const startDate = new Date(startIso);
-        const diffMs = now - startDate.getTime();
+        const diffMs = now - startDate.getTime(); // positive if in past, negative if in future
 
-        // If match started within the last 8 hours, it's considered live
-        if (diffMs > 0 && diffMs < 8 * 60 * 60 * 1000) {
-          status = 'live';
-          liveDurationSeconds = Math.floor(diffMs / 1000);
-          startTime = 'LIVE NOW';
-        } else if (diffMs >= 8 * 60 * 60 * 1000) {
-          status = 'recent';
-          startTime = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        } else {
+        const isToday = startDate.toDateString() === new Date().toDateString();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const isTomorrow = startDate.toDateString() === tomorrow.toDateString();
+
+        const timeStr = startDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        });
+        const dateStr = startDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        });
+
+        if (diffMs < 0) {
+          // Future match
           status = 'upcoming';
-          startTime = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          startsInSeconds = Math.floor(Math.abs(diffMs) / 1000);
+          if (isToday) {
+            startTime = `Today at ${timeStr}`;
+          } else if (isTomorrow) {
+            startTime = `Tomorrow at ${timeStr}`;
+          } else {
+            startTime = `${dateStr} at ${timeStr}`;
+          }
+        } else if (diffMs <= 3.5 * 3600 * 1000 || isCardLive) {
+          // Started within 3.5 hours or explicitly active live badge
+          status = 'live';
+          startTime = 'LIVE NOW';
+          liveDurationSeconds = Math.max(0, Math.floor(diffMs / 1000));
+        } else {
+          // Finished match
+          status = 'recent';
+          if (isToday) {
+            startTime = `Finished Today (${timeStr})`;
+          } else {
+            startTime = `Finished on ${dateStr}`;
+          }
         }
-      }
-
-      // Check explicit live badge in card
-      if (/class="[^"]*event-live-badge[^"]*(?!hidden)"/i.test(cardHtml) || /animate-pulse[^>]*>LIVE</i.test(cardHtml)) {
+      } else if (isCardLive) {
         status = 'live';
         startTime = 'LIVE NOW';
+        liveDurationSeconds = 1800;
+      } else {
+        status = 'upcoming';
+        startTime = 'Upcoming Match';
       }
 
       // Unique ID from URL
@@ -155,8 +200,10 @@ export const fetchRealtimeMatches = async (forceRefresh = false) => {
         status,
         team1,
         team2,
+        startIso,
         startTime,
         liveDurationSeconds,
+        startsInSeconds,
         watchUrl,
         sources: [], // Will be populated with unique match stream
       });

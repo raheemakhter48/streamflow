@@ -160,7 +160,11 @@ const buildSitemap = async (req) => {
   const now = new Date().toISOString();
   const staticUrls = [
     { loc: `${siteUrl}/`, lastmod: now, changefreq: 'daily', priority: '1.0' },
+    { loc: `${siteUrl}/dashboard`, lastmod: now, changefreq: 'daily', priority: '0.9' },
+    { loc: `${siteUrl}/dashboard?view=favorites`, lastmod: now, changefreq: 'daily', priority: '0.9' },
+    { loc: `${siteUrl}/dashboard?view=streams`, lastmod: now, changefreq: 'always', priority: '1.0' },
     { loc: `${siteUrl}/dashboard?view=movie`, lastmod: now, changefreq: 'daily', priority: '0.8' },
+    { loc: `${siteUrl}/dashboard?view=series`, lastmod: now, changefreq: 'daily', priority: '0.8' },
     { loc: `${siteUrl}/dashboard?view=live`, lastmod: now, changefreq: 'daily', priority: '0.7' }
   ];
 

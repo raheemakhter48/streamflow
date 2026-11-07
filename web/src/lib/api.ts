@@ -508,6 +508,41 @@ export const adminAPI = {
   getUsers: async () => {
     return apiRequest('/admin/users');
   },
+
+  getNotifications: async () => {
+    return apiRequest('/admin/notifications/broken');
+  },
+};
+
+// Real-time Stream & Scores API
+export const streamMetricsAPI = {
+  sendHeartbeat: async (channelId?: string, clientId?: string) => {
+    return fetch(`${API_URL}/stream/heartbeat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelId, clientId })
+    }).catch(() => {});
+  },
+
+  getViewers: async (channelId?: string) => {
+    try {
+      const res = await fetch(`${API_URL}/stream/viewers${channelId ? `?channelId=${encodeURIComponent(channelId)}` : ''}`);
+      const data = await res.json();
+      return data.viewers || 1;
+    } catch {
+      return 1;
+    }
+  },
+
+  getLiveScores: async () => {
+    try {
+      const res = await fetch(`${API_URL}/stream/live-scores`);
+      const data = await res.json();
+      return data.data || [];
+    } catch {
+      return [];
+    }
+  }
 };
 
 // Series API
