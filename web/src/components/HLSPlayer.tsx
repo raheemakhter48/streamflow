@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import mpegts from "mpegts.js";
+
+// Expose streaming engines globally for Wappalyzer & debug inspection
+if (typeof window !== "undefined") {
+  (window as any).Hls = Hls;
+  (window as any).mpegts = mpegts;
+}
+
 import { AlertCircle, Loader2, Maximize, Minimize, Play, Volume2, VolumeX, Settings, PictureInPicture2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { streamAPI } from "@/lib/api";

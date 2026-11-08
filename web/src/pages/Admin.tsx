@@ -272,7 +272,7 @@ export default function Admin() {
                   <Eye className="w-3 h-3" /> Live Viewers
                 </p>
                 <p className="text-xl sm:text-2xl font-black text-emerald-400">
-                  {notifications?.liveViewers ? notifications.liveViewers.toLocaleString() : '142'}
+                  {notifications ? (notifications.liveViewers ?? 0).toLocaleString() : '0'}
                 </p>
               </div>
             </div>
