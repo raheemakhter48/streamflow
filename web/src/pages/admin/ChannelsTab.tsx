@@ -29,29 +29,35 @@ function ChannelsTab() {
   const [showForm, setShowForm]     = useState(false);
   const [busy, setBusy]             = useState(false);
 
-  const formattedCountries = useMemo(() => {
-    return countries
-      .map((c: any) => {
-        const rawCode = String(c.value || c.label || "").trim().toUpperCase();
-        const fullName = getCountryDisplayName(rawCode);
-        return {
-          id: c.id,
-          code: rawCode,
-          name: fullName || rawCode,
-          label: fullName && fullName !== rawCode ? `${fullName} (${rawCode})` : rawCode
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [countries]);
+  const allRegionCountries = useMemo(() => {
+    const codeSet = new Set<string>();
+    regions.forEach((r) => {
+      (r.countries || []).forEach((c: string) => codeSet.add(c.toUpperCase()));
+    });
+    // Also include any custom country codes from admin filters
+    countries.forEach((c: any) => {
+      const code = String(c.value || c.label || "").trim().toUpperCase();
+      if (code) codeSet.add(code);
+    });
+
+    return Array.from(codeSet).map((rawCode) => {
+      const fullName = getCountryDisplayName(rawCode);
+      return {
+        code: rawCode,
+        name: fullName || rawCode,
+        label: fullName && fullName !== rawCode ? `${fullName} (${rawCode})` : rawCode
+      };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [regions, countries]);
 
   const availableCountriesForForm = useMemo(() => {
     if (!formRegion || formRegion === "All") {
-      return formattedCountries;
+      return allRegionCountries;
     }
     const reg = regions.find((r) => r.code === formRegion);
     const allowedCodes = new Set((reg?.countries || []).map((c: string) => c.toUpperCase()));
-    return formattedCountries.filter((c) => allowedCodes.has(c.code.toUpperCase()));
-  }, [formRegion, regions, formattedCountries]);
+    return allRegionCountries.filter((c) => allowedCodes.has(c.code));
+  }, [formRegion, regions, allRegionCountries]);
 
   const load = async () => {
     setBusy(true);
@@ -134,7 +140,7 @@ function ChannelsTab() {
   const edit = (ch: any) => {
     setEditingId(ch.id);
     const rawCountry = (ch.country || "").trim().toUpperCase();
-    const matched = formattedCountries.find(
+    const matched = allRegionCountries.find(
       (c) => c.code.toLowerCase() === rawCountry.toLowerCase() || c.name.toLowerCase() === rawCountry.toLowerCase()
     );
     const countryCode = matched ? matched.code : rawCountry;
