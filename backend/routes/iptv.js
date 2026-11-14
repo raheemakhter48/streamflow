@@ -713,6 +713,53 @@ router.get('/channels', async (req, res) => {
         .map(({ total_count, ...channel }) => normalizeRankedChannel(channel));
     }
 
+    // Merge matching admin-managed channels at the top of the list (page 1)
+    if (page === 1) {
+      try {
+        let adminQuery = supabase
+          .from('admin_channels')
+          .select('*');
+
+        if (search) {
+          adminQuery = adminQuery.ilike('name', `%${search.replace(/[%_\\]/g, '\\$&')}%`);
+        }
+        if (category && category.toLowerCase() !== 'all') {
+          adminQuery = adminQuery.ilike('category', `%${category.replace(/[%_\\]/g, '\\$&')}%`);
+        }
+        if (country && country.toLowerCase() !== 'all') {
+          adminQuery = adminQuery.ilike('country', `%${country.replace(/[%_\\]/g, '\\$&')}%`);
+        } else if (countries && countries.length > 0) {
+          adminQuery = adminQuery.in('country', countries);
+        }
+
+        const { data: adminRows } = await adminQuery.order('created_at', { ascending: false });
+        if (adminRows && adminRows.length > 0) {
+          const adminChannels = adminRows.map((ch) => ({
+            id: ch.id,
+            name: ch.name,
+            logo_url: ch.logo_url,
+            country: ch.country,
+            category: ch.category,
+            has_working_stream: true,
+            is_admin_channel: true,
+            iptv_streams: [
+              {
+                id: ch.id,
+                url: ch.stream_url || (ch.iframe_embed ? ch.iframe_embed : ''),
+                iframe_embed: ch.iframe_embed || null,
+                is_working: true,
+                resolution: '1080p'
+              }
+            ]
+          }));
+          channels = [...adminChannels, ...channels];
+          totalChannels += adminChannels.length;
+        }
+      } catch (adminErr) {
+        console.warn('Error merging admin channels for public listing:', adminErr?.message);
+      }
+    }
+
     const totalPages = totalChannels === 0 ? 0 : Math.ceil(totalChannels / limit);
 
     res.set('Cache-Control', 'public, max-age=30');
@@ -832,6 +879,36 @@ router.get('/channel/:id', async (req, res) => {
     }
 
     if (!data) {
+      const { data: adminChan } = await supabase
+        .from('admin_channels')
+        .select('*')
+        .eq('id', channelId)
+        .maybeSingle();
+
+      if (adminChan) {
+        return res.json({
+          success: true,
+          data: {
+            id: adminChan.id,
+            name: adminChan.name,
+            logo_url: adminChan.logo_url,
+            country: adminChan.country,
+            category: adminChan.category,
+            has_working_stream: adminChan.status === 'working',
+            is_admin_channel: true,
+            iptv_streams: [
+              {
+                id: adminChan.id,
+                url: adminChan.stream_url || (adminChan.iframe_embed ? adminChan.iframe_embed : ''),
+                iframe_embed: adminChan.iframe_embed || null,
+                is_working: adminChan.status === 'working',
+                resolution: '1080p'
+              }
+            ]
+          }
+        });
+      }
+
       return res.status(404).json({
         success: false,
         message: 'Channel not found'
