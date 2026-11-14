@@ -130,10 +130,20 @@ router.post('/login', async (req, res) => {
 
 const validateChannelPayload = (body) => {
   const name = normalizeText(body.name);
-  const streamUrl = normalizeText(body.streamUrl);
-  const iframeEmbed = normalizeText(body.iframeEmbed);
+  let streamUrl = normalizeText(body.streamUrl);
+  let iframeEmbed = normalizeText(body.iframeEmbed);
   const scrapeSourceUrl = normalizeText(body.scrapeSourceUrl);
   const manualOverride = Boolean(body.isManualOverride);
+
+  if (streamUrl && streamUrl.includes('<iframe')) {
+    if (!iframeEmbed) {
+      iframeEmbed = streamUrl;
+    }
+    const match = streamUrl.match(/src=["']([^"']+)["']/i);
+    if (match && match[1]) {
+      streamUrl = match[1].replace(/&amp;/g, '&');
+    }
+  }
 
   if (!name) {
     return { error: 'Channel name is required' };
@@ -147,12 +157,17 @@ const validateChannelPayload = (body) => {
     return { error: 'Auto-scrape channels require a Scrape Source URL' };
   }
 
+  let country = normalizeText(body.country);
+  if (country) {
+    country = country.trim().toUpperCase();
+  }
+
   return {
     data: {
       name,
       slug: normalizeText(body.slug) || toSlug(name),
       logo_url: normalizeText(body.logoUrl) || null,
-      country: normalizeText(body.country) || null,
+      country: country || null,
       category: normalizeText(body.category) || null,
       stream_url: streamUrl || null,
       iframe_embed: iframeEmbed || null,

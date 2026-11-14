@@ -727,31 +727,67 @@ router.get('/channels', async (req, res) => {
           adminQuery = adminQuery.ilike('category', `%${category.replace(/[%_\\]/g, '\\$&')}%`);
         }
         if (country && country.toLowerCase() !== 'all') {
-          adminQuery = adminQuery.ilike('country', `%${country.replace(/[%_\\]/g, '\\$&')}%`);
+          const countryUpper = country.toUpperCase();
+          const countryVariants = new Set([country, countryUpper, country.toLowerCase()]);
+          try {
+            const dn = new Intl.DisplayNames(['en'], { type: 'region' }).of(countryUpper);
+            if (dn) {
+              countryVariants.add(dn);
+              countryVariants.add(dn.toUpperCase());
+              countryVariants.add(dn.toLowerCase());
+            }
+          } catch {}
+          adminQuery = adminQuery.in('country', Array.from(countryVariants));
         } else if (countries && countries.length > 0) {
-          adminQuery = adminQuery.in('country', countries);
+          const regionVariants = new Set();
+          for (const c of countries) {
+            const cUpper = c.toUpperCase();
+            regionVariants.add(c);
+            regionVariants.add(cUpper);
+            try {
+              const dn = new Intl.DisplayNames(['en'], { type: 'region' }).of(cUpper);
+              if (dn) {
+                regionVariants.add(dn);
+                regionVariants.add(dn.toUpperCase());
+              }
+            } catch {}
+          }
+          adminQuery = adminQuery.in('country', Array.from(regionVariants));
         }
 
         const { data: adminRows } = await adminQuery.order('created_at', { ascending: false });
         if (adminRows && adminRows.length > 0) {
-          const adminChannels = adminRows.map((ch) => ({
-            id: ch.id,
-            name: ch.name,
-            logo_url: ch.logo_url,
-            country: ch.country,
-            category: ch.category,
-            has_working_stream: true,
-            is_admin_channel: true,
-            iptv_streams: [
-              {
-                id: ch.id,
-                url: ch.stream_url || (ch.iframe_embed ? ch.iframe_embed : ''),
-                iframe_embed: ch.iframe_embed || null,
-                is_working: true,
-                resolution: '1080p'
+          const adminChannels = adminRows.map((ch) => {
+            const rawStream = ch.stream_url || '';
+            const rawIframe = ch.iframe_embed || '';
+            let finalStream = rawStream;
+            let finalIframe = rawIframe;
+            if (rawStream.includes('<iframe')) {
+              finalIframe = rawStream;
+              const match = rawStream.match(/src=["']([^"']+)["']/i);
+              if (match && match[1]) {
+                finalStream = match[1].replace(/&amp;/g, '&');
               }
-            ]
-          }));
+            }
+            return {
+              id: ch.id,
+              name: ch.name,
+              logo_url: ch.logo_url,
+              country: ch.country,
+              category: ch.category,
+              has_working_stream: ch.status === 'working',
+              is_admin_channel: true,
+              iptv_streams: [
+                {
+                  id: ch.id,
+                  url: finalStream || (finalIframe ? finalIframe : ''),
+                  iframe_embed: finalIframe || null,
+                  is_working: ch.status === 'working',
+                  resolution: '1080p'
+                }
+              ]
+            };
+          });
           channels = [...adminChannels, ...channels];
           totalChannels += adminChannels.length;
         }
@@ -831,7 +867,16 @@ router.get('/categories', async (req, res) => {
       });
     }
 
-    const categories = [...new Set((data || [])
+    let adminCatRows = [];
+    try {
+      const { data: acData } = await supabase
+        .from('admin_channels')
+        .select('category')
+        .not('category', 'is', null);
+      if (acData) adminCatRows = acData;
+    } catch {}
+
+    const categories = [...new Set([...(data || []), ...adminCatRows]
       .map((row) => row.category)
       .filter(Boolean))]
       .sort((a, b) => a.localeCompare(b));
@@ -886,6 +931,17 @@ router.get('/channel/:id', async (req, res) => {
         .maybeSingle();
 
       if (adminChan) {
+        const rawStream = adminChan.stream_url || '';
+        const rawIframe = adminChan.iframe_embed || '';
+        let finalStream = rawStream;
+        let finalIframe = rawIframe;
+        if (rawStream.includes('<iframe')) {
+          finalIframe = rawStream;
+          const match = rawStream.match(/src=["']([^"']+)["']/i);
+          if (match && match[1]) {
+            finalStream = match[1].replace(/&amp;/g, '&');
+          }
+        }
         return res.json({
           success: true,
           data: {
@@ -899,8 +955,8 @@ router.get('/channel/:id', async (req, res) => {
             iptv_streams: [
               {
                 id: adminChan.id,
-                url: adminChan.stream_url || (adminChan.iframe_embed ? adminChan.iframe_embed : ''),
-                iframe_embed: adminChan.iframe_embed || null,
+                url: finalStream || (finalIframe ? finalIframe : ''),
+                iframe_embed: finalIframe || null,
                 is_working: adminChan.status === 'working',
                 resolution: '1080p'
               }

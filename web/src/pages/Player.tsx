@@ -21,7 +21,8 @@ const Player = () => {
   const channelName = searchParams.get("name") || "Unknown Channel";
   const channelId = searchParams.get("channelId") || "";
   const rawChannelUrl = searchParams.get("url") || "";
-  const channelUrl = toPasswordlessStreamUrl(rawChannelUrl);
+  const extractedSrc = rawChannelUrl.match(/src=["']([^"']+)["']/i)?.[1] || rawChannelUrl;
+  const channelUrl = toPasswordlessStreamUrl(extractedSrc.trim());
   const queryAlternateUrls = useMemo(() => {
     try {
       const parsed = JSON.parse(searchParams.get("urls") || "[]");
@@ -50,10 +51,12 @@ const Player = () => {
     if (!activeUrl) return false;
     return (
       activeUrl.includes("/drm/player.php") ||
+      activeUrl.includes("player.php") ||
       activeUrl.includes("touchcric") ||
       activeUrl.includes("sportzf") ||
       activeUrl.includes("/embed/") ||
-      activeUrl.includes("kpores.ru")
+      activeUrl.includes("kpores.ru") ||
+      activeUrl.startsWith("<iframe")
     );
   }, [activeUrl, searchParams]);
 

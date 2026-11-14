@@ -240,7 +240,7 @@ const Dashboard = () => {
     }
 
     if (selectedCategory !== "All") {
-      filtered = filtered.filter((ch) => ch.group === selectedCategory);
+      filtered = filtered.filter((ch) => (ch.group || '').toLowerCase() === selectedCategory.toLowerCase());
     }
 
     if (searchQuery.trim()) {

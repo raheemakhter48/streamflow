@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { adminAPI } from "@/lib/api";
+import { adminAPI, iptvAPI } from "@/lib/api";
 import { getCountryDisplayName } from "@/lib/dashboardUtils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,8 @@ function ChannelsTab() {
   const [statusFilter, setStatus]   = useState("all");
   const [countries, setCountries]   = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [regions, setRegions]       = useState<any[]>([]);
+  const [formRegion, setFormRegion] = useState<string>("All");
   const [form, setForm]             = useState<any>(EMPTY_CHANNEL);
   const [editingId, setEditingId]   = useState<string | undefined>();
   const [showForm, setShowForm]     = useState(false);
@@ -42,10 +44,19 @@ function ChannelsTab() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [countries]);
 
+  const availableCountriesForForm = useMemo(() => {
+    if (!formRegion || formRegion === "All") {
+      return formattedCountries;
+    }
+    const reg = regions.find((r) => r.code === formRegion);
+    const allowedCodes = new Set((reg?.countries || []).map((c: string) => c.toUpperCase()));
+    return formattedCountries.filter((c) => allowedCodes.has(c.code.toUpperCase()));
+  }, [formRegion, regions, formattedCountries]);
+
   const load = async () => {
     setBusy(true);
     try {
-      const [ch, fi] = await Promise.all([
+      const [ch, fi, regRes] = await Promise.all([
         adminAPI.getChannels({
           page,
           limit: 50,
@@ -53,12 +64,16 @@ function ChannelsTab() {
           status: statusFilter === "all" ? undefined : statusFilter,
         }),
         adminAPI.getFilters(),
+        iptvAPI.getRegions().catch(() => ({ data: [] })),
       ]);
       setChannels(ch.data || []);
       setTotal(ch.total || 0);
       const f = fi.data || [];
       setCountries(f.filter((x: any) => x.type === "country"));
       setCategories(f.filter((x: any) => x.type === "category"));
+      if (regRes?.data) {
+        setRegions(regRes.data);
+      }
     } catch (e: any) {
       toast.error(e.message || "Failed to load channels");
     } finally {
@@ -71,12 +86,41 @@ function ChannelsTab() {
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
+  const handleFormRegionChange = (newRegion: string) => {
+    setFormRegion(newRegion);
+    if (newRegion !== "All") {
+      const reg = regions.find((r) => r.code === newRegion);
+      const allowedCodes = new Set((reg?.countries || []).map((c: string) => c.toUpperCase()));
+      if (form.country && !allowedCodes.has(form.country.toUpperCase())) {
+        set("country", "");
+      }
+    }
+  };
+
   const save = async () => {
     if (!form.name.trim()) return toast.error("Channel name is required");
     if (form.isManualOverride && !form.streamUrl && !form.iframeEmbed)
       return toast.error("Manual override requires a stream URL or iframe embed");
+
+    let sUrl = (form.streamUrl || "").trim();
+    let iEmbed = (form.iframeEmbed || "").trim();
+
+    // Auto-detect iframe pasted in stream URL
+    if (sUrl.includes("<iframe")) {
+      if (!iEmbed) iEmbed = sUrl;
+      const match = sUrl.match(/src=["']([^"']+)["']/i);
+      if (match && match[1]) {
+        sUrl = match[1].replace(/&amp;/g, "&");
+      }
+    }
+
     try {
-      await adminAPI.saveChannel(form, editingId);
+      await adminAPI.saveChannel({
+        ...form,
+        streamUrl: sUrl,
+        iframeEmbed: iEmbed,
+        country: form.country ? form.country.toUpperCase() : "",
+      }, editingId);
       toast.success(editingId ? "Channel updated" : "Channel created");
       setForm(EMPTY_CHANNEL);
       setEditingId(undefined);
@@ -89,13 +133,25 @@ function ChannelsTab() {
 
   const edit = (ch: any) => {
     setEditingId(ch.id);
-    const rawCountry = (ch.country || "").trim();
+    const rawCountry = (ch.country || "").trim().toUpperCase();
     const matched = formattedCountries.find(
       (c) => c.code.toLowerCase() === rawCountry.toLowerCase() || c.name.toLowerCase() === rawCountry.toLowerCase()
     );
+    const countryCode = matched ? matched.code : rawCountry;
+
+    // Detect region for this country
+    let detectedRegion = "All";
+    if (countryCode && regions.length > 0) {
+      const foundReg = regions.find((r) => Array.isArray(r.countries) && r.countries.some((c: string) => c.toUpperCase() === countryCode));
+      if (foundReg) {
+        detectedRegion = foundReg.code;
+      }
+    }
+    setFormRegion(detectedRegion);
+
     setForm({
       name: ch.name || "", slug: ch.slug || "", logoUrl: ch.logo_url || "",
-      country: matched ? matched.code : rawCountry, category: ch.category || "",
+      country: countryCode, category: ch.category || "",
       streamUrl: ch.stream_url || "", iframeEmbed: ch.iframe_embed || "",
       status: ch.status || "working",
       isManualOverride: ch.source_type === "iptv" ? false : (ch.is_manual_override ?? true),
@@ -185,7 +241,7 @@ function ChannelsTab() {
           <Activity className="mr-2 h-4 w-4" />
           Health Check
         </Button>
-        <Button onClick={() => { setForm(EMPTY_CHANNEL); setEditingId(undefined); setShowForm(true); }}>
+        <Button onClick={() => { setForm(EMPTY_CHANNEL); setFormRegion("All"); setEditingId(undefined); setShowForm(true); }}>
           <Plus className="mr-2 h-4 w-4" />
           Add Channel
         </Button>
@@ -290,34 +346,66 @@ function ChannelsTab() {
             <Input placeholder="Slug (auto if empty)" value={form.slug} onChange={e => set("slug", e.target.value)} />
             <Input placeholder="Logo / thumbnail URL" value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)} />
 
-            <div className="grid grid-cols-2 gap-2">
-              <Select
-                value={
-                  formattedCountries.find(
-                    (c) =>
-                      c.code.toLowerCase() === (form.country || "").toLowerCase() ||
-                      c.name.toLowerCase() === (form.country || "").toLowerCase()
-                  )?.code || (form.country ? form.country : "none")
-                }
-                onValueChange={v => set("country", v === "none" ? "" : v)}
-              >
-                <SelectTrigger><SelectValue placeholder="Country" /></SelectTrigger>
-                <SelectContent className="max-h-72">
-                  <SelectItem value="none">None</SelectItem>
-                  {formattedCountries.map(c => (
-                    <SelectItem key={c.id || c.code} value={c.code}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={form.category || "none"} onValueChange={v => set("category", v === "none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {categories.map(c => <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Region</label>
+                <Select value={formRegion} onValueChange={handleFormRegionChange}>
+                  <SelectTrigger className="w-full bg-[#161B22] border-white/10 text-xs">
+                    <SelectValue placeholder="Region" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72 bg-[#161B22] border-white/10 text-white">
+                    <SelectItem value="All">Global 🌐</SelectItem>
+                    {regions.map((r) => (
+                      <SelectItem key={r.code} value={r.code}>
+                        {r.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Country</label>
+                <Select
+                  value={
+                    availableCountriesForForm.find(
+                      (c) =>
+                        c.code.toLowerCase() === (form.country || "").toLowerCase() ||
+                        c.name.toLowerCase() === (form.country || "").toLowerCase()
+                    )?.code || (form.country ? form.country : "none")
+                  }
+                  onValueChange={(v) => set("country", v === "none" ? "" : v)}
+                >
+                  <SelectTrigger className="w-full bg-[#161B22] border-white/10 text-xs">
+                    <SelectValue placeholder="Country" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72 bg-[#161B22] border-white/10 text-white">
+                    <SelectItem value="none">None / Any</SelectItem>
+                    {availableCountriesForForm.map((c) => (
+                      <SelectItem key={c.id || c.code} value={c.code}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground mb-1 block">Category</label>
+                <Select value={form.category || "none"} onValueChange={(v) => set("category", v === "none" ? "" : v)}>
+                  <SelectTrigger className="w-full bg-[#161B22] border-white/10 text-xs">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72 bg-[#161B22] border-white/10 text-white">
+                    <SelectItem value="none">None / Any</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id || c.value} value={c.value}>
+                        {c.label || c.value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <StreamSourceEditor
@@ -397,16 +485,22 @@ function ChannelsTab() {
                 {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                 {editingId ? "Save Changes" : "Create Channel"}
               </Button>
-              {form.streamUrl && (
+              {(form.streamUrl || form.iframeEmbed) && (
                 <Button
                   type="button"
                   variant="secondary"
                   className="h-10 text-xs gap-1.5"
                   onClick={() => {
+                    const rawEmbed = (form.iframeEmbed || "").trim();
+                    const extracted = rawEmbed.match(/src=["']([^"']+)["']/i)?.[1] || rawEmbed;
+                    const testUrl = extracted || form.streamUrl;
                     const params = new URLSearchParams({
                       name: form.name || "Test Stream",
-                      url: form.streamUrl,
+                      url: testUrl,
                     });
+                    if (rawEmbed) {
+                      params.set("type", "embed");
+                    }
                     window.open(`/player?${params.toString()}`, "_blank");
                   }}
                   title="Test stream in new tab"
