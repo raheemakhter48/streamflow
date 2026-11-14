@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { adminAPI } from "@/lib/api";
+import { getCountryDisplayName } from "@/lib/dashboardUtils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,21 @@ function ChannelsTab() {
   const [editingId, setEditingId]   = useState<string | undefined>();
   const [showForm, setShowForm]     = useState(false);
   const [busy, setBusy]             = useState(false);
+
+  const formattedCountries = useMemo(() => {
+    return countries
+      .map((c: any) => {
+        const rawCode = String(c.value || c.label || "").trim().toUpperCase();
+        const fullName = getCountryDisplayName(rawCode);
+        return {
+          id: c.id,
+          code: rawCode,
+          name: fullName || rawCode,
+          label: fullName && fullName !== rawCode ? `${fullName} (${rawCode})` : rawCode
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [countries]);
 
   const load = async () => {
     setBusy(true);
@@ -73,9 +89,13 @@ function ChannelsTab() {
 
   const edit = (ch: any) => {
     setEditingId(ch.id);
+    const rawCountry = (ch.country || "").trim();
+    const matched = formattedCountries.find(
+      (c) => c.code.toLowerCase() === rawCountry.toLowerCase() || c.name.toLowerCase() === rawCountry.toLowerCase()
+    );
     setForm({
       name: ch.name || "", slug: ch.slug || "", logoUrl: ch.logo_url || "",
-      country: ch.country || "", category: ch.category || "",
+      country: matched ? matched.code : rawCountry, category: ch.category || "",
       streamUrl: ch.stream_url || "", iframeEmbed: ch.iframe_embed || "",
       status: ch.status || "working",
       isManualOverride: ch.source_type === "iptv" ? false : (ch.is_manual_override ?? true),
@@ -271,11 +291,24 @@ function ChannelsTab() {
             <Input placeholder="Logo / thumbnail URL" value={form.logoUrl} onChange={e => set("logoUrl", e.target.value)} />
 
             <div className="grid grid-cols-2 gap-2">
-              <Select value={form.country || "none"} onValueChange={v => set("country", v === "none" ? "" : v)}>
+              <Select
+                value={
+                  formattedCountries.find(
+                    (c) =>
+                      c.code.toLowerCase() === (form.country || "").toLowerCase() ||
+                      c.name.toLowerCase() === (form.country || "").toLowerCase()
+                  )?.code || (form.country ? form.country : "none")
+                }
+                onValueChange={v => set("country", v === "none" ? "" : v)}
+              >
                 <SelectTrigger><SelectValue placeholder="Country" /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-72">
                   <SelectItem value="none">None</SelectItem>
-                  {countries.map(c => <SelectItem key={c.id} value={c.value}>{c.label}</SelectItem>)}
+                  {formattedCountries.map(c => (
+                    <SelectItem key={c.id || c.code} value={c.code}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={form.category || "none"} onValueChange={v => set("category", v === "none" ? "" : v)}>
