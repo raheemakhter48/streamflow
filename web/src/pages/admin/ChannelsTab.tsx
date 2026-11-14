@@ -498,13 +498,27 @@ function ChannelsTab() {
                   className="h-10 text-xs gap-1.5"
                   onClick={() => {
                     const rawEmbed = (form.iframeEmbed || "").trim();
-                    const extracted = rawEmbed.match(/src=["']([^"']+)["']/i)?.[1] || rawEmbed;
-                    const testUrl = extracted || form.streamUrl;
+                    const rawStream = (form.streamUrl || "").trim();
+                    let testUrl = rawStream;
+                    let isEmbed = false;
+
+                    const target = rawEmbed || rawStream;
+                    if (target.includes("<iframe") || target.includes("src=")) {
+                      isEmbed = true;
+                      const match = target.match(/src=["']?([^"'\s>]+)/i);
+                      if (match && match[1]) {
+                        testUrl = match[1].replace(/&amp;/g, "&");
+                      }
+                    } else if (rawEmbed || target.includes("player.php") || target.includes("touchcric")) {
+                      isEmbed = true;
+                      testUrl = rawEmbed || rawStream;
+                    }
+
                     const params = new URLSearchParams({
                       name: form.name || "Test Stream",
                       url: testUrl,
                     });
-                    if (rawEmbed) {
+                    if (isEmbed) {
                       params.set("type", "embed");
                     }
                     window.open(`/player?${params.toString()}`, "_blank");

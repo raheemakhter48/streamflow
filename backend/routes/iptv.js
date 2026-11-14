@@ -762,9 +762,10 @@ router.get('/channels', async (req, res) => {
             const rawIframe = ch.iframe_embed || '';
             let finalStream = rawStream;
             let finalIframe = rawIframe;
-            if (rawStream.includes('<iframe')) {
-              finalIframe = rawStream;
-              const match = rawStream.match(/src=["']([^"']+)["']/i);
+            if (rawStream.includes('<iframe') || rawIframe.includes('<iframe')) {
+              const targetStr = rawStream.includes('<iframe') ? rawStream : rawIframe;
+              finalIframe = targetStr;
+              const match = targetStr.match(/src=["']?([^"'\s>]+)/i);
               if (match && match[1]) {
                 finalStream = match[1].replace(/&amp;/g, '&');
               }
@@ -935,9 +936,10 @@ router.get('/channel/:id', async (req, res) => {
         const rawIframe = adminChan.iframe_embed || '';
         let finalStream = rawStream;
         let finalIframe = rawIframe;
-        if (rawStream.includes('<iframe')) {
-          finalIframe = rawStream;
-          const match = rawStream.match(/src=["']([^"']+)["']/i);
+        if (rawStream.includes('<iframe') || rawIframe.includes('<iframe')) {
+          const targetStr = rawStream.includes('<iframe') ? rawStream : rawIframe;
+          finalIframe = targetStr;
+          const match = targetStr.match(/src=["']?([^"'\s>]+)/i);
           if (match && match[1]) {
             finalStream = match[1].replace(/&amp;/g, '&');
           }

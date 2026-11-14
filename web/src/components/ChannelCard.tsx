@@ -58,13 +58,28 @@ const ChannelCard = ({
       return;
     }
 
-    const safeUrl = toPasswordlessStreamUrl(channel.url);
+    let targetUrl = channel.url || "";
+    let isEmbed = false;
+    if (targetUrl.includes("<iframe") || targetUrl.includes("src=")) {
+      isEmbed = true;
+      const match = targetUrl.match(/src=["']?([^"'\s>]+)/i);
+      if (match && match[1]) {
+        targetUrl = match[1].replace(/&amp;/g, "&");
+      }
+    } else if (targetUrl.includes("player.php") || targetUrl.includes("touchcric") || targetUrl.includes("/embed/")) {
+      isEmbed = true;
+    }
+
+    const safeUrl = toPasswordlessStreamUrl(targetUrl);
     const safeAlternateUrls = (channel.alternateUrls || []).map(toPasswordlessStreamUrl);
     const params = new URLSearchParams({
       name: channel.name,
       url: safeUrl,
       category: channel.group || "",
     });
+    if (isEmbed) {
+      params.append("type", "embed");
+    }
     if (channel.id) {
       params.append("channelId", channel.id);
     }

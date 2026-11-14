@@ -21,8 +21,29 @@ const Player = () => {
   const channelName = searchParams.get("name") || "Unknown Channel";
   const channelId = searchParams.get("channelId") || "";
   const rawChannelUrl = searchParams.get("url") || "";
-  const extractedSrc = rawChannelUrl.match(/src=["']([^"']+)["']/i)?.[1] || rawChannelUrl;
-  const channelUrl = toPasswordlessStreamUrl(extractedSrc.trim());
+
+  // Robust URL extraction: handles raw iframe HTML, truncated query strings, unclosed quotes
+  const extractedSrc = useMemo(() => {
+    if (!rawChannelUrl) return "";
+    let clean = rawChannelUrl.trim();
+    if (clean.includes("<iframe") || clean.includes("src=") || clean.startsWith("<")) {
+      const fullHref = typeof window !== "undefined" ? decodeURIComponent(window.location.href) : "";
+      const srcMatch = clean.match(/src=["']?([^"'\s>]+)/i) || fullHref.match(/src=["']?([^"'\s>]+)/i);
+      if (srcMatch && srcMatch[1]) {
+        let url = srcMatch[1].replace(/&amp;/g, "&");
+        const sigMatch = fullHref.match(/[&?]sig=([a-f0-9]+)/i);
+        if (sigMatch && !url.includes("sig=")) {
+          url += (url.includes("?") ? "&" : "?") + "sig=" + sigMatch[1];
+        }
+        return url;
+      }
+      const directHttp = clean.match(/https?:\/\/[^\s"'<>]+/i) || fullHref.match(/https?:\/\/[^\s"'<>]+/i);
+      if (directHttp) return directHttp[0].replace(/&amp;/g, "&");
+    }
+    return clean;
+  }, [rawChannelUrl]);
+
+  const channelUrl = toPasswordlessStreamUrl(extractedSrc);
   const queryAlternateUrls = useMemo(() => {
     try {
       const parsed = JSON.parse(searchParams.get("urls") || "[]");
@@ -354,6 +375,7 @@ ${activeUrl}`;
                   className="w-full h-full min-h-[280px] sm:min-h-[460px] rounded-3xl border-0 bg-black"
                   allow="encrypted-media; autoplay; fullscreen; picture-in-picture"
                   allowFullScreen
+                  referrerPolicy="no-referrer"
                 />
               ) : (
                 <HLSPlayer url={activeUrl} urls={alternateUrls} onPlaybackError={handlePlaybackError} />
