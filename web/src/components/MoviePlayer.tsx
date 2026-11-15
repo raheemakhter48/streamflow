@@ -162,9 +162,10 @@ const MoviePlayer = ({
         <iframe
           key={`${iframeKey}-${restrictPopups}`}
           src={embedUrl}
-          // Keep scripts/media functional, but do not grant popup, download,
-          // or top-navigation permissions to ScreenScape or its nested frames.
-          sandbox={restrictPopups ? 'allow-scripts allow-same-origin allow-forms allow-presentation' : undefined}
+          // Allow scripts, forms, presentation, and popup escape so Cloudflare Turnstile
+          // does not crash in Chrome, while withholding allow-top-navigation so the
+          // parent StreamFlow application cannot be hijacked or redirected by ads.
+          sandbox={restrictPopups ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox' : undefined}
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"

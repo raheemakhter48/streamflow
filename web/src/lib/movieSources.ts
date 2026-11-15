@@ -1,24 +1,7 @@
 export const SOURCES = [
   {
-    id: "screenscape",
-    label: "ScreenScape",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
-      const params = new URLSearchParams();
-      if (tmdbId) params.set("tmdb", String(tmdbId));
-      else if (imdbId) params.set("imdb", imdbId);
-      params.set("type", type);
-      if (type === "tv") {
-        params.set("s", String(season));
-        params.set("e", String(episode));
-      }
-      // This is a language preference, not proof of an available audio track.
-      params.set("lan", hindi ? "hindi" : "eng");
-      return `https://screenscape.me/embed?${params.toString()}`;
-    },
-  },
-  {
     id: "vidlink",
-    label: "VidLink",
+    label: "VidLink (Fast HD)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
       if (type === "tv") {
         return `https://vidlink.pro/tv/${tmdbId || imdbId}/${season}/${episode}`;
@@ -27,33 +10,43 @@ export const SOURCES = [
     },
   },
   {
-    id: "smashy",
-    label: "SmashyStream (Hindi)",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId}&season=${season}&episode=${episode}`;
-      }
-      return `https://embed.smashystream.com/playere.php?tmdb=${tmdbId || imdbId}`;
-    },
-  },
-  {
-    id: "moviesapi",
-    label: "MoviesAPI",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://moviesapi.club/tv/${tmdbId}-${season}-${episode}`;
-      }
-      return `https://moviesapi.club/movie/${tmdbId || imdbId}`;
-    },
-  },
-  {
     id: "autoembed",
     label: "AutoEmbed",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
       if (type === "tv") {
-        return `https://autoembed.co/tv/tmdb/${tmdbId}-${season}-${episode}`;
+        return `https://autoembed.me/tv/tmdb/${tmdbId}-${season}-${episode}`;
       }
-      return tmdbId ? `https://autoembed.co/movie/tmdb/${tmdbId}` : `https://autoembed.co/movie/imdb/${imdbId}`;
+      return tmdbId ? `https://autoembed.me/movie/tmdb/${tmdbId}` : `https://autoembed.me/movie/imdb/${imdbId}`;
+    },
+  },
+  {
+    id: "vidsrc",
+    label: "VidSrc",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://vidsrc.to/embed/tv/${tmdbId || imdbId}/${season}/${episode}`;
+      }
+      return `https://vidsrc.to/embed/movie/${tmdbId || imdbId}`;
+    },
+  },
+  {
+    id: "smashy",
+    label: "Smashy / AnyEmbed (Multi-Audio)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://anyembed.xyz/embed/tmdb-tv-${tmdbId}/${season}/${episode}`;
+      }
+      return `https://anyembed.xyz/embed/tmdb-movie-${tmdbId || imdbId}`;
+    },
+  },
+  {
+    id: "multiembed",
+    label: "MultiEmbed",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://multiembed.mov/?video_id=${tmdbId || imdbId}&tmdb=1&s=${season}&e=${episode}`;
+      }
+      return `https://multiembed.mov/?video_id=${tmdbId || imdbId}&tmdb=1`;
     },
   },
   {
@@ -67,13 +60,19 @@ export const SOURCES = [
     },
   },
   {
-    id: "videasy",
-    label: "Videasy",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+    id: "screenscape",
+    label: "ScreenScape",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
+      const params = new URLSearchParams();
+      if (tmdbId) params.set("tmdb", String(tmdbId));
+      else if (imdbId) params.set("imdb", imdbId);
+      params.set("type", type);
       if (type === "tv") {
-        return `https://player.videasy.net/tv/${tmdbId}/${season}/${episode}`;
+        params.set("s", String(season));
+        params.set("e", String(episode));
       }
-      return tmdbId ? `https://player.videasy.net/movie/${tmdbId}` : `https://player.videasy.net/movie/${imdbId}`;
+      params.set("lan", hindi ? "hindi" : "eng");
+      return `https://screenscape.me/embed?${params.toString()}`;
     },
   },
 ] as const;
