@@ -28,17 +28,19 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.ORACLE_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Oracle
+      - name: Deploy Frontend to Oracle
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "
-            set -e &&
-            cd ~/streamflow &&
-            git fetch origin main &&
-            git reset --hard origin/main &&
-            cd web &&
-            npm install &&
-            npm run build &&
-            sudo mkdir -p /var/www/streamhub &&
-            sudo cp -r dist/* /var/www/streamhub/ &&
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} 'bash -l -c "
+            set -e
+            export NVM_DIR=\"\$HOME/.nvm\"
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && \. \"\$NVM_DIR/nvm.sh\"
+            cd ~/streamflow
+            git fetch origin main
+            git reset --hard origin/main
+            cd web
+            npm install
+            npm run build
+            sudo mkdir -p /var/www/streamhub
+            sudo cp -r dist/* /var/www/streamhub/
             sudo systemctl reload nginx
-          "
+          "'
