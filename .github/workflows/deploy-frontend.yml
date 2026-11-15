@@ -1,4 +1,4 @@
-name: Deploy Frontend to Vercel
+name: Deploy Frontend to Oracle Cloud
 
 on:
   push:
@@ -6,24 +6,39 @@ on:
       - main
     paths:
       - 'web/**'
+      - '.github/workflows/deploy-frontend.yml'
   workflow_dispatch:
+
+concurrency:
+  group: streamflow-frontend-oracle
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Setup SSH key
+        env:
+          SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.ORACLE_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Deploy to Vercel
-        run: vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
-        working-directory: ./web
+      - name: Deploy to Oracle
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "
+            set -e &&
+            cd ~/streamflow &&
+            git fetch origin main &&
+            git reset --hard origin/main &&
+            cd web &&
+            npm install &&
+            npm run build &&
+            sudo mkdir -p /var/www/streamhub &&
+            sudo cp -r dist/* /var/www/streamhub/ &&
+            sudo systemctl reload nginx
+          "
