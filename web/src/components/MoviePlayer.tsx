@@ -80,13 +80,7 @@ const MoviePlayer = ({
   const isHindi = !!verifiedHindiUrl;
 
   const embedUrl = (() => {
-    return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
-  })();
-  const restrictPopups = (() => {
-    try {
-      const url = new URL(embedUrl);
-      return url.protocol === 'https:' && ['screenscape.me', 'flix.screenscape.me', 'embed.screenscape.me'].includes(url.hostname);
-    } catch { return false; }
+    return currentSource.buildUrl(imdbId, tmdbId, type, season, episode);
   })();
 
   const handleSourceChange = (id: SourceId) => {
@@ -160,12 +154,8 @@ const MoviePlayer = ({
 
       <div className={`relative w-full ${isExpanded ? 'min-h-0 flex-1' : 'aspect-video'}`}>
         <iframe
-          key={`${iframeKey}-${restrictPopups}`}
+          key={iframeKey}
           src={embedUrl}
-          // Allow scripts, forms, presentation, and popup escape so Cloudflare Turnstile
-          // does not crash in Chrome, while withholding allow-top-navigation so the
-          // parent StreamFlow application cannot be hijacked or redirected by ads.
-          sandbox={restrictPopups ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox' : undefined}
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
@@ -173,7 +163,6 @@ const MoviePlayer = ({
           scrolling="no"
           referrerPolicy="origin"
         />
-
       </div>
 
       <p className="shrink-0 px-4 py-2 text-[10px] text-white/40 flex items-center justify-between">

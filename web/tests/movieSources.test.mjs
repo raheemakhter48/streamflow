@@ -8,33 +8,26 @@ const { outputText } = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 }
 });
 const { SOURCES, DEFAULT_MOVIE_SOURCE } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString('base64')}`);
-const provider = SOURCES.find((item) => item.id === '2embed');
+const vidsrcStream = SOURCES.find((item) => item.id === 'vidsrc_stream');
+const autoEmbed = SOURCES.find((item) => item.id === 'autoembed');
+const twoEmbed = SOURCES.find((item) => item.id === '2embed');
 
-test('2Embed receives a TMDB or IMDb movie ID in its documented path', () => {
-  assert.equal(provider.buildUrl('tt0172495', 98), 'https://www.2embed.cc/embed/98');
-  assert.equal(provider.buildUrl('tt0172495'), 'https://www.2embed.cc/embed/tt0172495');
+test('VidSrc Stream builds proper movie and tv urls', () => {
+  assert.equal(vidsrcStream.buildUrl('tt0172495', 98), 'https://vidsrc.stream/embed/movie/98');
+  assert.equal(vidsrcStream.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://vidsrc.stream/embed/tv/1399/2/3');
 });
 
-test('2Embed receives TV ID, season and episode using its embedtv route', () => {
-  assert.equal(provider.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://www.2embed.cc/embedtv/1399&s=2&e=3');
-  assert.equal(provider.buildUrl('tt0944947', undefined, 'tv', 1, 1), 'https://www.2embed.cc/embedtv/tt0944947&s=1&e=1');
+test('AutoEmbed builds proper movie and tv urls', () => {
+  assert.equal(autoEmbed.buildUrl('tt0172495', 98), 'https://autoembed.to/movie/tmdb/98');
+  assert.equal(autoEmbed.buildUrl(undefined, 1399, 'tv', 1, 1), 'https://autoembed.to/tv/tmdb/1399-1-1');
 });
 
-test('default source points to the corrected provider and all tabs remain available', () => {
-  assert.equal(DEFAULT_MOVIE_SOURCE, 'vidlink');
-  assert.deepEqual(SOURCES.map((item) => item.id), ['screenscape', 'vidlink', 'smashy', 'moviesapi', 'autoembed', '2embed', 'videasy']);
+test('2Embed builds proper movie and tv urls', () => {
+  assert.equal(twoEmbed.buildUrl('tt0172495', 98), 'https://2embed.skin/embed/movie?tmdb=98');
+  assert.equal(twoEmbed.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://2embed.skin/embed/tv?tmdb=1399&s=2&e=3');
 });
 
-test('VidLink builds proper movie and tv urls', () => {
-  const vl = SOURCES.find((item) => item.id === 'vidlink');
-  assert.equal(vl.buildUrl('tt0172495', 98), 'https://vidlink.pro/movie/98');
-  assert.equal(vl.buildUrl('tt0944947', 1399, 'tv', 1, 2), 'https://vidlink.pro/tv/1399/1/2');
-});
-
-test('ScreenScape preserves movie identity and requests Hindi audio', () => {
-  const source = SOURCES.find((item) => item.id === 'screenscape');
-  assert.equal(source.buildUrl(undefined, 98, 'movie', 1, 1, true), 'https://screenscape.me/embed?tmdb=98&type=movie&lan=hindi');
-  assert.equal(source.buildUrl('tt0172495', undefined, 'movie', 1, 1, true), 'https://screenscape.me/embed?imdb=tt0172495&type=movie&lan=hindi');
-  assert.equal(source.buildUrl(undefined, 1399, 'tv', 2, 3, true), 'https://screenscape.me/embed?tmdb=1399&type=tv&s=2&e=3&lan=hindi');
-  assert.equal(new URL(source.buildUrl(undefined, 98)).searchParams.get('lan'), 'eng');
+test('default source points to verified provider and all working servers are present', () => {
+  assert.equal(DEFAULT_MOVIE_SOURCE, 'vidsrc_stream');
+  assert.deepEqual(SOURCES.map((item) => item.id), ['vidsrc_stream', 'vidsrc_me', 'autoembed', '2embed', 'multiembed', 'vidjoy']);
 });

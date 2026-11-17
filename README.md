@@ -53,9 +53,7 @@ Agar user ke paas apna private IPTV subscription hai:
 
 ---
 
-### 6. ⭐ Personalization & Watch History
-- **Favorites (Star ⭐):** Kisi bhi channel par star click karne se wo "Favorites" tab mein save ho jata hai.
-- **Continue Watching:** Jo channels ya movies user ne aadhi dekhi hon, wo home page par "Continue Watching" row mein aati hain taake waheen se dobara play kiya ja sake.
+## 🛠️ Local Development Setup
 
 ---
 
