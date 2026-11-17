@@ -83,6 +83,13 @@ const MoviePlayer = ({
     return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
   })();
 
+  const restrictPopups = (() => {
+    try {
+      const url = new URL(embedUrl);
+      return url.protocol === 'https:' && ['screenscape.me', 'flix.screenscape.me', 'embed.screenscape.me'].includes(url.hostname);
+    } catch { return false; }
+  })();
+
   const handleSourceChange = (id: SourceId) => {
     if (id === activeSource) return;
     setActiveSource(id);
@@ -154,8 +161,9 @@ const MoviePlayer = ({
 
       <div className={`relative w-full ${isExpanded ? 'min-h-0 flex-1' : 'aspect-video'}`}>
         <iframe
-          key={iframeKey}
+          key={`${iframeKey}-${restrictPopups}`}
           src={embedUrl}
+          sandbox={restrictPopups ? 'allow-scripts allow-same-origin allow-forms allow-presentation allow-popups allow-popups-to-escape-sandbox' : undefined}
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
