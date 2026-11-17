@@ -80,7 +80,7 @@ const MoviePlayer = ({
   const isHindi = !!verifiedHindiUrl;
 
   const embedUrl = (() => {
-    return currentSource.buildUrl(imdbId, tmdbId, type, season, episode);
+    return currentSource.buildUrl(imdbId, tmdbId, type, season, episode, isHindi);
   })();
 
   const handleSourceChange = (id: SourceId) => {

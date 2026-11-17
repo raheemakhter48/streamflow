@@ -1,5 +1,21 @@
 export const SOURCES = [
   {
+    id: "screenscape",
+    label: "ScreenScape (HD / Hindi)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
+      const params = new URLSearchParams();
+      if (tmdbId) params.set("tmdb", String(tmdbId));
+      else if (imdbId) params.set("imdb", imdbId);
+      params.set("type", type);
+      if (type === "tv") {
+        params.set("s", String(season));
+        params.set("e", String(episode));
+      }
+      params.set("lan", hindi ? "hindi" : "eng");
+      return `https://screenscape.me/embed?${params.toString()}`;
+    },
+  },
+  {
     id: "vidsrc_stream",
     label: "VidSrc (Stream HD)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
@@ -68,4 +84,4 @@ export const SOURCES = [
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "vidsrc_stream";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "screenscape";
