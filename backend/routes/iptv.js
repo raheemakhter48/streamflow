@@ -469,6 +469,94 @@ const applyChannelFilters = (query, { search, category, country, countries }) =>
   return nextQuery;
 };
 
+const fetchChannelsMySQL = async ({ page, limit, search, category, country, countries }) => {
+  const offset = (page - 1) * limit;
+  const whereClauses = [];
+  const params = [];
+
+  if (search) {
+    whereClauses.push('c.name LIKE ?');
+    params.push(`%${search}%`);
+  }
+  if (category && category.toLowerCase() !== 'all') {
+    whereClauses.push('c.category = ?');
+    params.push(category);
+  }
+  if (country && country.toLowerCase() !== 'all') {
+    whereClauses.push('c.country = ?');
+    params.push(country);
+  } else if (Array.isArray(countries) && countries.length > 0) {
+    const placeholders = countries.map(() => '?').join(', ');
+    whereClauses.push(`c.country IN (${placeholders})`);
+    params.push(...countries);
+  }
+
+  const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+  // 1. Total count
+  const countSQL = `SELECT COUNT(*) as total FROM iptv_channels c ${whereSQL}`;
+  const [countRows] = await supabase.pool.execute(countSQL, params);
+  const totalChannels = countRows[0]?.total || 0;
+
+  if (totalChannels === 0) {
+    return { channels: [], totalChannels: 0 };
+  }
+
+  // 2. Paginated channels
+  const channelsSQL = `
+    SELECT c.id, c.name, c.country, c.category, c.logo_url
+    FROM iptv_channels c
+    ${whereSQL}
+    ORDER BY c.name ASC
+    LIMIT ${limit} OFFSET ${offset}
+  `;
+  const [channels] = await supabase.pool.execute(channelsSQL, params);
+
+  if (channels.length === 0) {
+    return { channels: [], totalChannels };
+  }
+
+  // 3. Streams
+  const channelIds = channels.map(c => c.id);
+  const idPlaceholders = channelIds.map(() => '?').join(', ');
+  const streamsSQL = `
+    SELECT id, channel_id, title, url, resolution, is_working
+    FROM iptv_streams
+    WHERE channel_id IN (${idPlaceholders})
+    ORDER BY is_working DESC, id ASC
+  `;
+  const [streams] = await supabase.pool.execute(streamsSQL, channelIds);
+
+  const streamMap = new Map();
+  for (const s of streams) {
+    if (!streamMap.has(s.channel_id)) {
+      streamMap.set(s.channel_id, []);
+    }
+    streamMap.get(s.channel_id).push({
+      id: s.id,
+      title: s.title,
+      url: s.url,
+      resolution: s.resolution,
+      is_working: Boolean(s.is_working)
+    });
+  }
+
+  const resultChannels = channels.map(c => {
+    const chStreams = streamMap.get(c.id) || [];
+    return {
+      id: c.id,
+      name: c.name,
+      country: c.country,
+      category: c.category,
+      logo_url: c.logo_url,
+      has_working_stream: chStreams.some(s => s.is_working),
+      iptv_streams: chStreams
+    };
+  });
+
+  return { channels: resultChannels, totalChannels };
+};
+
 const fetchChannelsFallback = async ({ page, limit, search, category, country, countries }) => {
   const from = (page - 1) * limit;
   const to = from + limit - 1;
@@ -682,21 +770,11 @@ router.get('/channels', async (req, res) => {
       }
     }
 
-    const rpcResponse = await supabase.rpc('get_iptv_channels_ranked', {
-      p_page: page,
-      p_limit: limit,
-      p_search: search || null,
-      p_category: category || null,
-      p_region_countries: country ? null : countries,
-      p_country: country || null
-    });
-
     let channels = [];
     let totalChannels = 0;
 
-    if (rpcResponse.error) {
-      console.warn('Ranked IPTV RPC failed, using direct query fallback:', rpcResponse.error.message);
-      const fallbackResponse = await fetchChannelsFallback({
+    if (supabase.isMySQL || supabase.pool) {
+      const mysqlRes = await fetchChannelsMySQL({
         page,
         limit,
         search,
@@ -704,13 +782,36 @@ router.get('/channels', async (req, res) => {
         country,
         countries
       });
-
-      channels = fallbackResponse.channels;
-      totalChannels = fallbackResponse.totalChannels;
+      channels = mysqlRes.channels;
+      totalChannels = mysqlRes.totalChannels;
     } else {
-      totalChannels = rpcResponse.data?.[0]?.total_count ? Number(rpcResponse.data[0].total_count) : 0;
-      channels = (rpcResponse.data || [])
-        .map(({ total_count, ...channel }) => normalizeRankedChannel(channel));
+      const rpcResponse = await supabase.rpc('get_iptv_channels_ranked', {
+        p_page: page,
+        p_limit: limit,
+        p_search: search || null,
+        p_category: category || null,
+        p_region_countries: country ? null : countries,
+        p_country: country || null
+      });
+
+      if (rpcResponse.error) {
+        console.warn('Ranked IPTV RPC failed, using direct query fallback:', rpcResponse.error.message);
+        const fallbackResponse = await fetchChannelsFallback({
+          page,
+          limit,
+          search,
+          category,
+          country,
+          countries
+        });
+
+        channels = fallbackResponse.channels;
+        totalChannels = fallbackResponse.totalChannels;
+      } else {
+        totalChannels = rpcResponse.data?.[0]?.total_count ? Number(rpcResponse.data[0].total_count) : 0;
+        channels = (rpcResponse.data || [])
+          .map(({ total_count, ...channel }) => normalizeRankedChannel(channel));
+      }
     }
 
     // Merge matching admin-managed channels at the top of the list (page 1)
@@ -845,27 +946,45 @@ router.get('/categories', async (req, res) => {
         : [];
     }
 
-    let query = supabase
-      .from('iptv_channels')
-      .select('category, iptv_streams!inner(url)')
-      .not('category', 'is', null)
-      .not('iptv_streams.url', 'is', null)
-      .limit(5000);
+    let categoriesList = [];
 
-    if (country) {
-      query = query.eq('country', country);
-    } else if (countries.length > 0) {
-      query = query.in('country', countries);
-    }
+    if (supabase.isMySQL || supabase.pool) {
+      const whereClauses = ["c.category IS NOT NULL AND c.category != ''"];
+      const params = [];
+      if (country) {
+        whereClauses.push('c.country = ?');
+        params.push(country);
+      } else if (countries.length > 0) {
+        whereClauses.push(`c.country IN (${countries.map(() => '?').join(', ')})`);
+        params.push(...countries);
+      }
+      const sql = `SELECT DISTINCT c.category FROM iptv_channels c WHERE ${whereClauses.join(' AND ')} ORDER BY c.category ASC`;
+      const [rows] = await supabase.pool.execute(sql, params);
+      categoriesList = rows.map((r) => r.category).filter(Boolean);
+    } else {
+      let query = supabase
+        .from('iptv_channels')
+        .select('category, iptv_streams!inner(url)')
+        .not('category', 'is', null)
+        .not('iptv_streams.url', 'is', null)
+        .limit(5000);
 
-    const { data, error } = await query;
+      if (country) {
+        query = query.eq('country', country);
+      } else if (countries.length > 0) {
+        query = query.in('country', countries);
+      }
 
-    if (error) {
-      console.error('Supabase error fetching IPTV categories:', error.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to fetch IPTV categories'
-      });
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Supabase error fetching IPTV categories:', error.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to fetch IPTV categories'
+        });
+      }
+      categoriesList = (data || []).map((row) => row.category).filter(Boolean);
     }
 
     let adminCatRows = [];
@@ -877,9 +996,8 @@ router.get('/categories', async (req, res) => {
       if (acData) adminCatRows = acData;
     } catch {}
 
-    const categories = [...new Set([...(data || []), ...adminCatRows]
-      .map((row) => row.category)
-      .filter(Boolean))]
+    const categories = [...new Set([...categoriesList, ...adminCatRows.map((r) => r.category)])]
+      .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
 
     res.set('Cache-Control', 'public, max-age=300');
@@ -910,18 +1028,40 @@ router.get('/channel/:id', async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
-      .from('iptv_channels')
-      .select(buildChannelDetailSelect())
-      .eq('id', channelId)
-      .maybeSingle();
+    let data = null;
 
-    if (error) {
-      console.error('Supabase error fetching IPTV channel:', error.message);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to fetch IPTV channel'
-      });
+    if (supabase.isMySQL || supabase.pool) {
+      const [chRows] = await supabase.pool.execute(
+        'SELECT id, name, country, category, logo_url FROM iptv_channels WHERE id = ? LIMIT 1',
+        [channelId]
+      );
+      if (chRows && chRows.length > 0) {
+        const channel = chRows[0];
+        const [streamRows] = await supabase.pool.execute(
+          'SELECT id, title, url, resolution, is_working FROM iptv_streams WHERE channel_id = ? ORDER BY is_working DESC, id ASC',
+          [channelId]
+        );
+        data = {
+          ...channel,
+          has_working_stream: streamRows.some((s) => Boolean(s.is_working)),
+          iptv_streams: streamRows.map((s) => ({ ...s, is_working: Boolean(s.is_working) }))
+        };
+      }
+    } else {
+      const { data: sbData, error } = await supabase
+        .from('iptv_channels')
+        .select(buildChannelDetailSelect())
+        .eq('id', channelId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Supabase error fetching IPTV channel:', error.message);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to fetch IPTV channel'
+        });
+      }
+      data = sbData;
     }
 
     if (!data) {

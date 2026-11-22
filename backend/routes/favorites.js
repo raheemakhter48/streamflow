@@ -12,6 +12,29 @@ const getCurrentIptvChannelsByName = async (names = []) => {
   const uniqueNames = [...new Set(names.filter(Boolean))];
   if (uniqueNames.length === 0) return new Map();
 
+  if (supabase.isMySQL || supabase.pool) {
+    try {
+      const placeholders = uniqueNames.map(() => '?').join(', ');
+      const [rows] = await supabase.pool.execute(`
+        SELECT c.id, c.name, s.url, s.is_working
+        FROM iptv_channels c
+        LEFT JOIN iptv_streams s ON s.channel_id = c.id
+        WHERE c.name IN (${placeholders})
+        ORDER BY s.is_working DESC
+      `, uniqueNames);
+      const map = new Map();
+      for (const r of rows) {
+        if (!map.has(r.name)) {
+          map.set(r.name, { id: r.id, url: r.url });
+        }
+      }
+      return map;
+    } catch (e) {
+      console.warn(`Could not refresh saved channel URLs: ${e.message}`);
+      return new Map();
+    }
+  }
+
   const { data, error } = await supabase
     .from('iptv_channels')
     .select('id, name, iptv_streams(url, is_working)')

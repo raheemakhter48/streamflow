@@ -65,6 +65,12 @@ class MySQLQueryBuilder {
     return this;
   }
 
+  upsert(data, _options = {}) {
+    this.operation = 'upsert';
+    this.insertData = Array.isArray(data) ? data : [data];
+    return this;
+  }
+
   update(data) {
     this.operation = 'update';
     this.updateData = data;
@@ -73,6 +79,23 @@ class MySQLQueryBuilder {
 
   delete() {
     this.operation = 'delete';
+    return this;
+  }
+
+  not(column, operator, value) {
+    const colName = column.includes('.') ? column.split('.').pop() : column;
+    if (operator === 'is' && value === null) {
+      this.whereClauses.push(`\`${colName}\` IS NOT NULL`);
+    } else if (operator === 'in' && Array.isArray(value)) {
+      if (value.length > 0) {
+        const placeholders = value.map(() => '?').join(', ');
+        this.whereClauses.push(`\`${colName}\` NOT IN (${placeholders})`);
+        this.params.push(...value);
+      }
+    } else if (operator === 'eq') {
+      this.whereClauses.push(`\`${colName}\` != ?`);
+      this.params.push(value);
+    }
     return this;
   }
 
@@ -245,7 +268,7 @@ class MySQLQueryBuilder {
         return { data: normalized, error: null, count: totalCount };
       }
 
-      if (this.operation === 'insert') {
+      if (this.operation === 'insert' || this.operation === 'upsert') {
         const results = [];
         for (const item of this.insertData) {
           const record = { ...item };
@@ -265,8 +288,17 @@ class MySQLQueryBuilder {
           const placeholders = cols.map(() => '?').join(', ');
           const values = Object.values(record);
 
-          const insertSQL = `INSERT INTO \`${this.table}\` (\`${cols.join('`, `')}\`) VALUES (${placeholders})`;
-          const [res] = await pool.execute(insertSQL, values);
+          let sql = `INSERT INTO \`${this.table}\` (\`${cols.join('`, `')}\`) VALUES (${placeholders})`;
+          if (this.operation === 'upsert') {
+            const updateCols = cols
+              .filter(c => c !== 'id')
+              .map(c => `\`${c}\` = VALUES(\`${c}\`)`)
+              .join(', ');
+            if (updateCols) {
+              sql += ` ON DUPLICATE KEY UPDATE ${updateCols}`;
+            }
+          }
+          const [res] = await pool.execute(sql, values);
 
           if (record.id) {
             results.push(record);
@@ -317,8 +349,10 @@ class MySQLQueryBuilder {
  */
 export const db = {
   from: (table) => new MySQLQueryBuilder(table),
+  rpc: async () => ({ data: null, error: new Error('RPC not supported on MySQL') }),
   query,
   pool,
+  isMySQL: true,
 };
 
 export default db;
