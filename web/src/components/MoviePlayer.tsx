@@ -60,6 +60,25 @@ const MoviePlayer = ({
     };
   }, [expanded]);
 
+  useEffect(() => {
+    // Focus Trap: when an iframe attempts to spawn an ad popup,
+    // immediately regain focus on the main StreamFlow window.
+    let blurTimeout: NodeJS.Timeout;
+    const onWindowBlur = () => {
+      blurTimeout = setTimeout(() => {
+        if (document.activeElement?.tagName === 'IFRAME') {
+          window.focus();
+        }
+      }, 50);
+    };
+
+    window.addEventListener('blur', onWindowBlur);
+    return () => {
+      window.removeEventListener('blur', onWindowBlur);
+      clearTimeout(blurTimeout);
+    };
+  }, []);
+
   const toggleFullscreen = async () => {
     const player = playerRef.current;
     if (!player) return;
@@ -156,6 +175,11 @@ const MoviePlayer = ({
         <iframe
           key={iframeKey}
           src={embedUrl}
+          // Smart Anti-Hijack Sandbox:
+          // Allows scripts, same-origin, forms & presentation so HLS/video players run smoothly,
+          // but strictly omits allow-top-navigation and allow-popups-to-escape-sandbox
+          // so the parent website can never be hijacked or redirected by ads.
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
