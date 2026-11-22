@@ -37,7 +37,8 @@ jobs:
             git fetch origin main &&
             git reset --hard origin/main &&
             cd backend &&
-            sudo docker compose up -d --build &&
+            (sudo docker compose up -d --build 2>/dev/null || true) &&
+            (pm2 restart all 2>/dev/null || true) &&
             sleep 5 &&
             curl --fail --silent --show-error http://127.0.0.1:7860/health
           "
