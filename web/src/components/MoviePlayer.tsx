@@ -253,11 +253,10 @@ const MoviePlayer = ({
           <iframe
             key={iframeKey}
             src={embedUrl}
-            // Smart Anti-Hijack Sandbox:
-            // Allows scripts, same-origin, forms & presentation so HLS/video players run smoothly,
-            // but strictly omits allow-top-navigation and allow-popups-to-escape-sandbox
-            // so the parent website can never be hijacked or redirected by ads.
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
+            // Strict Anti-Popup Sandbox:
+            // Omits 'allow-popups' so ad redirects (like rm358.com) are physically BLOCKED by Chrome.
+            // Omits 'allow-top-navigation' so the parent site can never be redirected.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             title={`${title} — ${currentSource.label}`}
             className="absolute inset-0 h-full w-full border-0"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"

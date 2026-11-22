@@ -84,4 +84,4 @@ export const SOURCES = [
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "screenscape";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "vidsrc_stream";
