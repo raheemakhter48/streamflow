@@ -31,14 +31,20 @@ jobs:
 
       - name: Deploy to Oracle
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "bash -l -c '
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "bash -c '
             set -e
+            export NVM_DIR=\"\$HOME/.nvm\"
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\"
+            NODE_BIN=\$(find \$HOME/.nvm/versions/node -maxdepth 2 -type d -name bin 2>/dev/null | tail -n 1)
+            export PATH=\"\$PATH:\$NODE_BIN:/usr/local/bin:/usr/bin\"
+            
             cd ~/streamflow
             git fetch origin main
             git reset --hard origin/main
             cd backend
             sudo docker compose down 2>/dev/null || true
-            pm2 restart all || true
-            sleep 3
+            
+            pm2 restart all 2>/dev/null || pm2 start server.js --name streamflow-api
+            sleep 4
             curl --fail --silent --show-error http://127.0.0.1:7860/health
           '"
