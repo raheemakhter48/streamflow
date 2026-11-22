@@ -19,15 +19,11 @@ const responseCache = createCatalogCache({
   maxEntries: Number.isFinite(CACHE_MAX_ENTRIES) && CACHE_MAX_ENTRIES > 0 ? CACHE_MAX_ENTRIES : 500
 });
 
+const TMDB_DEFAULT_KEY = '0e17a16f7362e559d9c5e01a9d561312';
+
 const getTmdbAuth = () => {
   const token = String(process.env.TMDB_API_TOKEN || '').trim();
-  const apiKey = String(process.env.TMDB_API_KEY || '').trim();
-
-  if (!token && !apiKey) {
-    const error = new Error('Movie catalog is not configured on the server');
-    error.statusCode = 503;
-    throw error;
-  }
+  const apiKey = String(process.env.TMDB_API_KEY || TMDB_DEFAULT_KEY).trim();
 
   return {
     headers: token
