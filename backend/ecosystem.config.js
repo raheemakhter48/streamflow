@@ -7,7 +7,8 @@ module.exports = {
     exec_mode: 'fork',
     env: {
       NODE_ENV: 'production',
-      PORT: 3000
+      PORT: 7860,
+      USE_MYSQL: 'true'
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',

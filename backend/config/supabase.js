@@ -4,8 +4,8 @@ import db from './db.js';
 
 dotenv.config();
 
-// When USE_MYSQL is true, route all queries to the local MySQL database pool!
-const useMySQL = process.env.USE_MYSQL === 'true' || process.env.DATABASE_TYPE === 'mysql';
+// Default to local MySQL database pool unless explicitly disabled with USE_MYSQL=false
+const useMySQL = process.env.USE_MYSQL !== 'false';
 
 let client;
 if (useMySQL) {

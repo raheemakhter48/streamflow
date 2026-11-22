@@ -44,7 +44,22 @@ jobs:
             cd backend
             sudo docker compose down 2>/dev/null || true
             
-            pm2 restart all 2>/dev/null || pm2 start server.js --name streamflow-api
-            sleep 4
+            if pm2 describe streamflow-backend >/dev/null 2>&1; then
+              pm2 restart streamflow-backend --update-env
+            elif pm2 describe streamflow-api >/dev/null 2>&1; then
+              pm2 restart streamflow-api --update-env
+            else
+              pm2 start server.js --name streamflow-backend --update-env
+            fi
+            pm2 save
+            
+            for i in {1..15}; do
+              if curl --silent --fail http://127.0.0.1:7860/health; then
+                echo "Backend is online and healthy!"
+                break
+              fi
+              echo "Waiting for backend on port 7860..."
+              sleep 2
+            done
             curl --fail --silent --show-error http://127.0.0.1:7860/health
           '"
