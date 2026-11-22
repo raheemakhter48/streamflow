@@ -57,7 +57,7 @@ app.use((req, res, next) => {
 });
 
 // Health check (Isse pata chalega server zinda hai)
-app.get('/health', (req, res) => {
+app.get(['/health', '/api/health'], (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),

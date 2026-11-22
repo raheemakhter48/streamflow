@@ -31,14 +31,14 @@ jobs:
 
       - name: Deploy to Oracle
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "
-            set -e &&
-            cd ~/streamflow &&
-            git fetch origin main &&
-            git reset --hard origin/main &&
-            cd backend &&
-            (sudo docker compose down 2>/dev/null || true) &&
-            pm2 restart all &&
-            sleep 3 &&
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "bash -l -c '
+            set -e
+            cd ~/streamflow
+            git fetch origin main
+            git reset --hard origin/main
+            cd backend
+            sudo docker compose down 2>/dev/null || true
+            pm2 restart all || true
+            sleep 3
             curl --fail --silent --show-error http://127.0.0.1:7860/health
-          "
+          '"
