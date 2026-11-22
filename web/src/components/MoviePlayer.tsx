@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Maximize2, Minimize2, RefreshCw, Mic } from "lucide-react";
+import { Play, Maximize2, Minimize2, RefreshCw, Mic, Zap, Loader2 } from "lucide-react";
 import { lockLandscape, unlockOrientation } from "@/lib/orientation";
 import { enterPlayerFullscreen, exitPlayerFullscreen, ownsPlayerFullscreen } from "@/lib/playerFullscreen";
+import HLSPlayer from "@/components/HLSPlayer";
+import { movieAPI } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Stream source definitions — supports Movie & TV Series (Seasons + Episodes)
@@ -34,6 +36,46 @@ const MoviePlayer = ({
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isExpanded = nativeFullscreen || expanded;
+
+  const [directStreamUrl, setDirectStreamUrl] = useState<string | null>(null);
+  const [useDirectHls, setUseDirectHls] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractNotice, setExtractNotice] = useState<string | null>(null);
+
+  const handleToggleDirectHls = async () => {
+    if (useDirectHls) {
+      setUseDirectHls(false);
+      return;
+    }
+    if (directStreamUrl) {
+      setUseDirectHls(true);
+      return;
+    }
+    if (!tmdbId && !imdbId) return;
+
+    setIsExtracting(true);
+    setExtractNotice(null);
+    try {
+      const res = await movieAPI.extractStream(tmdbId || imdbId!, {
+        imdbId,
+        type,
+        season,
+        episode,
+      });
+      if (res && res.direct && res.streamUrl) {
+        setDirectStreamUrl(res.streamUrl);
+        setUseDirectHls(true);
+      } else {
+        setExtractNotice("Ad-free stream not ready for this title. Using Smart Embed.");
+        setTimeout(() => setExtractNotice(null), 4000);
+      }
+    } catch {
+      setExtractNotice("Ad-free stream unavailable. Using Smart Embed.");
+      setTimeout(() => setExtractNotice(null), 4000);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -145,14 +187,39 @@ const MoviePlayer = ({
       <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-2 bg-[#1C1C1E]">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 overflow-x-auto">
           {verifiedHindiUrl ? <span className="text-sm font-bold">Hindi Dubbed</span> : <>
-            <ServerSelect active={activeSource} onChange={handleSourceChange} />
+            <ServerSelect active={activeSource} onChange={(s) => { setUseDirectHls(false); handleSourceChange(s); }} />
+            <button
+              type="button"
+              onClick={handleToggleDirectHls}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
+                useDirectHls
+                  ? "bg-gradient-to-r from-[#00CFE8] to-blue-600 text-black shadow-lg shadow-cyan-500/25 font-black"
+                  : "bg-white/10 text-white/70 hover:bg-white/15 hover:text-white border border-white/10"
+              }`}
+              title="Toggle Ad-Free Native HLS Stream"
+            >
+              {isExtracting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-[#00CFE8]" />
+              ) : (
+                <Zap className={`h-3.5 w-3.5 ${useDirectHls ? "fill-current" : ""}`} />
+              )}
+              <span>{useDirectHls ? "Ad-Free Native Active" : "⚡ Ad-Free HLS"}</span>
+            </button>
           </>}
+          {extractNotice && (
+            <span className="text-[11px] font-semibold text-amber-300 animate-pulse">
+              {extractNotice}
+            </span>
+          )}
         </div>
 
         <div className="ml-2 flex shrink-0 items-center gap-1">
         <button
           type="button"
-          onClick={handleReload}
+          onClick={() => {
+            if (useDirectHls) handleToggleDirectHls();
+            else handleReload();
+          }}
           title="Reload player"
           className="ml-2 shrink-0 rounded-full p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white"
         >
@@ -172,21 +239,33 @@ const MoviePlayer = ({
       </div>
 
       <div className={`relative w-full ${isExpanded ? 'min-h-0 flex-1' : 'aspect-video'}`}>
-        <iframe
-          key={iframeKey}
-          src={embedUrl}
-          // Smart Anti-Hijack Sandbox:
-          // Allows scripts, same-origin, forms & presentation so HLS/video players run smoothly,
-          // but strictly omits allow-top-navigation and allow-popups-to-escape-sandbox
-          // so the parent website can never be hijacked or redirected by ads.
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
-          title={`${title} — ${currentSource.label}`}
-          className="absolute inset-0 h-full w-full border-0"
-          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-          allowFullScreen
-          scrolling="no"
-          referrerPolicy="origin"
-        />
+        {useDirectHls && directStreamUrl ? (
+          <HLSPlayer
+            url={directStreamUrl}
+            onPlaybackError={() => {
+              setUseDirectHls(false);
+              setDirectStreamUrl(null);
+              setExtractNotice("Direct stream failed, switched to Smart Sandbox Embed.");
+              setTimeout(() => setExtractNotice(null), 4000);
+            }}
+          />
+        ) : (
+          <iframe
+            key={iframeKey}
+            src={embedUrl}
+            // Smart Anti-Hijack Sandbox:
+            // Allows scripts, same-origin, forms & presentation so HLS/video players run smoothly,
+            // but strictly omits allow-top-navigation and allow-popups-to-escape-sandbox
+            // so the parent website can never be hijacked or redirected by ads.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-popups"
+            title={`${title} — ${currentSource.label}`}
+            className="absolute inset-0 h-full w-full border-0"
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+            scrolling="no"
+            referrerPolicy="origin"
+          />
+        )}
       </div>
 
       <p className="shrink-0 px-4 py-2 text-[10px] text-white/40 flex items-center justify-between">

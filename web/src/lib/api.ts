@@ -411,6 +411,15 @@ export const movieAPI = {
     if (audio) searchParams.set('audio', audio);
     return catalogRequest(`/movie/${encodeURIComponent(movieId)}?${searchParams.toString()}`, refresh || !!audio);
   },
+
+  extractStream: async (movieId: string | number, params: { imdbId?: string; type?: 'movie' | 'tv'; season?: number; episode?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.imdbId) searchParams.set('imdbId', params.imdbId);
+    if (params.type) searchParams.set('type', params.type);
+    if (params.season) searchParams.set('season', String(params.season));
+    if (params.episode) searchParams.set('episode', String(params.episode));
+    return catalogRequest(`/movie/${encodeURIComponent(String(movieId))}/stream?${searchParams.toString()}`);
+  },
 };
 
 export const adminAPI = {

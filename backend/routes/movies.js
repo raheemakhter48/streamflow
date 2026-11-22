@@ -5,6 +5,7 @@ import { protect } from '../middleware/auth.js';
 import { createCatalogCache } from '../lib/catalogCache.js';
 import { createImageCache } from '../lib/imageCache.js';
 import { readHindiMovies } from '../lib/hindiCatalog.js';
+import { extractMovieStream } from '../lib/movieStreamExtractor.js';
 
 const router = express.Router();
 const imageCache = createImageCache();
@@ -401,6 +402,22 @@ router.get('/movie/:id', protect, async (req, res, next) => {
         } : emptyWatchProviders(region)
       }
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/movie/:id/stream - Direct HLS / M3U8 Stream Extractor
+router.get('/movie/:id/stream', protect, async (req, res, next) => {
+  try {
+    const tmdbId = Number.parseInt(req.params.id, 10);
+    const imdbId = req.query.imdbId ? String(req.query.imdbId).trim() : null;
+    const type = req.query.type === 'tv' ? 'tv' : 'movie';
+    const season = Math.max(1, Number.parseInt(req.query.season, 10) || 1);
+    const episode = Math.max(1, Number.parseInt(req.query.episode, 10) || 1);
+
+    const result = await extractMovieStream(tmdbId, imdbId, type, season, episode);
+    return res.json(result);
   } catch (error) {
     next(error);
   }
