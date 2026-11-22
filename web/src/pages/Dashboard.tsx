@@ -14,7 +14,6 @@ import { useSidebar } from "@/context/SidebarContext";
 import AdSlot from "@/components/AdSlot";
 import SEO from "@/components/SEO";
 import LiveSportsScoreWidget from "@/components/LiveSportsScoreWidget";
-import SmartSeoAssistant from "@/components/SmartSeoAssistant";
 
 const LiveStreamsBrowser = lazy(() => import("@/components/LiveStreamsBrowser"));
 const MovieBrowser = lazy(() => import("@/components/MovieBrowser"));
@@ -939,8 +938,6 @@ const Dashboard = () => {
       )}
 
       <BottomNav />
-      {/* Smart On-Site SEO Bot Assistant */}
-      <SmartSeoAssistant />
     </div>
   );
 };
