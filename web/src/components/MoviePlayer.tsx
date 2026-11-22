@@ -156,9 +156,6 @@ const MoviePlayer = ({
         <iframe
           key={iframeKey}
           src={embedUrl}
-          // Ad & Popup blocker sandbox: blocks window.open popups, new tabs, and page redirects
-          // while allowing video decoders, media keys, fullscreen, and playback scripts.
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           title={`${title} — ${currentSource.label}`}
           className="absolute inset-0 h-full w-full border-0"
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
