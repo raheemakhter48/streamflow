@@ -542,8 +542,14 @@ const Dashboard = () => {
   const loadRecentlyWatched = async () => {
     try {
       const list = await recentlyWatchedAPI.getRecentlyWatched();
-      setRecentlyWatched(list);
-      localStorage.setItem(RECENTLY_WATCHED_STORAGE_KEY, JSON.stringify(list));
+      const channelOnly = list.filter(
+        (item) =>
+          !item.channelUrl?.startsWith('/movie/') &&
+          !item.channelUrl?.startsWith('/series/') &&
+          item.category !== 'Movie'
+      );
+      setRecentlyWatched(channelOnly);
+      localStorage.setItem(RECENTLY_WATCHED_STORAGE_KEY, JSON.stringify(channelOnly));
     } catch (error) { console.error(error); }
   };
 

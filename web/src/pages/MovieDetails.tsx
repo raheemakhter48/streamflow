@@ -5,7 +5,7 @@ import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import MoviePlayer from "@/components/MoviePlayer";
 import SEO from "@/components/SEO";
-import { movieAPI, recentlyWatchedAPI } from "@/lib/api";
+import { movieAPI } from "@/lib/api";
 import { saveMovieHistory } from "@/lib/movieHistory";
 import { useSidebar } from "@/context/SidebarContext";
 
@@ -114,12 +114,6 @@ const MovieDetails = () => {
         if (!cancelled && requestToken === localStorage.getItem('auth_token') && response.data) {
           setMovie(response.data);
           saveRecentlyWatchedMovie(response.data, requestToken);
-          recentlyWatchedAPI.addRecentlyWatched({
-            channelName: response.data.title,
-            channelUrl: `/movie/${response.data.id}`,
-            channelLogo: response.data.poster || undefined,
-            category: "Movie",
-          }).catch(() => {});
         }
       })
       .catch((requestError) => {
