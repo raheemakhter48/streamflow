@@ -253,10 +253,6 @@ const MoviePlayer = ({
           <iframe
             key={iframeKey}
             src={embedUrl}
-            // Strict Anti-Popup Sandbox:
-            // Omits 'allow-popups' so ad redirects (like rm358.com) are physically BLOCKED by Chrome.
-            // Omits 'allow-top-navigation' so the parent site can never be redirected.
-            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
             title={`${title} — ${currentSource.label}`}
             className="absolute inset-0 h-full w-full border-0"
             allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
