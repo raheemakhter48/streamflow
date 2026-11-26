@@ -1,5 +1,27 @@
 export const SOURCES = [
   {
+    id: "vidnest",
+    label: "VidNest (Ad-Free HD)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
+      if (type === "tv") {
+        return `https://vidnest.fun/tv/${id}/${season}/${episode}`;
+      }
+      return `https://vidnest.fun/movie/${id}`;
+    },
+  },
+  {
+    id: "embedwave",
+    label: "EmbedWave (Clean)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
+      if (type === "tv") {
+        return `https://embedwave.cc/embed/tv/${id}/${season}/${episode}`;
+      }
+      return `https://embedwave.cc/embed/movie/${id}`;
+    },
+  },
+  {
     id: "screenscape",
     label: "ScreenScape (HD / Hindi)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
@@ -51,4 +73,4 @@ export const SOURCES = [
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "screenscape";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "vidnest";
