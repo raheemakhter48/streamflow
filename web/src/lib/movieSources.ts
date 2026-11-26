@@ -16,28 +16,6 @@ export const SOURCES = [
     },
   },
   {
-    id: "vidsrc_stream",
-    label: "VidSrc (Stream HD)",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      const id = tmdbId || imdbId;
-      if (type === "tv") {
-        return `https://vidsrc.stream/embed/tv/${id}/${season}/${episode}`;
-      }
-      return `https://vidsrc.stream/embed/movie/${id}`;
-    },
-  },
-  {
-    id: "vidsrc_me",
-    label: "VidSrc (Me)",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      const id = tmdbId || imdbId;
-      if (type === "tv") {
-        return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${season}&episode=${episode}`;
-      }
-      return `https://vidsrc.me/embed/movie?tmdb=${id}`;
-    },
-  },
-  {
     id: "autoembed",
     label: "AutoEmbed (Fast)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
@@ -69,19 +47,8 @@ export const SOURCES = [
       return `https://multiembed.mov/?video_id=${id}&tmdb=1`;
     },
   },
-  {
-    id: "vidjoy",
-    label: "VidJoy (HD)",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      const id = tmdbId || imdbId;
-      if (type === "tv") {
-        return `https://vidjoy.pro/embed/tv/${id}/${season}/${episode}`;
-      }
-      return `https://vidjoy.pro/embed/movie/${id}`;
-    },
-  },
 ] as const;
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "vidsrc_stream";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "screenscape";

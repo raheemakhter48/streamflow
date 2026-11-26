@@ -43,11 +43,11 @@ export async function extractMovieStream(tmdbId, imdbId = null, type = 'movie', 
     // Strategy 1: Open stream resolver endpoints
     const candidateApis = [
       type === 'tv'
-        ? `https://vidsrc.stream/embed/tv/${id}/${season}/${episode}`
-        : `https://vidsrc.stream/embed/movie/${id}`,
-      type === 'tv'
         ? `https://autoembed.to/tv/tmdb/${id}-${season}-${episode}`
         : `https://autoembed.to/movie/tmdb/${id}`,
+      type === 'tv'
+        ? `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${season}&e=${episode}&lan=eng`
+        : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=eng`,
     ];
 
     for (const endpoint of candidateApis) {
