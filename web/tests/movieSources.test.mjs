@@ -14,18 +14,18 @@ const screenscape = SOURCES.find((item) => item.id === 'screenscape');
 const autoEmbed = SOURCES.find((item) => item.id === 'autoembed');
 const twoEmbed = SOURCES.find((item) => item.id === '2embed');
 
-test('VidNest is default source and builds proper movie and tv urls', () => {
-  assert.equal(DEFAULT_MOVIE_SOURCE, 'vidnest');
-  assert.equal(vidnest.buildUrl('tt0172495', 98), 'https://vidnest.fun/movie/98');
-  assert.equal(vidnest.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://vidnest.fun/tv/1399/2/3');
-});
-
-test('EmbedWave and ScreenScape build proper movie and tv urls', () => {
-  assert.equal(embedwave.buildUrl('tt0172495', 98), 'https://embedwave.cc/embed/movie/98');
-  assert.equal(embedwave.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://embedwave.cc/embed/tv/1399/2/3');
+test('ScreenScape is default source and builds proper movie and tv urls with language support', () => {
+  assert.equal(DEFAULT_MOVIE_SOURCE, 'screenscape');
   assert.equal(screenscape.buildUrl('tt0172495', 98), 'https://screenscape.me/embed?tmdb=98&type=movie&lan=eng');
   assert.equal(screenscape.buildUrl('tt0172495', 98, 'movie', 1, 1, true), 'https://screenscape.me/embed?tmdb=98&type=movie&lan=hindi');
   assert.equal(screenscape.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://screenscape.me/embed?tmdb=1399&type=tv&s=2&e=3&lan=eng');
+});
+
+test('VidNest and EmbedWave build proper movie and tv urls', () => {
+  assert.equal(vidnest.buildUrl('tt0172495', 98), 'https://vidnest.fun/movie/98');
+  assert.equal(vidnest.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://vidnest.fun/tv/1399/2/3');
+  assert.equal(embedwave.buildUrl('tt0172495', 98), 'https://embedwave.cc/embed/movie/98');
+  assert.equal(embedwave.buildUrl(undefined, 1399, 'tv', 2, 3), 'https://embedwave.cc/embed/tv/1399/2/3');
 });
 
 test('AutoEmbed builds proper movie and tv urls', () => {
@@ -40,9 +40,9 @@ test('2Embed builds proper movie and tv urls', () => {
 
 test('all working servers are present in order', () => {
   assert.deepEqual(SOURCES.map((item) => item.id), [
+    'screenscape',
     'vidnest',
     'embedwave',
-    'screenscape',
     'autoembed',
     '2embed',
     'multiembed'
