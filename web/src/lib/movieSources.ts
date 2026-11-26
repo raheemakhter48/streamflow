@@ -1,67 +1,29 @@
 export const SOURCES = [
   {
-    id: "vidlink",
-    label: "VidLink (Fast HD)",
+    id: "vidnest",
+    label: "VidNest (Ad-Free HD)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
       if (type === "tv") {
-        return `https://vidlink.pro/tv/${tmdbId || imdbId}/${season}/${episode}`;
+        return `https://vidnest.fun/tv/${id}/${season}/${episode}`;
       }
-      return `https://vidlink.pro/movie/${tmdbId || imdbId}`;
+      return `https://vidnest.fun/movie/${id}`;
     },
   },
   {
-    id: "autoembed",
-    label: "AutoEmbed",
+    id: "embedwave",
+    label: "EmbedWave (Clean)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
       if (type === "tv") {
-        return `https://autoembed.me/tv/tmdb/${tmdbId}-${season}-${episode}`;
+        return `https://embedwave.cc/embed/tv/${id}/${season}/${episode}`;
       }
-      return tmdbId ? `https://autoembed.me/movie/tmdb/${tmdbId}` : `https://autoembed.me/movie/imdb/${imdbId}`;
-    },
-  },
-  {
-    id: "vidsrc",
-    label: "VidSrc",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://vidsrc.to/embed/tv/${tmdbId || imdbId}/${season}/${episode}`;
-      }
-      return `https://vidsrc.to/embed/movie/${tmdbId || imdbId}`;
-    },
-  },
-  {
-    id: "smashy",
-    label: "Smashy / AnyEmbed (Multi-Audio)",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://anyembed.xyz/embed/tmdb-tv-${tmdbId}/${season}/${episode}`;
-      }
-      return `https://anyembed.xyz/embed/tmdb-movie-${tmdbId || imdbId}`;
-    },
-  },
-  {
-    id: "multiembed",
-    label: "MultiEmbed",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://multiembed.mov/?video_id=${tmdbId || imdbId}&tmdb=1&s=${season}&e=${episode}`;
-      }
-      return `https://multiembed.mov/?video_id=${tmdbId || imdbId}&tmdb=1`;
-    },
-  },
-  {
-    id: "2embed",
-    label: "2Embed",
-    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
-      if (type === "tv") {
-        return `https://www.2embed.cc/embedtv/${tmdbId || imdbId}&s=${season}&e=${episode}`;
-      }
-      return tmdbId ? `https://www.2embed.cc/embed/${tmdbId}` : `https://www.2embed.cc/embed/${imdbId}`;
+      return `https://embedwave.cc/embed/movie/${id}`;
     },
   },
   {
     id: "screenscape",
-    label: "ScreenScape",
+    label: "ScreenScape (HD / Hindi)",
     buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1, hindi = false) => {
       const params = new URLSearchParams();
       if (tmdbId) params.set("tmdb", String(tmdbId));
@@ -75,8 +37,40 @@ export const SOURCES = [
       return `https://screenscape.me/embed?${params.toString()}`;
     },
   },
+  {
+    id: "autoembed",
+    label: "AutoEmbed (Fast)",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      if (type === "tv") {
+        return `https://autoembed.to/tv/tmdb/${tmdbId}-${season}-${episode}`;
+      }
+      return `https://autoembed.to/movie/tmdb/${tmdbId}`;
+    },
+  },
+  {
+    id: "2embed",
+    label: "2Embed",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
+      if (type === "tv") {
+        return `https://2embed.skin/embed/tv?tmdb=${id}&s=${season}&e=${episode}`;
+      }
+      return `https://2embed.skin/embed/movie?tmdb=${id}`;
+    },
+  },
+  {
+    id: "multiembed",
+    label: "MultiEmbed",
+    buildUrl: (imdbId?: string, tmdbId?: number, type: "movie" | "tv" = "movie", season = 1, episode = 1) => {
+      const id = tmdbId || imdbId;
+      if (type === "tv") {
+        return `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`;
+      }
+      return `https://multiembed.mov/?video_id=${id}&tmdb=1`;
+    },
+  },
 ] as const;
 
 export type SourceId = (typeof SOURCES)[number]["id"];
 
-export const DEFAULT_MOVIE_SOURCE: SourceId = "vidlink";
+export const DEFAULT_MOVIE_SOURCE: SourceId = "vidnest";
